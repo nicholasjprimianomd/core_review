@@ -28,7 +28,9 @@ class AppConfig {
   static bool get hasSupabase =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 
-  static bool get hasRemoteContent => contentBaseUrl.isNotEmpty;
+  // On web, always serve images from the same origin as the page so that
+  // the URL never goes stale across deployments.
+  static bool get hasRemoteContent => contentBaseUrl.isNotEmpty || kIsWeb;
 
   static String resolveAuthRedirectUrl() {
     if (authRedirectUrl.isNotEmpty) {
@@ -58,16 +60,22 @@ class AppConfig {
   }
 
   static String? resolveRemoteContentUrl(String relativePath) {
-    if (!hasRemoteContent) {
+    final String base;
+    if (contentBaseUrl.isNotEmpty) {
+      base = contentBaseUrl.endsWith('/')
+          ? contentBaseUrl.substring(0, contentBaseUrl.length - 1)
+          : contentBaseUrl;
+    } else if (kIsWeb) {
+      // Use the current page origin so images always load from whatever domain
+      // the app is served from, with no compile-time URL needed.
+      base = Uri.base.origin;
+    } else {
       return null;
     }
 
-    final sanitizedBase = contentBaseUrl.endsWith('/')
-        ? contentBaseUrl.substring(0, contentBaseUrl.length - 1)
-        : contentBaseUrl;
     final sanitizedPath = relativePath.startsWith('assets/')
         ? relativePath.substring('assets/'.length)
         : relativePath;
-    return '$sanitizedBase/$sanitizedPath';
+    return '$base/$sanitizedPath';
   }
 }

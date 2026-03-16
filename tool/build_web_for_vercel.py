@@ -110,22 +110,11 @@ def main() -> None:
     supabase_url = optional_env("SUPABASE_URL")
     supabase_anon_key = optional_env("SUPABASE_ANON_KEY")
     auth_redirect_url = optional_env("AUTH_REDIRECT_URL")
+    # CONTENT_BASE_URL is no longer needed — the app resolves image URLs from
+    # window.location.origin at runtime, so they never go stale across deploys.
+    # Keep reading it here in case a future env var override is useful.
     content_base_url = optional_env("CONTENT_BASE_URL")
-    if not content_base_url:
-        # VERCEL_PROJECT_PRODUCTION_URL is the stable production domain and never
-        # changes between deployments.  Fall back to the per-deployment VERCEL_URL
-        # only for preview builds where the production URL is not available.
-        production_url = os.environ.get("VERCEL_PROJECT_PRODUCTION_URL", "")
-        deployment_url = os.environ.get("VERCEL_URL", "")
-        chosen = production_url or deployment_url
-        if chosen:
-            content_base_url = f"https://{chosen}"
     flutter_exe = resolve_flutter_exe()
-
-    if not content_base_url:
-        raise RuntimeError(
-            "CONTENT_BASE_URL must be set for the web build, or run on Vercel."
-        )
 
     temp_project = copy_project()
     trim_pubspec_assets(temp_project)
@@ -138,8 +127,9 @@ def main() -> None:
         "build",
         "web",
         "--release",
-        f"--dart-define=CONTENT_BASE_URL={content_base_url}",
     ]
+    if content_base_url:
+        build_command.append(f"--dart-define=CONTENT_BASE_URL={content_base_url}")
     if supabase_url:
         build_command.append(f"--dart-define=SUPABASE_URL={supabase_url}")
     if supabase_anon_key:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -69,6 +70,30 @@ def trim_pubspec_assets(temp_project: Path) -> None:
     pubspec_path.write_text(pubspec, encoding="utf-8", newline="\n")
 
 
+def write_question_chunks(project_root: Path) -> None:
+    data_dir = project_root / "assets" / "data"
+    questions_path = data_dir / "questions.json"
+    if not questions_path.exists():
+        return
+
+    questions = json.loads(questions_path.read_text(encoding="utf-8"))
+    output_dir = data_dir / "questions"
+    if output_dir.exists():
+        shutil.rmtree(output_dir, ignore_errors=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    questions_by_book: dict[str, list[dict[str, object]]] = {}
+    for question in questions:
+        book_id = str(question["bookId"])
+        questions_by_book.setdefault(book_id, []).append(question)
+
+    for book_id, entries in questions_by_book.items():
+        (output_dir / f"{book_id}.json").write_text(
+            json.dumps(entries, separators=(",", ":")),
+            encoding="utf-8",
+        )
+
+
 def copy_vercel_api(output_dir: Path) -> None:
     source_api_dir = PROJECT_ROOT / "api"
     if not source_api_dir.exists():
@@ -96,6 +121,7 @@ def main() -> None:
 
     temp_project = copy_project()
     trim_pubspec_assets(temp_project)
+    write_question_chunks(temp_project)
 
     run([flutter_exe, "pub", "get"], cwd=temp_project)
     run([flutter_exe, "create", ".", "--platforms=web"], cwd=temp_project)

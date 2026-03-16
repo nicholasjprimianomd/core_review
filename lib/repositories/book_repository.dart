@@ -11,15 +11,35 @@ class BookRepository {
     final chaptersRaw = await rootBundle.loadString(
       'assets/data/chapters.json',
     );
-    final questionsRaw = await rootBundle.loadString(
-      'assets/data/questions.json',
-    );
+    final booksJson = jsonDecode(booksRaw) as List<dynamic>;
+    final questionsJson = await _loadQuestions(booksJson);
 
     return BookContent.fromJson(
-      booksJson: jsonDecode(booksRaw) as List<dynamic>,
+      booksJson: booksJson,
       topicsJson: jsonDecode(topicsRaw) as List<dynamic>,
       chaptersJson: jsonDecode(chaptersRaw) as List<dynamic>,
-      questionsJson: jsonDecode(questionsRaw) as List<dynamic>,
+      questionsJson: questionsJson,
     );
+  }
+
+  Future<List<dynamic>> _loadQuestions(List<dynamic> booksJson) async {
+    try {
+      final chunkFutures = booksJson.map((bookJson) async {
+        final bookId = (bookJson as Map<String, dynamic>)['id'] as String;
+        final questionsRaw = await rootBundle.loadString(
+          'assets/data/questions/$bookId.json',
+        );
+        return jsonDecode(questionsRaw) as List<dynamic>;
+      }).toList(growable: false);
+      final questionChunks = await Future.wait(chunkFutures);
+      return [
+        for (final chunk in questionChunks) ...chunk,
+      ];
+    } catch (_) {
+      final questionsRaw = await rootBundle.loadString(
+        'assets/data/questions.json',
+      );
+      return jsonDecode(questionsRaw) as List<dynamic>;
+    }
   }
 }

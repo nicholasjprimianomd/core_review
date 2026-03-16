@@ -28,9 +28,9 @@ class AppConfig {
   static bool get hasSupabase =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 
-  // On web, always serve images from the same origin as the page so that
-  // the URL never goes stale across deployments.
-  static bool get hasRemoteContent => contentBaseUrl.isNotEmpty || kIsWeb;
+  // On web the image base is always the page origin (resolved at runtime), so
+  // remote content is always available on web regardless of compile-time config.
+  static bool get hasRemoteContent => kIsWeb || contentBaseUrl.isNotEmpty;
 
   static String resolveAuthRedirectUrl() {
     if (authRedirectUrl.isNotEmpty) {
@@ -61,14 +61,15 @@ class AppConfig {
 
   static String? resolveRemoteContentUrl(String relativePath) {
     final String base;
-    if (contentBaseUrl.isNotEmpty) {
+    if (kIsWeb) {
+      // Always use the page origin at runtime so image URLs are always correct
+      // regardless of what was compiled into the binary.  This is deployment-safe:
+      // the same binary works on any domain or preview URL without rebuilding.
+      base = Uri.base.origin;
+    } else if (contentBaseUrl.isNotEmpty) {
       base = contentBaseUrl.endsWith('/')
           ? contentBaseUrl.substring(0, contentBaseUrl.length - 1)
           : contentBaseUrl;
-    } else if (kIsWeb) {
-      // Use the current page origin so images always load from whatever domain
-      // the app is served from, with no compile-time URL needed.
-      base = Uri.base.origin;
     } else {
       return null;
     }

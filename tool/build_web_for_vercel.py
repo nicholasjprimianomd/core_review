@@ -111,8 +111,15 @@ def main() -> None:
     supabase_anon_key = optional_env("SUPABASE_ANON_KEY")
     auth_redirect_url = optional_env("AUTH_REDIRECT_URL")
     content_base_url = optional_env("CONTENT_BASE_URL")
-    if not content_base_url and os.environ.get("VERCEL_URL"):
-        content_base_url = f"https://{os.environ['VERCEL_URL']}"
+    if not content_base_url:
+        # VERCEL_PROJECT_PRODUCTION_URL is the stable production domain and never
+        # changes between deployments.  Fall back to the per-deployment VERCEL_URL
+        # only for preview builds where the production URL is not available.
+        production_url = os.environ.get("VERCEL_PROJECT_PRODUCTION_URL", "")
+        deployment_url = os.environ.get("VERCEL_URL", "")
+        chosen = production_url or deployment_url
+        if chosen:
+            content_base_url = f"https://{chosen}"
     flutter_exe = resolve_flutter_exe()
 
     if not content_base_url:

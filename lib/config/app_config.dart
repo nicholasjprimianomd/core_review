@@ -1,9 +1,19 @@
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  static const String supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  // Keep the public web client config available when deploy env vars are absent.
+  static const String _defaultSupabaseUrl =
+      'https://szerwpvldtnamhfpqmih.supabase.co';
+  static const String _defaultSupabaseAnonKey =
+      'sb_publishable_gmJyumfHSnoOTqpMkVS-qw_A6axiU62';
+
+  static const String supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: _defaultSupabaseUrl,
+  );
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
+    defaultValue: _defaultSupabaseAnonKey,
   );
   static const String authRedirectUrl = String.fromEnvironment(
     'AUTH_REDIRECT_URL',

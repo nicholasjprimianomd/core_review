@@ -109,6 +109,7 @@ def run(command: list[str], *, cwd: Path) -> None:
 def main() -> None:
     supabase_url = optional_env("SUPABASE_URL")
     supabase_anon_key = optional_env("SUPABASE_ANON_KEY")
+    auth_redirect_url = optional_env("AUTH_REDIRECT_URL")
     content_base_url = optional_env("CONTENT_BASE_URL")
     if not content_base_url and os.environ.get("VERCEL_URL"):
         content_base_url = f"https://{os.environ['VERCEL_URL']}"
@@ -125,18 +126,21 @@ def main() -> None:
 
     run([flutter_exe, "pub", "get"], cwd=temp_project)
     run([flutter_exe, "create", ".", "--platforms=web"], cwd=temp_project)
-    run(
-        [
-            flutter_exe,
-            "build",
-            "web",
-            "--release",
-            f"--dart-define=SUPABASE_URL={supabase_url}",
-            f"--dart-define=SUPABASE_ANON_KEY={supabase_anon_key}",
-            f"--dart-define=CONTENT_BASE_URL={content_base_url}",
-        ],
-        cwd=temp_project,
-    )
+    build_command = [
+        flutter_exe,
+        "build",
+        "web",
+        "--release",
+        f"--dart-define=CONTENT_BASE_URL={content_base_url}",
+    ]
+    if supabase_url:
+        build_command.append(f"--dart-define=SUPABASE_URL={supabase_url}")
+    if supabase_anon_key:
+        build_command.append(f"--dart-define=SUPABASE_ANON_KEY={supabase_anon_key}")
+    if auth_redirect_url:
+        build_command.append(f"--dart-define=AUTH_REDIRECT_URL={auth_redirect_url}")
+
+    run(build_command, cwd=temp_project)
 
     built_web_dir = temp_project / "build" / "web"
     if OUTPUT_DIR.exists():

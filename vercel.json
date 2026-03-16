@@ -1,5 +1,8 @@
 {
   "cleanUrls": true,
+  "installCommand": "if [ -d flutter ]; then cd flutter && git pull && cd ..; else git clone --depth 1 https://github.com/flutter/flutter.git; fi && flutter/bin/flutter config --enable-web && flutter/bin/flutter doctor",
+  "buildCommand": "python tool/build_web_for_vercel.py",
+  "outputDirectory": "build/web_vercel",
   "rewrites": [
     {
       "source": "/api/(.*)",

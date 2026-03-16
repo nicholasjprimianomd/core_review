@@ -69,10 +69,14 @@ def main() -> None:
     supabase_url = optional_env("SUPABASE_URL")
     supabase_anon_key = optional_env("SUPABASE_ANON_KEY")
     content_base_url = optional_env("CONTENT_BASE_URL")
+    if not content_base_url and os.environ.get("VERCEL_URL"):
+        content_base_url = f"https://{os.environ['VERCEL_URL']}"
     flutter_exe = os.environ.get("FLUTTER_EXE", "flutter")
 
     if not content_base_url:
-        raise RuntimeError("CONTENT_BASE_URL must be set for the web build.")
+        raise RuntimeError(
+            "CONTENT_BASE_URL must be set for the web build, or run on Vercel."
+        )
 
     temp_project = copy_project()
     trim_pubspec_assets(temp_project)

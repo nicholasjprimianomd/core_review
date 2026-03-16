@@ -16,6 +16,22 @@ def optional_env(name: str) -> str:
     return os.environ.get(name, "").strip()
 
 
+def resolve_flutter_exe() -> str:
+    configured = optional_env("FLUTTER_EXE")
+    if configured:
+        configured_path = Path(configured)
+        if configured_path.is_absolute():
+            return str(configured_path)
+        return str((PROJECT_ROOT / configured_path).resolve())
+
+    default_exe_name = "flutter.bat" if os.name == "nt" else "flutter"
+    local_flutter = PROJECT_ROOT / "flutter" / "bin" / default_exe_name
+    if local_flutter.exists():
+        return str(local_flutter)
+
+    return "flutter"
+
+
 def copy_project() -> Path:
     temp_project = Path(tempfile.mkdtemp(prefix="core_review_web_"))
     shutil.copytree(
@@ -71,7 +87,7 @@ def main() -> None:
     content_base_url = optional_env("CONTENT_BASE_URL")
     if not content_base_url and os.environ.get("VERCEL_URL"):
         content_base_url = f"https://{os.environ['VERCEL_URL']}"
-    flutter_exe = os.environ.get("FLUTTER_EXE", "flutter")
+    flutter_exe = resolve_flutter_exe()
 
     if not content_base_url:
         raise RuntimeError(

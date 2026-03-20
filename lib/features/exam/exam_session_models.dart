@@ -1,3 +1,5 @@
+import '../../models/book_models.dart';
+
 enum ExamMode {
   test,
   tutor,

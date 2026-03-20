@@ -209,7 +209,6 @@ class _BookCard extends StatelessWidget {
                   label: 'Chapters',
                   value: '${book.chapterIds.length}',
                 ),
-                _MetricChip(label: 'Topics', value: '${topics.length}'),
               ],
             ),
             if (topics.isNotEmpty) ...[

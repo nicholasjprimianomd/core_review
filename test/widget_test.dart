@@ -1,6 +1,7 @@
 import 'package:core_review/features/books/book_library_screen.dart';
 import 'package:core_review/models/book_models.dart';
 import 'package:core_review/models/progress_models.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,6 +9,19 @@ void main() {
   testWidgets('Book library screen renders multi-book structure', (
     WidgetTester tester,
   ) async {
+    final progressListenable = ValueNotifier<StudyProgress>(
+      StudyProgress(
+        answers: {
+          'thoracic-imaging-1-1': QuestionProgress(
+            selectedChoice: 'D',
+            isCorrect: true,
+            answeredAt: DateTime(2026, 3, 13),
+          ),
+        },
+      ),
+    );
+    addTearDown(progressListenable.dispose);
+
     final content = BookContent(
       books: const [
         ReviewBook(
@@ -63,15 +77,7 @@ void main() {
       MaterialApp(
         home: BookLibraryScreen(
           content: content,
-          progress: StudyProgress(
-            answers: {
-              'thoracic-imaging-1-1': QuestionProgress(
-                selectedChoice: 'D',
-                isCorrect: true,
-                answeredAt: DateTime(2026, 3, 13),
-              ),
-            },
-          ),
+          progressListenable: progressListenable,
           themeMode: ThemeMode.dark,
           currentUserEmail: 'reader@example.com',
           onToggleTheme: () {},
@@ -79,6 +85,7 @@ void main() {
           onOpenProgress: () {},
           onOpenBook: (_) {},
           onStartStudySet: (title, questions) async {},
+          onOpenCustomExam: () async {},
         ),
       ),
     );

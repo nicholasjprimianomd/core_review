@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -16,6 +18,7 @@ class BookLibraryScreen extends StatelessWidget {
     required this.onOpenProgress,
     required this.onOpenBook,
     required this.onStartStudySet,
+    required this.onOpenCustomExam,
     super.key,
   });
 
@@ -28,6 +31,7 @@ class BookLibraryScreen extends StatelessWidget {
   final VoidCallback onOpenProgress;
   final ValueChanged<ReviewBook> onOpenBook;
   final StudySetLauncher onStartStudySet;
+  final Future<void> Function() onOpenCustomExam;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +41,13 @@ class BookLibraryScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Core Review'),
         actions: [
+          IconButton(
+            onPressed: () {
+              unawaited(onOpenCustomExam());
+            },
+            tooltip: 'Custom exam',
+            icon: const Icon(Icons.fact_check_outlined),
+          ),
           IconButton(
             onPressed: onToggleTheme,
             tooltip: themeMode == ThemeMode.dark

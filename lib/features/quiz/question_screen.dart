@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../models/book_models.dart';
@@ -5,6 +7,8 @@ import '../../models/progress_models.dart';
 import '../../widgets/book_image_gallery.dart';
 import '../assistant/assistant_repository.dart';
 import '../assistant/question_assistant_sheet.dart';
+import '../exam/exam_session_models.dart';
+import '../exam/exam_summary_screen.dart';
 import '../progress/progress_repository.dart';
 import 'answer_reveal_panel.dart';
 import 'question_controller.dart';
@@ -20,6 +24,7 @@ class QuestionScreen extends StatefulWidget {
     required this.themeMode,
     required this.onToggleTheme,
     required this.onProgressChanged,
+    this.examSession,
     super.key,
   }) : assert(questions.length > 0, 'QuestionScreen requires at least 1 item.');
 
@@ -32,6 +37,7 @@ class QuestionScreen extends StatefulWidget {
   final ThemeMode themeMode;
   final VoidCallback onToggleTheme;
   final ValueChanged<StudyProgress> onProgressChanged;
+  final ExamSessionOptions? examSession;
 
   @override
   State<QuestionScreen> createState() => _QuestionScreenState();
@@ -40,6 +46,9 @@ class QuestionScreen extends StatefulWidget {
 class _QuestionScreenState extends State<QuestionScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   double? _assistantPanelWidth;
+  Timer? _examTicker;
+  late final DateTime _examStartedAt;
+  bool _examSummaryRouteOpen = false;
 
   late final QuestionController _controller = QuestionController(
     questions: widget.questions,
@@ -47,14 +56,111 @@ class _QuestionScreenState extends State<QuestionScreen> {
     initialProgress: widget.initialProgress,
     initialIndex: widget.initialIndex,
     onProgressChanged: widget.onProgressChanged,
+    deferRevealUntilExamEnd: widget.examSession?.deferRevealUntilEnd ?? false,
   );
   late final AssistantRepository _assistantRepository = AssistantRepository();
 
   @override
+  void initState() {
+    super.initState();
+    _examStartedAt = DateTime.now();
+    final limit = widget.examSession?.timeLimit;
+    if (limit != null) {
+      _examTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {});
+        final elapsed = DateTime.now().difference(_examStartedAt);
+        if (elapsed >= limit) {
+          _examTicker?.cancel();
+          _examTicker = null;
+          unawaited(_endExamSession(timeUp: true));
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    _examTicker?.cancel();
     _assistantRepository.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  Duration? get _examTimeRemaining {
+    final limit = widget.examSession?.timeLimit;
+    if (limit == null) {
+      return null;
+    }
+    final left = limit - DateTime.now().difference(_examStartedAt);
+    if (left <= Duration.zero) {
+      return Duration.zero;
+    }
+    return left;
+  }
+
+  Future<void> _endExamSession({bool timeUp = false}) async {
+    final exam = widget.examSession;
+    if (exam == null || _examSummaryRouteOpen || !mounted) {
+      return;
+    }
+
+    if (!timeUp) {
+      final confirmed =
+          await showDialog<bool>(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: const Text('End block'),
+                content: const Text(
+                  'End this exam block and view your summary?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('End block'),
+                  ),
+                ],
+              );
+            },
+          ) ??
+          false;
+      if (!confirmed || !mounted) {
+        return;
+      }
+    }
+
+    if (exam.deferRevealUntilEnd) {
+      await _controller.finishDeferredExamReveals();
+    }
+    if (!mounted) {
+      return;
+    }
+
+    _examSummaryRouteOpen = true;
+    final endedAt = DateTime.now();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => ExamSummaryScreen(
+          title: widget.title,
+          questions: widget.questions,
+          progress: _controller.progress,
+          startedAt: _examStartedAt,
+          endedAt: endedAt,
+          examMode: exam.mode,
+          timeLimit: exam.timeLimit,
+        ),
+      ),
+    );
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -69,6 +175,9 @@ class _QuestionScreenState extends State<QuestionScreen> {
         final questionProgress = _controller.currentQuestionProgress;
         final selectedChoice = _controller.selectedChoice;
         final hasRevealedCurrentAnswer = _controller.hasRevealedCurrentAnswer;
+        final explanationsVisible =
+            _controller.explanationsVisibleForCurrent;
+        final examDefer = widget.examSession?.deferRevealUntilEnd == true;
 
         final navigatorPanel = _QuestionNavigatorPanel(
           title: widget.title,
@@ -92,8 +201,29 @@ class _QuestionScreenState extends State<QuestionScreen> {
                   child: SafeArea(child: navigatorPanel),
                 ),
           appBar: AppBar(
-            title: Text(widget.title),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (_examTimeRemaining != null)
+                  Text(
+                    'Time left ${_formatCountdown(_examTimeRemaining!)}',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+              ],
+            ),
             actions: [
+              if (widget.examSession != null)
+                IconButton(
+                  onPressed: _controller.isSaving ? null : () => _endExamSession(),
+                  tooltip: 'End block',
+                  icon: const Icon(Icons.stop_circle_outlined),
+                ),
               if (!showQuestionNavigator)
                 IconButton(
                   onPressed: _openQuestionNavigator,
@@ -209,11 +339,9 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                     optionLabel: entry.key,
                                     optionText: entry.value,
                                     isSelected: selectedChoice == entry.key,
-                                    isCorrectAnswer:
-                                        hasRevealedCurrentAnswer &&
+                                    isCorrectAnswer: explanationsVisible &&
                                         question.correctChoice == entry.key,
-                                    isIncorrectSelection:
-                                        hasRevealedCurrentAnswer &&
+                                    isIncorrectSelection: explanationsVisible &&
                                         questionProgress != null &&
                                         questionProgress.selectedChoice ==
                                             entry.key &&
@@ -253,19 +381,27 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                             strokeWidth: 2,
                                           ),
                                         )
-                                      : const Icon(Icons.visibility),
-                                  label: const Text('Show Answer'),
+                                      : Icon(
+                                          examDefer
+                                              ? Icons.check_circle_outline
+                                              : Icons.visibility,
+                                        ),
+                                  label: Text(
+                                    examDefer ? 'Save answer' : 'Show Answer',
+                                  ),
                                 ),
                               if (questionProgress != null &&
                                   !hasRevealedCurrentAnswer) ...[
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Answer saved. The shared explanation for this multipart set appears only on the final part.',
+                                  examDefer
+                                      ? 'Answer saved. Explanations and scores stay hidden until you end the block.'
+                                      : 'Answer saved. The shared explanation for this multipart set appears only on the final part.',
                                   style: Theme.of(context).textTheme.bodyMedium,
                                 ),
                               ],
                               if (questionProgress != null &&
-                                  hasRevealedCurrentAnswer) ...[
+                                  explanationsVisible) ...[
                                 const SizedBox(height: 16),
                                 AnswerRevealPanel(
                                   question: question,
@@ -321,12 +457,19 @@ class _QuestionScreenState extends State<QuestionScreen> {
     );
   }
 
+  static String _formatCountdown(Duration d) {
+    final total = d.inSeconds;
+    final m = total ~/ 60;
+    final s = total % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _openAssistant() async {
     final question = _controller.currentQuestion;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final sheet = QuestionAssistantSheet(
       question: question,
-      allowAnswerReveal: _controller.hasRevealedCurrentAnswer,
+      allowAnswerReveal: _controller.explanationsVisibleForCurrent,
       assistantRepository: _assistantRepository,
     );
 

@@ -6,6 +6,8 @@ import 'features/auth/auth_screen.dart';
 import 'features/books/book_library_screen.dart';
 import 'features/chapters/chapter_list_screen.dart';
 import 'features/progress/progress_repository.dart';
+import 'features/exam/custom_exam_setup_screen.dart';
+import 'features/exam/exam_session_models.dart';
 import 'features/progress/progress_screen.dart';
 import 'features/quiz/question_screen.dart';
 import 'models/book_models.dart';
@@ -155,6 +157,65 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
     if (changed == true) {
       await _refreshAuthAndProgress();
     }
+  }
+
+  Future<void> _openCustomExamSetup() async {
+    final navigator = _navigatorKey.currentState;
+    final content = _content;
+    if (navigator == null || content == null) {
+      return;
+    }
+
+    await navigator.push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) {
+          return CustomExamSetupScreen(
+            content: content,
+            progressListenable: _progressNotifier,
+            themeMode: _themeMode,
+            onToggleTheme: _toggleThemeMode,
+            onLaunch: (request) {
+              Navigator.of(context).pop();
+              unawaited(_startExam(request));
+            },
+          );
+        },
+      ),
+    );
+
+    await _refreshProgress();
+  }
+
+  Future<void> _startExam(ExamLaunchRequest request) async {
+    if (request.questions.isEmpty) {
+      return;
+    }
+
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) {
+      return;
+    }
+
+    await navigator.push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) {
+          return QuestionScreen(
+            title: request.title,
+            content: _content!,
+            questions: request.questions,
+            progressRepository: _progressRepository,
+            initialProgress: _progressNotifier.value,
+            initialIndex: 0,
+            themeMode: _themeMode,
+            onToggleTheme: _toggleThemeMode,
+            onProgressChanged: _setProgress,
+            examSession: request.options,
+          );
+        },
+      ),
+    );
+
+    await _refreshProgress();
   }
 
   Future<void> _startStudySet(
@@ -310,6 +371,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
               onOpenProgress: _openProgress,
               onOpenBook: _openBook,
               onStartStudySet: _startStudySet,
+              onOpenCustomExam: _openCustomExamSetup,
             )
           : FutureBuilder<void>(
               future: _bootstrapFuture,
@@ -344,6 +406,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
                   onOpenProgress: _openProgress,
                   onOpenBook: _openBook,
                   onStartStudySet: _startStudySet,
+                  onOpenCustomExam: _openCustomExamSetup,
                 );
               },
             ),

@@ -13,6 +13,7 @@ class QuestionController extends ChangeNotifier {
     required StudyProgress initialProgress,
     required int initialIndex,
     this.onProgressChanged,
+    this.deferRevealUntilExamEnd = false,
   }) : _questions = List<BookQuestion>.unmodifiable(questions),
        _progressRepository = progressRepository,
        _progress = initialProgress,
@@ -24,10 +25,15 @@ class QuestionController extends ChangeNotifier {
   final ProgressRepository _progressRepository;
   final ValueChanged<StudyProgress>? onProgressChanged;
 
+  /// When true (test block), submissions do not set [QuestionProgress.revealedAt] until
+  /// [finishDeferredExamReveals] runs.
+  final bool deferRevealUntilExamEnd;
+
   StudyProgress _progress;
   int _currentIndex;
   String? _draftChoice;
   bool _isSaving = false;
+  bool _deferredRevealsCompleted = false;
 
   List<BookQuestion> get questions => _questions;
 
@@ -40,6 +46,13 @@ class QuestionController extends ChangeNotifier {
 
   bool get hasRevealedCurrentAnswer =>
       currentQuestionProgress?.isRevealed ?? false;
+
+  bool get deferredRevealsCompleted => _deferredRevealsCompleted;
+
+  bool get explanationsVisibleForCurrent =>
+      !deferRevealUntilExamEnd ||
+      _deferredRevealsCompleted ||
+      hasRevealedCurrentAnswer;
 
   int get currentIndex => _currentIndex;
 
@@ -93,7 +106,7 @@ class QuestionController extends ChangeNotifier {
       return;
     }
 
-    await _saveCurrentAnswer(revealAnswer: true);
+    await _saveCurrentAnswer(revealAnswer: !deferRevealUntilExamEnd);
   }
 
   Future<void> submitCurrentPartAndAdvance() async {
@@ -118,6 +131,33 @@ class QuestionController extends ChangeNotifier {
       revealAnswer: false,
       nextIndexAfterSave: nextIndex,
     );
+  }
+
+  Future<void> finishDeferredExamReveals() async {
+    if (!deferRevealUntilExamEnd || _deferredRevealsCompleted) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final updatedAnswers = Map<String, QuestionProgress>.from(_progress.answers);
+    for (final question in _questions) {
+      final existing = updatedAnswers[question.id];
+      if (existing == null || existing.isRevealed) {
+        continue;
+      }
+      updatedAnswers[question.id] = existing.copyWith(revealedAt: now);
+    }
+
+    _progress = _progress.copyWith(answers: updatedAnswers, touch: true);
+    _deferredRevealsCompleted = true;
+    _publishProgress();
+    _isSaving = true;
+    notifyListeners();
+
+    await _progressRepository.saveProgress(_progress);
+
+    _isSaving = false;
+    notifyListeners();
   }
 
   void goToPrevious() {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/book_models.dart';
 import '../../models/progress_models.dart';
+import '../../models/study_data_models.dart';
 import '../../widgets/book_image_gallery.dart';
 import '../assistant/assistant_repository.dart';
 import '../assistant/question_assistant_sheet.dart';
@@ -20,10 +21,12 @@ class QuestionScreen extends StatefulWidget {
     required this.questions,
     required this.progressRepository,
     required this.initialProgress,
+    required this.initialStudyData,
     required this.initialIndex,
     required this.themeMode,
     required this.onToggleTheme,
     required this.onProgressChanged,
+    required this.onStudyDataChanged,
     this.examSession,
     super.key,
   }) : assert(questions.length > 0, 'QuestionScreen requires at least 1 item.');
@@ -33,10 +36,12 @@ class QuestionScreen extends StatefulWidget {
   final List<BookQuestion> questions;
   final ProgressRepository progressRepository;
   final StudyProgress initialProgress;
+  final StudyData initialStudyData;
   final int initialIndex;
   final ThemeMode themeMode;
   final VoidCallback onToggleTheme;
   final ValueChanged<StudyProgress> onProgressChanged;
+  final ValueChanged<StudyData> onStudyDataChanged;
   final ExamSessionOptions? examSession;
 
   @override
@@ -59,6 +64,25 @@ class _QuestionScreenState extends State<QuestionScreen> {
     deferRevealUntilExamEnd: widget.examSession?.deferRevealUntilEnd ?? false,
   );
   late final AssistantRepository _assistantRepository = AssistantRepository();
+  late StudyData _studyData = widget.initialStudyData;
+
+  QuestionStudyData get _currentStudyData =>
+      _studyData.forQuestion(_controller.currentQuestion.id);
+
+  void _updateStudyData(QuestionStudyData data) {
+    setState(() {
+      _studyData = _studyData.withQuestion(
+        _controller.currentQuestion.id,
+        data,
+      );
+    });
+    widget.onStudyDataChanged(_studyData);
+  }
+
+  void _toggleFlag() {
+    final current = _currentStudyData;
+    _updateStudyData(current.copyWith(isFlagged: !current.isFlagged));
+  }
 
   @override
   void initState() {
@@ -179,10 +203,13 @@ class _QuestionScreenState extends State<QuestionScreen> {
             _controller.explanationsVisibleForCurrent;
         final examDefer = widget.examSession?.deferRevealUntilEnd == true;
 
+        final currentStudyData = _currentStudyData;
+
         final navigatorPanel = _QuestionNavigatorPanel(
           title: widget.title,
           questions: _controller.questions,
           progress: _controller.progress,
+          studyData: _studyData,
           currentIndex: _controller.currentIndex,
           onSelectQuestion: (index) {
             if (!showQuestionNavigator) {
@@ -224,6 +251,34 @@ class _QuestionScreenState extends State<QuestionScreen> {
                   tooltip: 'End block',
                   icon: const Icon(Icons.stop_circle_outlined),
                 ),
+              IconButton(
+                onPressed: _toggleFlag,
+                tooltip: currentStudyData.isFlagged ? 'Unflag question' : 'Flag question',
+                icon: Icon(
+                  currentStudyData.isFlagged ? Icons.flag : Icons.flag_outlined,
+                  color: currentStudyData.isFlagged ? Colors.orange : null,
+                ),
+              ),
+              IconButton(
+                onPressed: () => _openNotes(question),
+                tooltip: currentStudyData.hasNote ? 'Edit note' : 'Add note',
+                icon: Icon(
+                  currentStudyData.hasNote
+                      ? Icons.sticky_note_2
+                      : Icons.sticky_note_2_outlined,
+                  color: currentStudyData.hasNote ? Colors.amber : null,
+                ),
+              ),
+              IconButton(
+                onPressed: () => _openHighlightDialog(question, currentStudyData),
+                tooltip: currentStudyData.hasHighlights
+                    ? 'Manage highlights (${currentStudyData.highlights.length})'
+                    : 'Add highlight',
+                icon: Icon(
+                  Icons.highlight,
+                  color: currentStudyData.hasHighlights ? Colors.yellow.shade700 : null,
+                ),
+              ),
               if (!showQuestionNavigator)
                 IconButton(
                   onPressed: _openQuestionNavigator,
@@ -295,11 +350,32 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                     ?.copyWith(fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 8),
-                              SelectionArea(
-                                child: Text(
-                                  question.prompt,
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                ),
+                              _HighlightableText(
+                                text: question.prompt,
+                                field: 'prompt',
+                                highlights: currentStudyData.highlights,
+                                style: Theme.of(context).textTheme.bodyLarge,
+                                onHighlight: (span) {
+                                  final updated = List<HighlightSpan>.from(
+                                    currentStudyData.highlights,
+                                  )..add(span);
+                                  _updateStudyData(
+                                    currentStudyData.copyWith(highlights: updated),
+                                  );
+                                },
+                                onRemoveHighlight: (span) {
+                                  final updated = List<HighlightSpan>.from(
+                                    currentStudyData.highlights,
+                                  )..removeWhere(
+                                    (h) =>
+                                        h.field == span.field &&
+                                        h.start == span.start &&
+                                        h.end == span.end,
+                                  );
+                                  _updateStudyData(
+                                    currentStudyData.copyWith(highlights: updated),
+                                  );
+                                },
                               ),
                               if (question.hasImages) ...[
                                 const SizedBox(height: 20),
@@ -400,12 +476,41 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                   style: Theme.of(context).textTheme.bodyMedium,
                                 ),
                               ],
+                              if (currentStudyData.hasNote) ...[
+                                const SizedBox(height: 16),
+                                _NoteCard(
+                                  note: currentStudyData.note,
+                                  onEdit: () => _openNotes(question),
+                                ),
+                              ],
                               if (questionProgress != null &&
                                   explanationsVisible) ...[
                                 const SizedBox(height: 16),
                                 AnswerRevealPanel(
                                   question: question,
                                   progress: questionProgress,
+                                  highlights: currentStudyData.highlights,
+                                  onHighlight: (span) {
+                                    final updated = List<HighlightSpan>.from(
+                                      currentStudyData.highlights,
+                                    )..add(span);
+                                    _updateStudyData(
+                                      currentStudyData.copyWith(highlights: updated),
+                                    );
+                                  },
+                                  onRemoveHighlight: (span) {
+                                    final updated = List<HighlightSpan>.from(
+                                      currentStudyData.highlights,
+                                    )..removeWhere(
+                                      (h) =>
+                                          h.field == span.field &&
+                                          h.start == span.start &&
+                                          h.end == span.end,
+                                    );
+                                    _updateStudyData(
+                                      currentStudyData.copyWith(highlights: updated),
+                                    );
+                                  },
                                 ),
                               ],
                             ],
@@ -522,6 +627,41 @@ class _QuestionScreenState extends State<QuestionScreen> {
         return FractionallySizedBox(heightFactor: 0.94, child: sheet);
       },
     );
+  }
+
+  Future<void> _openHighlightDialog(
+    BookQuestion question,
+    QuestionStudyData data,
+  ) async {
+    final result = await showDialog<List<HighlightSpan>>(
+      context: context,
+      builder: (dialogContext) {
+        return _HighlightManageDialog(
+          question: question,
+          highlights: data.highlights,
+        );
+      },
+    );
+    if (result != null) {
+      _updateStudyData(data.copyWith(highlights: result));
+    }
+  }
+
+  Future<void> _openNotes(BookQuestion question) async {
+    final currentData = _studyData.forQuestion(question.id);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return _NoteEditDialog(initialNote: currentData.note);
+      },
+    );
+    if (result != null) {
+      final updated = _studyData.forQuestion(question.id).copyWith(note: result);
+      setState(() {
+        _studyData = _studyData.withQuestion(question.id, updated);
+      });
+      widget.onStudyDataChanged(_studyData);
+    }
   }
 
   void _openQuestionNavigator() {
@@ -651,6 +791,7 @@ class _QuestionNavigatorPanel extends StatelessWidget {
     required this.title,
     required this.questions,
     required this.progress,
+    required this.studyData,
     required this.currentIndex,
     required this.onSelectQuestion,
   });
@@ -658,6 +799,7 @@ class _QuestionNavigatorPanel extends StatelessWidget {
   final String title;
   final List<BookQuestion> questions;
   final StudyProgress progress;
+  final StudyData studyData;
   final int currentIndex;
   final ValueChanged<int> onSelectQuestion;
 
@@ -680,6 +822,9 @@ class _QuestionNavigatorPanel extends StatelessWidget {
           return questionProgress?.isRevealed == true &&
               !(questionProgress?.isCorrect ?? true);
         })
+        .length;
+    final flaggedCount = questions
+        .where((question) => studyData.forQuestion(question.id).isFlagged)
         .length;
 
     return ColoredBox(
@@ -717,6 +862,12 @@ class _QuestionNavigatorPanel extends StatelessWidget {
                 value: '$incorrectCount',
                 color: Colors.red,
               ),
+              if (flaggedCount > 0)
+                _NavigatorStatChip(
+                  label: 'Flagged',
+                  value: '$flaggedCount',
+                  color: Colors.orange,
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -726,6 +877,7 @@ class _QuestionNavigatorPanel extends StatelessWidget {
               child: _QuestionGroupCard(
                 group: group,
                 progress: progress,
+                studyData: studyData,
                 currentIndex: currentIndex,
                 onSelectQuestion: onSelectQuestion,
               ),
@@ -740,12 +892,14 @@ class _QuestionGroupCard extends StatelessWidget {
   const _QuestionGroupCard({
     required this.group,
     required this.progress,
+    required this.studyData,
     required this.currentIndex,
     required this.onSelectQuestion,
   });
 
   final _QuestionGroup group;
   final StudyProgress progress;
+  final StudyData studyData;
   final int currentIndex;
   final ValueChanged<int> onSelectQuestion;
 
@@ -791,6 +945,7 @@ class _QuestionGroupCard extends StatelessWidget {
                 entry: entry,
                 isCurrent: entry.index == currentIndex,
                 progress: progress.answers[entry.question.id],
+                isFlagged: studyData.forQuestion(entry.question.id).isFlagged,
                 onTap: () => onSelectQuestion(entry.index),
               ),
             ),
@@ -805,12 +960,14 @@ class _QuestionNavigatorTile extends StatelessWidget {
     required this.entry,
     required this.isCurrent,
     required this.progress,
+    required this.isFlagged,
     required this.onTap,
   });
 
   final _QuestionEntry entry;
   final bool isCurrent;
   final QuestionProgress? progress;
+  final bool isFlagged;
   final VoidCallback onTap;
 
   @override
@@ -859,6 +1016,11 @@ class _QuestionNavigatorTile extends StatelessWidget {
                   ],
                 ),
               ),
+              if (isFlagged)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(Icons.flag, color: Colors.orange, size: 18),
+                ),
               if (progress != null)
                 Text(
                   progress!.selectedChoice,
@@ -1004,6 +1166,331 @@ class _QuestionEntry {
 
   final int index;
   final BookQuestion question;
+}
+
+class _NoteCard extends StatelessWidget {
+  const _NoteCard({required this.note, required this.onEdit});
+
+  final String note;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: Colors.amber.withValues(alpha: 0.1),
+      child: InkWell(
+        onTap: onEdit,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.sticky_note_2, color: Colors.amber, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  note,
+                  style: theme.textTheme.bodyMedium,
+                  maxLines: 6,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(Icons.edit, size: 16, color: theme.hintColor),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NoteEditDialog extends StatefulWidget {
+  const _NoteEditDialog({required this.initialNote});
+
+  final String initialNote;
+
+  @override
+  State<_NoteEditDialog> createState() => _NoteEditDialogState();
+}
+
+class _NoteEditDialogState extends State<_NoteEditDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initialNote);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Question Note'),
+      content: SizedBox(
+        width: 480,
+        child: TextField(
+          controller: _controller,
+          maxLines: 8,
+          minLines: 3,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Write your personal notes for this question...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ),
+      actions: [
+        if (widget.initialNote.isNotEmpty)
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(''),
+            child: Text(
+              'Delete note',
+              style: TextStyle(color: Colors.red.shade300),
+            ),
+          ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
+
+class _HighlightableText extends StatelessWidget {
+  const _HighlightableText({
+    required this.text,
+    required this.field,
+    required this.highlights,
+    required this.onHighlight,
+    required this.onRemoveHighlight,
+    this.style,
+  });
+
+  final String text;
+  final String field;
+  final List<HighlightSpan> highlights;
+  final ValueChanged<HighlightSpan> onHighlight;
+  final ValueChanged<HighlightSpan> onRemoveHighlight;
+  final TextStyle? style;
+
+  TextSpan _buildTextSpan() {
+    final spans = highlights.where((h) => h.field == field).toList()
+      ..sort((a, b) => a.start.compareTo(b.start));
+
+    if (spans.isEmpty) {
+      return TextSpan(text: text, style: style);
+    }
+
+    final children = <TextSpan>[];
+    var lastEnd = 0;
+
+    for (final span in spans) {
+      final start = span.start.clamp(0, text.length);
+      final end = span.end.clamp(0, text.length);
+      if (start >= end || start < lastEnd) continue;
+
+      if (start > lastEnd) {
+        children.add(TextSpan(text: text.substring(lastEnd, start), style: style));
+      }
+
+      children.add(TextSpan(
+        text: text.substring(start, end),
+        style: style?.copyWith(
+          backgroundColor: Colors.yellow.withValues(alpha: 0.35),
+        ),
+      ));
+      lastEnd = end;
+    }
+
+    if (lastEnd < text.length) {
+      children.add(TextSpan(text: text.substring(lastEnd), style: style));
+    }
+
+    return TextSpan(children: children);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SelectionArea(
+      child: Text.rich(_buildTextSpan()),
+    );
+  }
+}
+
+class _HighlightManageDialog extends StatefulWidget {
+  const _HighlightManageDialog({
+    required this.question,
+    required this.highlights,
+  });
+
+  final BookQuestion question;
+  final List<HighlightSpan> highlights;
+
+  @override
+  State<_HighlightManageDialog> createState() => _HighlightManageDialogState();
+}
+
+class _HighlightManageDialogState extends State<_HighlightManageDialog> {
+  late final List<HighlightSpan> _highlights = List.from(widget.highlights);
+  final TextEditingController _addController = TextEditingController();
+  String _addField = 'prompt';
+
+  void _addHighlight() {
+    final searchText = _addController.text.trim();
+    if (searchText.isEmpty) return;
+
+    final source = _addField == 'prompt'
+        ? widget.question.prompt
+        : widget.question.explanation;
+    final idx = source.toLowerCase().indexOf(searchText.toLowerCase());
+    if (idx < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Text not found in the selected field.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _highlights.add(HighlightSpan(
+        field: _addField,
+        start: idx,
+        end: idx + searchText.length,
+      ));
+    });
+    _addController.clear();
+  }
+
+  String _snippetFor(HighlightSpan span) {
+    final source = span.field == 'prompt'
+        ? widget.question.prompt
+        : widget.question.explanation;
+    final start = span.start.clamp(0, source.length);
+    final end = span.end.clamp(0, source.length);
+    if (start >= end) return '(invalid)';
+    final text = source.substring(start, end);
+    return text.length > 60 ? '${text.substring(0, 57)}...' : text;
+  }
+
+  @override
+  void dispose() {
+    _addController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+      title: const Text('Highlights'),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _addController,
+                    decoration: const InputDecoration(
+                      hintText: 'Type text to highlight...',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onSubmitted: (_) => _addHighlight(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _addField,
+                  items: const [
+                    DropdownMenuItem(value: 'prompt', child: Text('Stem')),
+                    DropdownMenuItem(value: 'explanation', child: Text('Explanation')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _addField = v);
+                  },
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: _addHighlight,
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_highlights.isEmpty)
+              Text(
+                'No highlights yet. Type a phrase to highlight it.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.hintColor,
+                ),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 300),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _highlights.length,
+                  itemBuilder: (context, index) {
+                    final span = _highlights[index];
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.yellow.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          span.field == 'prompt' ? 'Stem' : 'Expl',
+                          style: theme.textTheme.labelSmall,
+                        ),
+                      ),
+                      title: Text(
+                        _snippetFor(span),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () {
+                          setState(() => _highlights.removeAt(index));
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_highlights),
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
 }
 
 class _ChoiceTile extends StatelessWidget {

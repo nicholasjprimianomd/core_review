@@ -5,17 +5,21 @@ import 'package:flutter/material.dart';
 
 import '../../models/book_models.dart';
 import '../../models/progress_models.dart';
+import '../../models/study_data_models.dart';
 import 'study_set_launcher.dart';
 
 class BookLibraryScreen extends StatelessWidget {
   const BookLibraryScreen({
     required this.content,
     required this.progressListenable,
+    required this.studyDataListenable,
     required this.themeMode,
     required this.currentUserEmail,
     required this.onToggleTheme,
     required this.onOpenAuth,
     required this.onOpenProgress,
+    required this.onOpenAnalytics,
+    required this.onOpenSearch,
     required this.onOpenBook,
     required this.onStartStudySet,
     required this.onOpenCustomExam,
@@ -24,11 +28,14 @@ class BookLibraryScreen extends StatelessWidget {
 
   final BookContent content;
   final ValueListenable<StudyProgress> progressListenable;
+  final ValueListenable<StudyData> studyDataListenable;
   final ThemeMode themeMode;
   final String? currentUserEmail;
   final VoidCallback onToggleTheme;
   final VoidCallback onOpenAuth;
   final VoidCallback onOpenProgress;
+  final VoidCallback onOpenAnalytics;
+  final VoidCallback onOpenSearch;
   final ValueChanged<ReviewBook> onOpenBook;
   final StudySetLauncher onStartStudySet;
   final Future<void> Function() onOpenCustomExam;
@@ -41,6 +48,11 @@ class BookLibraryScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Core Review'),
         actions: [
+          IconButton(
+            onPressed: onOpenSearch,
+            tooltip: 'Search questions',
+            icon: const Icon(Icons.search),
+          ),
           IconButton(
             onPressed: () {
               unawaited(onOpenCustomExam());
@@ -58,6 +70,11 @@ class BookLibraryScreen extends StatelessWidget {
                   ? Icons.light_mode_outlined
                   : Icons.dark_mode_outlined,
             ),
+          ),
+          IconButton(
+            onPressed: onOpenAnalytics,
+            tooltip: 'Analytics',
+            icon: const Icon(Icons.bar_chart),
           ),
           IconButton(
             onPressed: onOpenProgress,

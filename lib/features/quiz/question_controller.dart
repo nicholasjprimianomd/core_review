@@ -50,9 +50,7 @@ class QuestionController extends ChangeNotifier {
   bool get deferredRevealsCompleted => _deferredRevealsCompleted;
 
   bool get explanationsVisibleForCurrent =>
-      !deferRevealUntilExamEnd ||
-      _deferredRevealsCompleted ||
-      hasRevealedCurrentAnswer;
+      _deferredRevealsCompleted || hasRevealedCurrentAnswer;
 
   int get currentIndex => _currentIndex;
 

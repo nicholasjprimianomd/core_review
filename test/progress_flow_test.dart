@@ -236,4 +236,49 @@ void main() {
     final loaded = await repository.loadProgress();
     expect(loaded.answers['chapter-1-1']?.isRevealed, isTrue);
   });
+
+  test('QuestionController hides explanations until answer is revealed in study mode',
+      () async {
+    final repository = ProgressRepository(store: store);
+    final questions = const [
+      BookQuestion(
+        id: 'chapter-1-1',
+        bookId: 'book-1',
+        bookTitle: 'Core Review Test',
+        chapterId: 'chapter-1',
+        chapterNumber: 1,
+        chapterTitle: 'Basics of Imaging',
+        questionNumber: '1',
+        order: 1,
+        sortOrder: 1,
+        prompt: 'Question one?',
+        choices: {
+          'A': 'Option A',
+          'B': 'Option B',
+          'C': 'Option C',
+          'D': 'Option D',
+        },
+        correctChoice: 'B',
+        explanation: 'Option B is correct.',
+        references: [],
+        imageAssets: [],
+        stemGroup: '1',
+      ),
+    ];
+
+    final controller = QuestionController(
+      questions: questions,
+      progressRepository: repository,
+      initialProgress: StudyProgress.empty,
+      initialIndex: 0,
+    );
+
+    expect(controller.explanationsVisibleForCurrent, isFalse);
+
+    controller.selectChoice('B');
+    await controller.submitCurrentAnswer();
+
+    expect(controller.currentQuestionProgress?.isRevealed, isTrue);
+    expect(controller.explanationsVisibleForCurrent, isTrue);
+  });
 }

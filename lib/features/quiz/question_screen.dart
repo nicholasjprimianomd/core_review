@@ -415,9 +415,11 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                     optionLabel: entry.key,
                                     optionText: entry.value,
                                     isSelected: selectedChoice == entry.key,
-                                    isCorrectAnswer: explanationsVisible &&
+                                    isCorrectAnswer: hasRevealedCurrentAnswer &&
+                                        explanationsVisible &&
                                         question.correctChoice == entry.key,
-                                    isIncorrectSelection: explanationsVisible &&
+                                    isIncorrectSelection: hasRevealedCurrentAnswer &&
+                                        explanationsVisible &&
                                         questionProgress != null &&
                                         questionProgress.selectedChoice ==
                                             entry.key &&

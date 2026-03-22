@@ -14,11 +14,14 @@ class QuestionController extends ChangeNotifier {
     required int initialIndex,
     this.onProgressChanged,
     this.deferRevealUntilExamEnd = false,
+    this.readOnlyAfterExam = false,
   }) : _questions = List<BookQuestion>.unmodifiable(questions),
        _progressRepository = progressRepository,
        _progress = initialProgress,
        _currentIndex = initialIndex.clamp(0, questions.length - 1) {
-    _syncLastVisitedQuestion();
+    if (!readOnlyAfterExam) {
+      _syncLastVisitedQuestion();
+    }
   }
 
   final List<BookQuestion> _questions;
@@ -28,6 +31,9 @@ class QuestionController extends ChangeNotifier {
   /// When true (test block), submissions do not set [QuestionProgress.revealedAt] until
   /// [finishDeferredExamReveals] runs.
   final bool deferRevealUntilExamEnd;
+
+  /// Review mode after an exam: navigate questions without changing progress.
+  final bool readOnlyAfterExam;
 
   StudyProgress _progress;
   int _currentIndex;
@@ -80,10 +86,14 @@ class QuestionController extends ChangeNotifier {
   bool get shouldUseNextPartAction =>
       isCurrentQuestionMultipart && !isCurrentQuestionLastPart;
 
-  bool get canAdvanceToNextPart =>
-      !_isSaving &&
-      _nextMultipartPartIndexFor(currentQuestion) != null &&
-      (hasSubmittedCurrentAnswer || (_draftChoice?.isNotEmpty ?? false));
+  bool get canAdvanceToNextPart {
+    if (readOnlyAfterExam) {
+      return !_isSaving && _nextMultipartPartIndexFor(currentQuestion) != null;
+    }
+    return !_isSaving &&
+        _nextMultipartPartIndexFor(currentQuestion) != null &&
+        (hasSubmittedCurrentAnswer || (_draftChoice?.isNotEmpty ?? false));
+  }
 
   bool get canGoPrevious => _currentIndex > 0;
 
@@ -92,6 +102,9 @@ class QuestionController extends ChangeNotifier {
   bool get isSaving => _isSaving;
 
   void selectChoice(String choice) {
+    if (readOnlyAfterExam) {
+      return;
+    }
     if (hasSubmittedCurrentAnswer) {
       return;
     }
@@ -100,6 +113,9 @@ class QuestionController extends ChangeNotifier {
   }
 
   Future<void> submitCurrentAnswer() async {
+    if (readOnlyAfterExam) {
+      return;
+    }
     if (!canSubmit) {
       return;
     }
@@ -110,6 +126,13 @@ class QuestionController extends ChangeNotifier {
   Future<void> submitCurrentPartAndAdvance() async {
     final nextIndex = _nextMultipartPartIndexFor(currentQuestion);
     if (nextIndex == null || _isSaving) {
+      return;
+    }
+
+    if (readOnlyAfterExam) {
+      _currentIndex = nextIndex;
+      _draftChoice = null;
+      notifyListeners();
       return;
     }
 
@@ -132,6 +155,9 @@ class QuestionController extends ChangeNotifier {
   }
 
   Future<void> finishDeferredExamReveals() async {
+    if (readOnlyAfterExam) {
+      return;
+    }
     if (!deferRevealUntilExamEnd || _deferredRevealsCompleted) {
       return;
     }
@@ -159,6 +185,15 @@ class QuestionController extends ChangeNotifier {
   }
 
   void goToPrevious() {
+    if (readOnlyAfterExam) {
+      if (!canGoPrevious) {
+        return;
+      }
+      _currentIndex -= 1;
+      _draftChoice = null;
+      notifyListeners();
+      return;
+    }
     if (!canGoPrevious) {
       return;
     }
@@ -174,7 +209,9 @@ class QuestionController extends ChangeNotifier {
     }
     _currentIndex += 1;
     _draftChoice = null;
-    _syncLastVisitedQuestion();
+    if (!readOnlyAfterExam) {
+      _syncLastVisitedQuestion();
+    }
     notifyListeners();
   }
 
@@ -184,7 +221,9 @@ class QuestionController extends ChangeNotifier {
     }
     _currentIndex = index;
     _draftChoice = null;
-    _syncLastVisitedQuestion();
+    if (!readOnlyAfterExam) {
+      _syncLastVisitedQuestion();
+    }
     notifyListeners();
   }
 

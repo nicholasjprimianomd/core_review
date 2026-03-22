@@ -23,6 +23,8 @@ class BookLibraryScreen extends StatelessWidget {
     required this.onOpenBook,
     required this.onStartStudySet,
     required this.onOpenCustomExam,
+    required this.onOpenExamHistory,
+    required this.onOpenFontSettings,
     super.key,
   });
 
@@ -39,6 +41,8 @@ class BookLibraryScreen extends StatelessWidget {
   final ValueChanged<ReviewBook> onOpenBook;
   final StudySetLauncher onStartStudySet;
   final Future<void> Function() onOpenCustomExam;
+  final Future<void> Function() onOpenExamHistory;
+  final Future<void> Function() onOpenFontSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +63,20 @@ class BookLibraryScreen extends StatelessWidget {
             },
             tooltip: 'Custom exam',
             icon: const Icon(Icons.fact_check_outlined),
+          ),
+          IconButton(
+            onPressed: () {
+              unawaited(onOpenExamHistory());
+            },
+            tooltip: 'Past exams',
+            icon: const Icon(Icons.history),
+          ),
+          IconButton(
+            onPressed: () {
+              unawaited(onOpenFontSettings());
+            },
+            tooltip: 'Text size',
+            icon: const Icon(Icons.text_fields),
           ),
           IconButton(
             onPressed: onToggleTheme,

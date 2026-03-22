@@ -8,6 +8,9 @@ import 'features/books/book_library_screen.dart';
 import 'features/chapters/chapter_list_screen.dart';
 import 'features/progress/progress_repository.dart';
 import 'features/exam/custom_exam_setup_screen.dart';
+import 'features/exam/exam_history_models.dart';
+import 'features/exam/exam_history_repository.dart';
+import 'features/exam/exam_history_screen.dart';
 import 'features/exam/exam_session_models.dart';
 import 'features/progress/progress_screen.dart';
 import 'features/quiz/question_screen.dart';
@@ -37,7 +40,8 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
     : _authRepository = AuthRepository(),
       _bookRepository = BookRepository(),
       _appSettingsRepository = AppSettingsRepository(),
-      _studyDataRepository = StudyDataRepository();
+      _studyDataRepository = StudyDataRepository(),
+      _examHistoryRepository = ExamHistoryRepository();
 
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final ValueNotifier<StudyProgress> _progressNotifier = ValueNotifier(
@@ -56,15 +60,18 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
   late final BookRepository _bookRepository;
   late final AppSettingsRepository _appSettingsRepository;
   late final StudyDataRepository _studyDataRepository;
+  late final ExamHistoryRepository _examHistoryRepository;
 
   late final Future<void> _bootstrapFuture = _bootstrap();
 
   BookContent? _content;
   ThemeMode _themeMode = ThemeMode.dark;
+  double _textScale = AppSettingsRepository.defaultTextScale;
   AuthUser? _currentUser;
 
   Future<void> _bootstrap() async {
     final themeMode = await _appSettingsRepository.loadThemeMode();
+    final textScale = await _appSettingsRepository.loadTextScale();
     final content = await _bookRepository.loadContent();
     AuthUser? currentUser;
     try {
@@ -93,6 +100,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
     }
 
     _themeMode = themeMode;
+    _textScale = textScale;
     _content = content;
     _setProgress(progress);
     _studyDataNotifier.value = studyData;
@@ -140,6 +148,180 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
       return;
     }
     _setProgress(updated);
+  }
+
+  Future<void> _setTextScale(double value) async {
+    final clamped = value.clamp(
+      AppSettingsRepository.minTextScale,
+      AppSettingsRepository.maxTextScale,
+    );
+    await _appSettingsRepository.saveTextScale(clamped);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _textScale = clamped;
+    });
+  }
+
+  Future<void> _openFontSettings() async {
+    final context = _navigatorKey.currentContext;
+    if (context == null) {
+      return;
+    }
+    var draft = _textScale;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setLocalState) {
+            return AlertDialog(
+              title: const Text('Text size'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Slider(
+                    value: draft,
+                    min: AppSettingsRepository.minTextScale,
+                    max: AppSettingsRepository.maxTextScale,
+                    divisions: 13,
+                    label: '${(draft * 100).round()}%',
+                    onChanged: (v) {
+                      setLocalState(() => draft = v);
+                    },
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Smaller',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      Text(
+                        'Larger',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Apply'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (confirmed == true) {
+      await _setTextScale(draft);
+    }
+  }
+
+  Future<void> _recordExamCompletion(ExamCompletionSnapshot snapshot) async {
+    final entry = ExamHistoryEntry(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      title: snapshot.title,
+      questionIds: snapshot.questionIds,
+      examMode: snapshot.examMode,
+      startedAt: snapshot.startedAt,
+      endedAt: snapshot.endedAt,
+      timeLimitSeconds: snapshot.timeLimit?.inSeconds,
+    );
+    await _examHistoryRepository.prependEntry(entry);
+  }
+
+  Future<void> _startExamReviewFromHistory(ExamHistoryEntry entry) async {
+    final content = _content;
+    if (content == null) {
+      return;
+    }
+    List<BookQuestion> questions;
+    try {
+      questions = content.questionsForIdsInOrder(entry.questionIds);
+    } catch (_) {
+      final messenger = _navigatorKey.currentContext != null
+          ? ScaffoldMessenger.maybeOf(_navigatorKey.currentContext!)
+          : null;
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Some questions are no longer available; review may be incomplete.',
+          ),
+        ),
+      );
+      questions = <BookQuestion>[];
+      for (final id in entry.questionIds) {
+        try {
+          questions.add(content.questionById(id));
+        } catch (_) {
+          // Skip removed questions.
+        }
+      }
+      if (questions.isEmpty) {
+        return;
+      }
+    }
+
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) {
+      return;
+    }
+
+    await navigator.push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) {
+          return QuestionScreen(
+            title: '${entry.title} (review)',
+            content: content,
+            questions: questions,
+            progressRepository: _progressRepository,
+            initialProgress: _progressNotifier.value,
+            initialStudyData: _studyDataNotifier.value,
+            initialIndex: 0,
+            themeMode: _themeMode,
+            onToggleTheme: _toggleThemeMode,
+            onProgressChanged: _setProgress,
+            onStudyDataChanged: _setStudyData,
+            readOnlyAfterExam: true,
+            onEndReview: () => Navigator.of(context).pop(),
+          );
+        },
+      ),
+    );
+
+    await _refreshProgress();
+  }
+
+  Future<void> _openExamHistory() async {
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) {
+      return;
+    }
+
+    await navigator.push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) {
+          return ExamHistoryScreen(
+            loadEntries: () => _examHistoryRepository.loadEntries(),
+            onOpenEntry: (entry) {
+              Navigator.of(context).pop();
+              unawaited(_startExamReviewFromHistory(entry));
+            },
+            themeMode: _themeMode,
+            onToggleTheme: _toggleThemeMode,
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _toggleThemeMode() async {
@@ -230,6 +412,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
             onProgressChanged: _setProgress,
             onStudyDataChanged: _setStudyData,
             examSession: request.options,
+            onExamCompleted: _recordExamCompletion,
           );
         },
       ),
@@ -428,6 +611,15 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
       title: 'Core Review',
       debugShowCheckedModeBanner: false,
       navigatorKey: _navigatorKey,
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        return MediaQuery(
+          data: media.copyWith(
+            textScaler: TextScaler.linear(_textScale),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
@@ -456,6 +648,8 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
               onOpenBook: _openBook,
               onStartStudySet: _startStudySet,
               onOpenCustomExam: _openCustomExamSetup,
+              onOpenExamHistory: _openExamHistory,
+              onOpenFontSettings: _openFontSettings,
             )
           : FutureBuilder<void>(
               future: _bootstrapFuture,
@@ -494,6 +688,8 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
                   onOpenBook: _openBook,
                   onStartStudySet: _startStudySet,
                   onOpenCustomExam: _openCustomExamSetup,
+                  onOpenExamHistory: _openExamHistory,
+                  onOpenFontSettings: _openFontSettings,
                 );
               },
             ),

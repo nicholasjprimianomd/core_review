@@ -98,6 +98,11 @@ class BookContent {
       ..sort((left, right) => left.sortOrder.compareTo(right.sortOrder));
   }
 
+  /// Same as [questionsForIds] but keeps the caller's order (e.g. exam question order).
+  List<BookQuestion> questionsForIdsInOrder(Iterable<String> questionIds) {
+    return questionIds.map(questionById).toList(growable: false);
+  }
+
   List<BookQuestion> questionsForChapter(String chapterId) {
     return questions
         .where((question) => question.chapterId == chapterId)

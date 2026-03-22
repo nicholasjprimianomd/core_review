@@ -92,6 +92,8 @@ void main() {
           onOpenBook: (_) {},
           onStartStudySet: (title, questions) async {},
           onOpenCustomExam: () async {},
+          onOpenExamHistory: () async {},
+          onOpenFontSettings: () async {},
         ),
       ),
     );

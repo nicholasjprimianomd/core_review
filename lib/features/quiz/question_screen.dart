@@ -331,19 +331,6 @@ class _QuestionScreenState extends State<QuestionScreen> {
                     color: currentStudyData.hasNote ? Colors.amber : null,
                   ),
                 ),
-                IconButton(
-                  onPressed: () =>
-                      _openHighlightDialog(question, currentStudyData),
-                  tooltip: currentStudyData.hasHighlights
-                      ? 'Manage highlights (${currentStudyData.highlights.length})'
-                      : 'Add highlight',
-                  icon: Icon(
-                    Icons.highlight,
-                    color: currentStudyData.hasHighlights
-                        ? Colors.yellow.shade700
-                        : null,
-                  ),
-                ),
               ],
               if (!showQuestionNavigator)
                 IconButton(
@@ -417,42 +404,11 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                     ?.copyWith(fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 8),
-                              _HighlightableText(
-                                text: question.prompt,
-                                field: 'prompt',
-                                highlights: currentStudyData.highlights,
-                                style: Theme.of(context).textTheme.bodyLarge,
-                                onHighlight: widget.readOnlyAfterExam
-                                    ? (_) {}
-                                    : (span) {
-                                        final updated =
-                                            List<HighlightSpan>.from(
-                                          currentStudyData.highlights,
-                                        )..add(span);
-                                        _updateStudyData(
-                                          currentStudyData.copyWith(
-                                            highlights: updated,
-                                          ),
-                                        );
-                                      },
-                                onRemoveHighlight: widget.readOnlyAfterExam
-                                    ? (_) {}
-                                    : (span) {
-                                        final updated =
-                                            List<HighlightSpan>.from(
-                                          currentStudyData.highlights,
-                                        )..removeWhere(
-                                            (h) =>
-                                                h.field == span.field &&
-                                                h.start == span.start &&
-                                                h.end == span.end,
-                                          );
-                                        _updateStudyData(
-                                          currentStudyData.copyWith(
-                                            highlights: updated,
-                                          ),
-                                        );
-                                      },
+                              SelectionArea(
+                                child: Text(
+                                  question.prompt,
+                                  style: Theme.of(context).textTheme.bodyLarge,
+                                ),
                               ),
                               if (question.hasImages) ...[
                                 const SizedBox(height: 20),
@@ -625,38 +581,6 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                 AnswerRevealPanel(
                                   question: question,
                                   progress: questionProgress,
-                                  highlights: currentStudyData.highlights,
-                                  onHighlight: widget.readOnlyAfterExam
-                                      ? (_) {}
-                                      : (span) {
-                                          final updated =
-                                              List<HighlightSpan>.from(
-                                            currentStudyData.highlights,
-                                          )..add(span);
-                                          _updateStudyData(
-                                            currentStudyData.copyWith(
-                                              highlights: updated,
-                                            ),
-                                          );
-                                        },
-                                  onRemoveHighlight: widget.readOnlyAfterExam
-                                      ? (_) {}
-                                      : (span) {
-                                          final updated =
-                                              List<HighlightSpan>.from(
-                                            currentStudyData.highlights,
-                                          )..removeWhere(
-                                              (h) =>
-                                                  h.field == span.field &&
-                                                  h.start == span.start &&
-                                                  h.end == span.end,
-                                            );
-                                          _updateStudyData(
-                                            currentStudyData.copyWith(
-                                              highlights: updated,
-                                            ),
-                                          );
-                                        },
                                 ),
                               ],
                             ],
@@ -773,24 +697,6 @@ class _QuestionScreenState extends State<QuestionScreen> {
         return FractionallySizedBox(heightFactor: 0.94, child: sheet);
       },
     );
-  }
-
-  Future<void> _openHighlightDialog(
-    BookQuestion question,
-    QuestionStudyData data,
-  ) async {
-    final result = await showDialog<List<HighlightSpan>>(
-      context: context,
-      builder: (dialogContext) {
-        return _HighlightManageDialog(
-          question: question,
-          highlights: data.highlights,
-        );
-      },
-    );
-    if (result != null) {
-      _updateStudyData(data.copyWith(highlights: result));
-    }
   }
 
   Future<void> _openNotes(BookQuestion question) async {
@@ -1403,235 +1309,6 @@ class _NoteEditDialogState extends State<_NoteEditDialog> {
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
-          child: const Text('Save'),
-        ),
-      ],
-    );
-  }
-}
-
-class _HighlightableText extends StatelessWidget {
-  const _HighlightableText({
-    required this.text,
-    required this.field,
-    required this.highlights,
-    required this.onHighlight,
-    required this.onRemoveHighlight,
-    this.style,
-  });
-
-  final String text;
-  final String field;
-  final List<HighlightSpan> highlights;
-  final ValueChanged<HighlightSpan> onHighlight;
-  final ValueChanged<HighlightSpan> onRemoveHighlight;
-  final TextStyle? style;
-
-  TextSpan _buildTextSpan() {
-    final spans = highlights.where((h) => h.field == field).toList()
-      ..sort((a, b) => a.start.compareTo(b.start));
-
-    if (spans.isEmpty) {
-      return TextSpan(text: text, style: style);
-    }
-
-    final children = <TextSpan>[];
-    var lastEnd = 0;
-
-    for (final span in spans) {
-      final start = span.start.clamp(0, text.length);
-      final end = span.end.clamp(0, text.length);
-      if (start >= end || start < lastEnd) continue;
-
-      if (start > lastEnd) {
-        children.add(TextSpan(text: text.substring(lastEnd, start), style: style));
-      }
-
-      children.add(TextSpan(
-        text: text.substring(start, end),
-        style: style?.copyWith(
-          backgroundColor: Colors.yellow.withValues(alpha: 0.35),
-        ),
-      ));
-      lastEnd = end;
-    }
-
-    if (lastEnd < text.length) {
-      children.add(TextSpan(text: text.substring(lastEnd), style: style));
-    }
-
-    return TextSpan(children: children);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SelectionArea(
-      child: Text.rich(_buildTextSpan()),
-    );
-  }
-}
-
-class _HighlightManageDialog extends StatefulWidget {
-  const _HighlightManageDialog({
-    required this.question,
-    required this.highlights,
-  });
-
-  final BookQuestion question;
-  final List<HighlightSpan> highlights;
-
-  @override
-  State<_HighlightManageDialog> createState() => _HighlightManageDialogState();
-}
-
-class _HighlightManageDialogState extends State<_HighlightManageDialog> {
-  late final List<HighlightSpan> _highlights = List.from(widget.highlights);
-  final TextEditingController _addController = TextEditingController();
-  String _addField = 'prompt';
-
-  void _addHighlight() {
-    final searchText = _addController.text.trim();
-    if (searchText.isEmpty) return;
-
-    final source = _addField == 'prompt'
-        ? widget.question.prompt
-        : widget.question.explanation;
-    final idx = source.toLowerCase().indexOf(searchText.toLowerCase());
-    if (idx < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Text not found in the selected field.')),
-      );
-      return;
-    }
-
-    setState(() {
-      _highlights.add(HighlightSpan(
-        field: _addField,
-        start: idx,
-        end: idx + searchText.length,
-      ));
-    });
-    _addController.clear();
-  }
-
-  String _snippetFor(HighlightSpan span) {
-    final source = span.field == 'prompt'
-        ? widget.question.prompt
-        : widget.question.explanation;
-    final start = span.start.clamp(0, source.length);
-    final end = span.end.clamp(0, source.length);
-    if (start >= end) return '(invalid)';
-    final text = source.substring(start, end);
-    return text.length > 60 ? '${text.substring(0, 57)}...' : text;
-  }
-
-  @override
-  void dispose() {
-    _addController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AlertDialog(
-      title: const Text('Highlights'),
-      content: SizedBox(
-        width: 480,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _addController,
-                    decoration: const InputDecoration(
-                      hintText: 'Type text to highlight...',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    onSubmitted: (_) => _addHighlight(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                DropdownButton<String>(
-                  value: _addField,
-                  items: const [
-                    DropdownMenuItem(value: 'prompt', child: Text('Stem')),
-                    DropdownMenuItem(value: 'explanation', child: Text('Explanation')),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) setState(() => _addField = v);
-                  },
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  onPressed: _addHighlight,
-                  icon: const Icon(Icons.add),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (_highlights.isEmpty)
-              Text(
-                'No highlights yet. Type a phrase to highlight it.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.hintColor,
-                ),
-              )
-            else
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 300),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _highlights.length,
-                  itemBuilder: (context, index) {
-                    final span = _highlights[index];
-                    return ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.yellow.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          span.field == 'prompt' ? 'Stem' : 'Expl',
-                          style: theme.textTheme.labelSmall,
-                        ),
-                      ),
-                      title: Text(
-                        _snippetFor(span),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: () {
-                          setState(() => _highlights.removeAt(index));
-                        },
-                      ),
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(_highlights),
           child: const Text('Save'),
         ),
       ],

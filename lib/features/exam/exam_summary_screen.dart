@@ -78,8 +78,14 @@ class ExamSummaryScreen extends StatelessWidget {
               value: _formatDuration(timeLimit!),
             ),
           const SizedBox(height: 32),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(context).pop(true),
+            icon: const Icon(Icons.visibility_outlined),
+            label: const Text('Review questions'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Done'),
           ),
         ],

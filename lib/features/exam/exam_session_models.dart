@@ -52,3 +52,22 @@ class ExamLaunchRequest {
   final List<BookQuestion> questions;
   final ExamSessionOptions options;
 }
+
+/// Fired after the exam summary is shown (before optional review or pop).
+class ExamCompletionSnapshot {
+  const ExamCompletionSnapshot({
+    required this.title,
+    required this.questionIds,
+    required this.examMode,
+    required this.startedAt,
+    required this.endedAt,
+    this.timeLimit,
+  });
+
+  final String title;
+  final List<String> questionIds;
+  final ExamMode examMode;
+  final DateTime startedAt;
+  final DateTime endedAt;
+  final Duration? timeLimit;
+}

@@ -1,7 +1,7 @@
 import 'package:core_review/features/books/book_library_screen.dart';
 import 'package:core_review/models/book_models.dart';
 import 'package:core_review/models/progress_models.dart';
-import 'package:flutter/foundation.dart';
+import 'package:core_review/models/study_data_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -73,16 +73,22 @@ void main() {
       ],
     );
 
+    final studyDataListenable = ValueNotifier<StudyData>(StudyData.empty);
+    addTearDown(studyDataListenable.dispose);
+
     await tester.pumpWidget(
       MaterialApp(
         home: BookLibraryScreen(
           content: content,
           progressListenable: progressListenable,
+          studyDataListenable: studyDataListenable,
           themeMode: ThemeMode.dark,
           currentUserEmail: 'reader@example.com',
           onToggleTheme: () {},
           onOpenAuth: () {},
           onOpenProgress: () {},
+          onOpenAnalytics: () {},
+          onOpenSearch: () {},
           onOpenBook: (_) {},
           onStartStudySet: (title, questions) async {},
           onOpenCustomExam: () async {},

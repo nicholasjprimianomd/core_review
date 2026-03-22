@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'features/analytics/analytics_screen.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/books/book_library_screen.dart';
 import 'features/chapters/chapter_list_screen.dart';
@@ -10,12 +11,15 @@ import 'features/exam/custom_exam_setup_screen.dart';
 import 'features/exam/exam_session_models.dart';
 import 'features/progress/progress_screen.dart';
 import 'features/quiz/question_screen.dart';
+import 'features/search/search_screen.dart';
 import 'models/book_models.dart';
 import 'models/progress_models.dart';
+import 'models/study_data_models.dart';
 import 'repositories/app_settings_repository.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/book_repository.dart';
 import 'repositories/cloud_progress_repository.dart';
+import 'repositories/study_data_repository.dart';
 
 void main() {
   runApp(const CoreReviewApp());
@@ -32,11 +36,15 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
   _CoreReviewAppState()
     : _authRepository = AuthRepository(),
       _bookRepository = BookRepository(),
-      _appSettingsRepository = AppSettingsRepository();
+      _appSettingsRepository = AppSettingsRepository(),
+      _studyDataRepository = StudyDataRepository();
 
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final ValueNotifier<StudyProgress> _progressNotifier = ValueNotifier(
     StudyProgress.empty,
+  );
+  final ValueNotifier<StudyData> _studyDataNotifier = ValueNotifier(
+    StudyData.empty,
   );
   late final AuthRepository _authRepository;
   late final ProgressRepository _progressRepository = ProgressRepository(
@@ -47,6 +55,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
   );
   late final BookRepository _bookRepository;
   late final AppSettingsRepository _appSettingsRepository;
+  late final StudyDataRepository _studyDataRepository;
 
   late final Future<void> _bootstrapFuture = _bootstrap();
 
@@ -76,15 +85,24 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
       progress = StudyProgress.empty;
     }
 
+    StudyData studyData;
+    try {
+      studyData = await _studyDataRepository.load();
+    } catch (_) {
+      studyData = StudyData.empty;
+    }
+
     _themeMode = themeMode;
     _content = content;
     _setProgress(progress);
+    _studyDataNotifier.value = studyData;
   }
 
   @override
   void dispose() {
     unawaited(_authRepository.dispose());
     _progressNotifier.dispose();
+    _studyDataNotifier.dispose();
     super.dispose();
   }
 
@@ -205,10 +223,12 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
             questions: request.questions,
             progressRepository: _progressRepository,
             initialProgress: _progressNotifier.value,
+            initialStudyData: _studyDataNotifier.value,
             initialIndex: 0,
             themeMode: _themeMode,
             onToggleTheme: _toggleThemeMode,
             onProgressChanged: _setProgress,
+            onStudyDataChanged: _setStudyData,
             examSession: request.options,
           );
         },
@@ -242,10 +262,12 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
             questions: questions,
             progressRepository: _progressRepository,
             initialProgress: _progressNotifier.value,
+            initialStudyData: _studyDataNotifier.value,
             initialIndex: initialIndex,
             themeMode: _themeMode,
             onToggleTheme: _toggleThemeMode,
             onProgressChanged: _setProgress,
+            onStudyDataChanged: _setStudyData,
           );
         },
       ),
@@ -341,6 +363,65 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
     _progressNotifier.value = progress;
   }
 
+  void _setStudyData(StudyData data) {
+    _studyDataNotifier.value = data;
+    unawaited(_studyDataRepository.save(data));
+  }
+
+  Future<void> _openAnalytics() async {
+    final content = _content;
+    if (content == null) {
+      return;
+    }
+
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) {
+      return;
+    }
+
+    await navigator.push(
+      MaterialPageRoute<void>(
+        builder: (context) {
+          return AnalyticsScreen(
+            content: content,
+            progressListenable: _progressNotifier,
+            themeMode: _themeMode,
+            onToggleTheme: _toggleThemeMode,
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _openSearch() async {
+    final content = _content;
+    if (content == null) {
+      return;
+    }
+
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) {
+      return;
+    }
+
+    await navigator.push(
+      MaterialPageRoute<void>(
+        builder: (context) {
+          return SearchScreen(
+            content: content,
+            progressListenable: _progressNotifier,
+            studyDataListenable: _studyDataNotifier,
+            themeMode: _themeMode,
+            onToggleTheme: _toggleThemeMode,
+            onStartStudySet: _startStudySet,
+          );
+        },
+      ),
+    );
+
+    await _refreshProgress();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -364,11 +445,14 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
           ? BookLibraryScreen(
               content: _content!,
               progressListenable: _progressNotifier,
+              studyDataListenable: _studyDataNotifier,
               themeMode: _themeMode,
               currentUserEmail: _currentUser?.email,
               onToggleTheme: _toggleThemeMode,
               onOpenAuth: _openAuth,
               onOpenProgress: _openProgress,
+              onOpenAnalytics: _openAnalytics,
+              onOpenSearch: _openSearch,
               onOpenBook: _openBook,
               onStartStudySet: _startStudySet,
               onOpenCustomExam: _openCustomExamSetup,
@@ -399,11 +483,14 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
                 return BookLibraryScreen(
                   content: _content!,
                   progressListenable: _progressNotifier,
+                  studyDataListenable: _studyDataNotifier,
                   themeMode: _themeMode,
                   currentUserEmail: _currentUser?.email,
                   onToggleTheme: _toggleThemeMode,
                   onOpenAuth: _openAuth,
                   onOpenProgress: _openProgress,
+                  onOpenAnalytics: _openAnalytics,
+                  onOpenSearch: _openSearch,
                   onOpenBook: _openBook,
                   onStartStudySet: _startStudySet,
                   onOpenCustomExam: _openCustomExamSetup,

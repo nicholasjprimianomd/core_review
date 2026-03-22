@@ -474,6 +474,19 @@ class _ChapterScopeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!chapter.hasSections) {
+      return Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: CheckboxListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          value: chapterSelected,
+          onChanged: (v) => onChapterChanged(chapter.id, v),
+          title: Text(chapter.displayTitle),
+          controlAffinity: ListTileControlAffinity.leading,
+        ),
+      );
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ExpansionTile(
@@ -485,20 +498,14 @@ class _ChapterScopeTile extends StatelessWidget {
         title: Text(chapter.displayTitle),
         subtitle: const Text('Whole chapter'),
         children: [
-          if (!chapter.hasSections)
-            const ListTile(
+          for (final section in chapter.sections)
+            CheckboxListTile(
+              value: sectionSelection.contains(section.id),
+              onChanged: (v) => onSectionChanged(section.id, v),
+              title: Text(section.displayTitle),
+              controlAffinity: ListTileControlAffinity.leading,
               dense: true,
-              title: Text('No subtopics; chapter checkbox includes all items.'),
-            )
-          else
-            for (final section in chapter.sections)
-              CheckboxListTile(
-                value: sectionSelection.contains(section.id),
-                onChanged: (v) => onSectionChanged(section.id, v),
-                title: Text(section.displayTitle),
-                controlAffinity: ListTileControlAffinity.leading,
-                dense: true,
-              ),
+            ),
         ],
       ),
     );

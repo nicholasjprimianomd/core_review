@@ -47,3 +47,6 @@ app.*.map.json
 
 # Generated validation output
 assets/data/validation_report.json
+
+# Full-book PDF re-extraction temp trees
+.reextract_workspace/

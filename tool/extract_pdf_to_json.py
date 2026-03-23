@@ -17,20 +17,20 @@ import fitz
 QUESTION_START_RE = re.compile(r"^(?P<number>\d+[a-z]?)\s*\.?\s+(?P<text>.+)$")
 QUESTION_NUMBER_ONLY_RE = re.compile(r"^(?P<number>\d+[a-z]?)\s*\.?$")
 ANSWER_START_RE = re.compile(
-    r"^(?P<number>\d{1,2}[a-z]?)\s*\.?\s+Answer(?::|\s+)\s*(?P<choice>[A-E])\s*\.\s*(?P<text>.*)$",
+    r"^(?P<number>\d{1,2}[a-z]?)\s*\.?\s+Answer(?::|\s+)\s*(?P<choice>[A-H])\s*\.\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
 # Many Core Review chapters use "Answer A. ..." without a leading question number; pair with chapter order.
 ANSWER_UNNUMBERED_RE = re.compile(
-    r"^Answer\s+(?P<choice>[A-E])\s*\.\s*(?P<text>.*)$",
+    r"^Answer\s+(?P<choice>[A-H])\s*\.\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
 # Citation page numbers can glue to the next line (e.g. "344 Answer D.") — treat like unnumbered.
 ANSWER_PAGE_REF_PREFIX_RE = re.compile(
-    r"^(?P<pref>\d{3,})\s+Answer\s+(?P<choice>[A-E])\s*\.\s*(?P<text>.*)$",
+    r"^(?P<pref>\d{3,})\s+Answer\s+(?P<choice>[A-H])\s*\.\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
-CHOICE_START_RE = re.compile(r"^(?P<choice>[A-E])\.\s*(?P<text>.*)$")
+CHOICE_START_RE = re.compile(r"^(?P<choice>[A-H])\.\s*(?P<text>.*)$")
 REFERENCE_START_RE = re.compile(r"^References?:\s*(?P<text>.*)$", re.IGNORECASE)
 CHAPTER_TOC_RE = re.compile(r"^(?P<number>\d+)\s+(?P<title>.+)$")
 GENERIC_CHAPTER_TOC_RE = re.compile(r"^Chapter\s+(?P<number>\d+)$", re.IGNORECASE)
@@ -344,8 +344,37 @@ def extract_page_lines(page: fitz.Page) -> list[LineInfo]:
 
     page_lines.sort(key=lambda entry: (entry.y, entry.text))
     page_lines = preprocess_page_lines(page_lines)
+    page_lines = expand_fused_choice_lines(page_lines)
     page_lines = merge_dangling_reference_answers(page_lines)
     return expand_glued_reference_answers(page_lines)
+
+
+def expand_fused_choice_lines(page_lines: list[LineInfo]) -> list[LineInfo]:
+    """Split lines like 'E. cystic F. mature G. x H. y' into separate choice lines (Core Review pancreas, etc.)."""
+    expanded: list[LineInfo] = []
+    # Two or more single-letter choice markers (A.–H.) on one physical line
+    multi_choice = re.compile(r"(?:^|\s)([A-H])\.\s", re.IGNORECASE)
+
+    for li in page_lines:
+        text = li.text.strip()
+        if not text:
+            expanded.append(li)
+            continue
+        markers = list(multi_choice.finditer(text))
+        if len(markers) < 2:
+            expanded.append(li)
+            continue
+        segments = [
+            s.strip()
+            for s in re.split(r"(?<=\S)\s+(?=[A-H]\.\s)", text, flags=re.IGNORECASE)
+            if s.strip()
+        ]
+        if len(segments) < 2:
+            expanded.append(li)
+            continue
+        for seg in segments:
+            expanded.append(LineInfo(y=li.y, text=seg))
+    return expanded
 
 
 def merge_dangling_reference_answers(page_lines: list[LineInfo]) -> list[LineInfo]:
@@ -357,7 +386,7 @@ def merge_dangling_reference_answers(page_lines: list[LineInfo]) -> list[LineInf
         prev = merged[-1]
         cur = page_lines[i]
         if prev.text.rstrip().endswith("-") and re.match(
-            r"^\d+\s+Answer\s+[A-E]\.",
+            r"^\d+\s+Answer\s+[A-H]\.",
             cur.text.strip(),
             re.IGNORECASE,
         ):
@@ -370,7 +399,7 @@ def merge_dangling_reference_answers(page_lines: list[LineInfo]) -> list[LineInf
 def expand_glued_reference_answers(page_lines: list[LineInfo]) -> list[LineInfo]:
     """Split citation tails like '...59-70 Answer A.' into two lines so answers parse correctly."""
     expanded: list[LineInfo] = []
-    glue_pat = re.compile(r"(-\d+)\s+(Answer\s+[A-E]\.\s*)", re.IGNORECASE)
+    glue_pat = re.compile(r"(-\d+)\s+(Answer\s+[A-H]\.\s*)", re.IGNORECASE)
     for li in page_lines:
         m = glue_pat.search(li.text)
         if m is not None and m.start(2) > 0:

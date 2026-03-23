@@ -372,3 +372,13 @@ class BookQuestion {
     );
   }
 }
+
+/// Groups parts of the same stem for custom exams (random order) and in-quiz navigation.
+///
+/// [BookQuestion.stemGroup] repeats per chapter in the books; scoping by [chapterId]
+/// and [sectionId] prevents unrelated questions from merging while keeping multipart
+/// rows (e.g. 10a/10b) together when they share a stem in the same chapter.
+String multipartStemKey(BookQuestion question) {
+  final sec = question.sectionId ?? '';
+  return '${question.bookId}::${question.chapterId}::$sec::${question.stemGroup}';
+}

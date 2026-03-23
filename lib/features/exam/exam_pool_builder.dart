@@ -4,12 +4,6 @@ import '../../models/book_models.dart';
 import '../../models/progress_models.dart';
 import 'exam_session_models.dart';
 
-String stemGroupKey(BookQuestion question) {
-  // Same stemGroup string can span chapters; include only book + stem so
-  // multipart stems split across chapters stay one logical group.
-  return '${question.bookId}::${question.stemGroup}';
-}
-
 /// Returns questions whose geographic scope matches [selection].
 List<BookQuestion> questionsInScope(
   BookContent content,
@@ -72,7 +66,7 @@ bool _passesCompletionFilter(
 Map<String, List<BookQuestion>> fullStemsByKey(BookContent content) {
   final map = <String, List<BookQuestion>>{};
   for (final q in content.questions) {
-    map.putIfAbsent(stemGroupKey(q), () => []).add(q);
+    map.putIfAbsent(multipartStemKey(q), () => []).add(q);
   }
   for (final list in map.values) {
     list.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));

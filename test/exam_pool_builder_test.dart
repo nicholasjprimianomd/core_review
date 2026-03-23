@@ -198,7 +198,9 @@ void main() {
     expect(out.any((q) => q.id == questions[1].id), isTrue);
   });
 
-  test('stem split across chapters is excluded from pool', () {
+  test(
+    'multipart key is chapter-scoped: other chapter with same stemGroup does not merge',
+    () {
     final qOther = _withBookId(
       BookQuestion(
         id: 'm-1-c',
@@ -258,6 +260,31 @@ void main() {
       questionCount: 10,
       random: Random(2),
     );
-    expect(out, isEmpty);
+    // c1-only scope: part in c1 is its own stem group; c2 part is unrelated.
+    expect(out.map((q) => q.id).toList(), [qA.id]);
+  });
+
+  test('multipart parts in same chapter stay adjacent in exam order', () {
+    final questions = [
+      _withBookId(_q1b, 'b1'),
+      _withBookId(_q1a, 'b1'),
+    ];
+    final content = _content(questions);
+    final selection = ExamScopeSelection(
+      bookIds: {'b1'},
+      chapterIds: {},
+      sectionIds: {},
+    );
+    final out = buildExamQuestionList(
+      content: content,
+      selection: selection,
+      completionFilter: CompletionFilter.allPool,
+      progress: StudyProgress.empty,
+      questionCount: 10,
+      random: Random(99),
+    );
+    expect(out.length, 2);
+    expect(out[0].id, 'm-1-a');
+    expect(out[1].id, 'm-1-b');
   });
 }

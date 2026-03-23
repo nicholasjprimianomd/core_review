@@ -5,12 +5,9 @@ import '../../models/progress_models.dart';
 import 'exam_session_models.dart';
 
 String stemGroupKey(BookQuestion question) {
-  return [
-    question.bookId,
-    question.chapterId,
-    question.sectionId ?? '',
-    question.stemGroup,
-  ].join('::');
+  // Same stemGroup string can span chapters; include only book + stem so
+  // multipart stems split across chapters stay one logical group.
+  return '${question.bookId}::${question.stemGroup}';
 }
 
 /// Returns questions whose geographic scope matches [selection].

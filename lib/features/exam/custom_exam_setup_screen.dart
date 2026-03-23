@@ -257,7 +257,8 @@ class _CustomExamSetupScreenState extends State<CustomExamSetupScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<CompletionFilter>(
-                value: _completionFilter,
+                key: ValueKey(_completionFilter),
+                initialValue: _completionFilter,
                 decoration: const InputDecoration(border: OutlineInputBorder()),
                 items: const [
                   DropdownMenuItem(

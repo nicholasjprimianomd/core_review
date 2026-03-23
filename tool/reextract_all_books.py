@@ -15,6 +15,8 @@ _TOOL = Path(__file__).resolve().parent
 if str(_TOOL) not in sys.path:
     sys.path.insert(0, str(_TOOL))
 
+from safe_merge_questions import merge_book_extract
+
 def find_source_file(
     source_name: str,
     extra_paths: dict[str, Path],
@@ -55,6 +57,11 @@ def main() -> None:
         metavar="BOOK_ID",
         help="Only re-extract these book ids (e.g. breast-imaging ultrasound). "
         "Other books keep existing rows in questions.json.",
+    )
+    parser.add_argument(
+        "--no-safe-merge",
+        action="store_true",
+        help="Replace each re-extracted book with raw extractor output (not recommended).",
     )
     args = parser.parse_args()
     only_ids: set[str] | None = set(args.only) if args.only else None
@@ -186,7 +193,11 @@ def main() -> None:
 
         out_q = work / "assets" / "data" / "questions.json"
         chunk = json.loads(out_q.read_text(encoding="utf-8"))
-        merged.extend(chunk)
+        prior_for_book = existing_by_book.get(bid, [])
+        if args.no_safe_merge:
+            merged.extend(chunk)
+        else:
+            merged.extend(merge_book_extract(prior_for_book, chunk))
         extracted_ids.append(bid)
 
         img_src = work / "assets" / "book_images"

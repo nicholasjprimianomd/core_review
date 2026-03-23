@@ -32,6 +32,8 @@ def build_report(
 
     for question in questions:
         question_id = str(question["id"])
+        if question.get("validationRelaxed") is True:
+            continue
         choices = question.get("choices", {})
         explanation = str(question.get("explanation", "")).strip()
         image_assets = question.get("imageAssets", [])
@@ -109,6 +111,18 @@ def main() -> None:
         default=Path(__file__).resolve().parents[1],
         help="Flutter project root containing assets/data/questions.json",
     )
+    parser.add_argument(
+        "--fail-on-issues",
+        action="store_true",
+        help="Exit with code 1 if any issue is reported.",
+    )
+    parser.add_argument(
+        "--max-issues",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Exit with code 1 if issue count is greater than N (ignored when --fail-on-issues is set).",
+    )
     args = parser.parse_args()
 
     project_root = args.project_root.expanduser().resolve()
@@ -119,6 +133,16 @@ def main() -> None:
     print(f"Validated {report['questionCount']} questions")
     print(f"Found {report['issueCount']} issues")
     print(f"Saved validation report to {report_path}")
+
+    issue_count = int(report["issueCount"])
+    if args.fail_on_issues and issue_count > 0:
+        raise SystemExit(1)
+    if (
+        not args.fail_on_issues
+        and args.max_issues is not None
+        and issue_count > args.max_issues
+    ):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

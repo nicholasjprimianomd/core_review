@@ -320,11 +320,6 @@ class QuestionController extends ChangeNotifier {
   }
 
   String _multipartGroupKey(BookQuestion question) {
-    return [
-      question.bookId,
-      question.chapterId,
-      question.sectionId ?? '',
-      question.stemGroup,
-    ].join('::');
+    return '${question.bookId}::${question.stemGroup}';
   }
 }

@@ -39,6 +39,7 @@ void main() {
           selectedChoice: 'D',
           isCorrect: true,
           answeredAt: DateTime(2026, 3, 13),
+          revealedAt: DateTime(2026, 3, 13),
         ),
       },
       lastVisitedQuestionId: 'chapter-1-1',

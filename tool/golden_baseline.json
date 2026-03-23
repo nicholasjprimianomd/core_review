@@ -1,0 +1,343 @@
+{
+  "version": 1,
+  "generatedAt": "2026-03-23T15:02:15.974848+00:00",
+  "source": "assets/data/questions.json",
+  "questions": {
+    "breast-imaging-1-1": {
+      "correctChoice": "C",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 1031
+    },
+    "breast-imaging-1-10": {
+      "correctChoice": "C",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 202
+    },
+    "breast-imaging-1-11": {
+      "correctChoice": "C",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 369
+    },
+    "cardiac-1-1": {
+      "correctChoice": "C",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 58
+    },
+    "cardiac-1-10": {
+      "correctChoice": "C",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 153
+    },
+    "cardiac-1-11": {
+      "correctChoice": "B",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 276
+    },
+    "gastrointestinal-1-1": {
+      "correctChoice": "A",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 435
+    },
+    "gastrointestinal-1-10": {
+      "correctChoice": "C",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 571
+    },
+    "gastrointestinal-1-11": {
+      "correctChoice": "D",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "minExplanationLen": 508
+    },
+    "genitourinary-1-1": {
+      "correctChoice": "A",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E"
+      ],
+      "minExplanationLen": 305
+    },
+    "genitourinary-1-10": {
+      "correctChoice": "D",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 803
+    },
+    "genitourinary-1-11": {
+      "correctChoice": "B",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 547
+    },
+    "musculoskeletal-imaging-1-1": {
+      "correctChoice": "A",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 181
+    },
+    "musculoskeletal-imaging-1-10": {
+      "correctChoice": "C",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 159
+    },
+    "musculoskeletal-imaging-1-11": {
+      "correctChoice": "A",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 246
+    },
+    "neuroradiology-1-10a": {
+      "correctChoice": "A",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 147
+    },
+    "neuroradiology-1-10b": {
+      "correctChoice": "A",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 1427
+    },
+    "neuroradiology-1-11a": {
+      "correctChoice": "A",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 13
+    },
+    "nuclear-medicine-1-1": {
+      "correctChoice": "B",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F"
+      ],
+      "minExplanationLen": 652
+    },
+    "nuclear-medicine-1-2": {
+      "correctChoice": "C",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F"
+      ],
+      "minExplanationLen": 785
+    },
+    "nuclear-medicine-1-3": {
+      "correctChoice": "E",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F"
+      ],
+      "minExplanationLen": 488
+    },
+    "pediatric-imaging-1-1": {
+      "correctChoice": "B",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 890
+    },
+    "pediatric-imaging-1-10": {
+      "correctChoice": "B",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 118
+    },
+    "pediatric-imaging-1-11": {
+      "correctChoice": "D",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 210
+    },
+    "thoracic-imaging-1-1": {
+      "correctChoice": "D",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 646
+    },
+    "thoracic-imaging-1-10": {
+      "correctChoice": "A",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 328
+    },
+    "thoracic-imaging-1-11": {
+      "correctChoice": "C",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 173
+    },
+    "ultrasound-1-1": {
+      "correctChoice": "A",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 832
+    },
+    "ultrasound-1-11": {
+      "correctChoice": "C",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 620
+    },
+    "ultrasound-1-12": {
+      "correctChoice": "A",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 73
+    },
+    "vascular-and-interventional-radiology-1-1": {
+      "correctChoice": "B",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "minExplanationLen": 290
+    },
+    "vascular-and-interventional-radiology-1-10": {
+      "correctChoice": "B",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C"
+      ],
+      "minExplanationLen": 316
+    },
+    "vascular-and-interventional-radiology-1-11": {
+      "correctChoice": "A",
+      "choiceLetters": [
+        "A",
+        "B",
+        "C"
+      ],
+      "minExplanationLen": 433
+    }
+  }
+}

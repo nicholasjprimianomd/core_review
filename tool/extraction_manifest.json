@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "generatedAt": "2026-03-23T15:29:40.032583+00:00",
+  "files": {
+    "tool/extract_pdf_to_json.py": {
+      "sha256": "a7c5980b75c33772c386f5cd40d6174d73870ce85279e95ff81f0db9be610daa"
+    },
+    "tool/safe_merge_questions.py": {
+      "sha256": "9bb2eed2a75011ca7ba9149261504c9e2fb5be6f805ba20441fe36cf2c4ea3db"
+    },
+    "tool/reextract_all_books.py": {
+      "sha256": "93a16840ec36cdfa446dc25f7585cf7463eb35c4af1d723854462a527806a188"
+    },
+    "tool/hybrid_fallback_answers.py": {
+      "sha256": "8a2529ccf491bbff246255535c71bd0072b50b1a5771e8a19e67cbe7f40282d2"
+    },
+    "tool/apply_content_validation_fixes.py": {
+      "sha256": "43a692f32583fcad82c00f80921a17b7de0358d37d8e1aa7845f40fa81237712"
+    },
+    "tool/recover_relaxed_answers.py": {
+      "sha256": "2aea784141e56ac62e9190b0923f05077afb838680833e6e23c792a3845d5572"
+    },
+    "tool/validate_content.py": {
+      "sha256": "8feff427a2e5517fa153f05dc7769920a5b440fa6a7615213bdafca84d87ec52"
+    },
+    "assets/data/books.json": {
+      "sha256": "616bf84426391d376a7043b357980611a6fd4c484bc7fb41cae3142a57102650"
+    }
+  }
+}

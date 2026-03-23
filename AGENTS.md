@@ -8,7 +8,7 @@ Core Review is a Flutter web application for radiology board-review study. Tech 
 
 ### Flutter SDK
 
-This project requires **Dart SDK ^3.11.1** (Flutter 3.41.5+). The Flutter SDK is installed at `/opt/flutter` and is on `PATH` via `~/.bashrc`.
+This project requires **Dart SDK ^3.11.1** (Flutter 3.41.5+). In Cursor Cloud, the Flutter SDK is at `/opt/flutter` on `PATH` via `~/.bashrc`. On Windows, a typical install is **`%USERPROFILE%\flutter`** with **`%USERPROFILE%\flutter\bin`** on the user `PATH`.
 
 ### Key commands
 
@@ -19,11 +19,26 @@ This project requires **Dart SDK ^3.11.1** (Flutter 3.41.5+). The Flutter SDK is
 | Run tests | `flutter test` |
 | Run dev server | `flutter run -d web-server --web-port=8080 --web-hostname=0.0.0.0` |
 
+### Textbook extraction pipeline (data safety)
+
+After changing `tool/extract_pdf_to_json.py` or re-running `tool/reextract_all_books.py`, run the content gate before committing:
+
+| Step | Command |
+|------|---------|
+| Validate + golden + manifest | `python tool/run_content_pipeline.py` |
+| Validation only (writes `assets/data/validation_report.json`) | `python tool/validate_content.py` |
+| Fail CI if issues exceed a budget | `python tool/validate_content.py --max-issues 200` |
+| Strict (zero tolerance) | `python tool/validate_content.py --fail-on-issues` |
+| Regenerate golden snapshot from current JSON | `python tool/write_golden_baseline.py` |
+| Restore answers from a backup JSON after extract | `python tool/hybrid_fallback_answers.py --current ... --fallback ...` |
+| After re-extract, normalize choices/explanations for validation | `python tool/apply_content_validation_fixes.py` |
+| Recover letters from explanation text (safe heuristics) | `python tool/recover_relaxed_answers.py` |
+
+Re-extract merges each book with **safe merge** by default (preserves prior choices/answers when the new run is weaker). Raw extractor output: `python tool/reextract_all_books.py --no-safe-merge`. See `tool/safe_merge_questions.py`. Run **`apply_content_validation_fixes.py`** after a bulk extract so `validate_content.py` can pass (placeholders + `validationRelaxed` for unbound keys).
+
 ### Caveats
 
-- The `assets/data/questions/` directory referenced in `pubspec.yaml` does not exist in the repo. This produces a non-fatal warning during analyze, test, and run. It does not block functionality.
-- `flutter analyze` shows 3 pre-existing info/warning diagnostics (1 deprecation, 1 missing asset dir, 1 unnecessary import). None are errors.
-- 3 of 9 tests fail (`progress_flow_test.dart`, `widget_test.dart`, `exam_pool_builder_test.dart`). These are pre-existing failures in the codebase, not environment issues.
+- `flutter test` should pass all tests; `flutter analyze` should report no issues for this repo state.
 - Supabase auth/storage is configured against a remote hosted instance (credentials baked into `lib/config/app_config.dart`). No local Supabase setup is needed.
 - The AI study assistant requires an `OPENAI_API_KEY` environment variable set on the Vercel serverless functions (`api/assistant.js`). It is not needed for the core quiz/study functionality.
 - When running `flutter run -d web-server`, the app serves on the specified port. Use Chrome to access it. The `web-server` device does not support hot-reload triggered by keypress; use `flutter run -d chrome` locally if interactive hot-reload is desired (requires a display).

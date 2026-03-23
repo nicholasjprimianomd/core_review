@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Convert EPUB to PDF using PyMuPDF (MuPDF)."""
+"""Convert EPUB to PDF using PyMuPDF (MuPDF).
+
+For Core Review catalog extraction, prefer passing the .epub to extract_pdf_to_json.py
+directly: conversion to PDF drops TOC bookmarks and breaks chapter detection.
+This utility remains useful for human-readable PDF output.
+"""
 
 from __future__ import annotations
 

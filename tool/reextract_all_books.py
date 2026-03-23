@@ -15,9 +15,6 @@ _TOOL = Path(__file__).resolve().parent
 if str(_TOOL) not in sys.path:
     sys.path.insert(0, str(_TOOL))
 
-from epub_to_pdf import epub_to_pdf  # noqa: E402
-
-
 def find_source_file(
     source_name: str,
     extra_paths: dict[str, Path],
@@ -40,26 +37,12 @@ def find_source_file(
     return None
 
 
-def ensure_pdf(
-    source_path: Path,
-    book_id: str,
-    converted_dir: Path,
-) -> Path:
-    if source_path.suffix.lower() == ".pdf":
+def resolve_extract_path(source_path: Path) -> Path:
+    """PDFs are passed through. EPUBs are opened natively by PyMuPDF (preserves TOC; EPUB->PDF loses bookmarks)."""
+    suf = source_path.suffix.lower()
+    if suf in {".pdf", ".epub"}:
         return source_path
-    if source_path.suffix.lower() != ".epub":
-        raise ValueError(f"Unsupported source type: {source_path}")
-
-    converted_dir.mkdir(parents=True, exist_ok=True)
-    out_pdf = converted_dir / f"{book_id}.pdf"
-    src_mtime = source_path.stat().st_mtime
-    if out_pdf.is_file() and out_pdf.stat().st_mtime >= src_mtime:
-        print(f"  Using cached PDF {out_pdf.name}", flush=True)
-        return out_pdf
-
-    print(f"  Converting EPUB to PDF -> {out_pdf.name} ...", flush=True)
-    epub_to_pdf(source_path, out_pdf)
-    return out_pdf
+    raise ValueError(f"Unsupported source type: {source_path}")
 
 
 def main() -> None:
@@ -81,7 +64,6 @@ def main() -> None:
     questions_path = repo / "assets" / "data" / "questions.json"
     dest_images = repo / "assets" / "book_images"
     extract_script = repo / "tool" / "extract_pdf_to_json.py"
-    converted_dir = repo / ".reextract_workspace" / "converted"
 
     search_dirs = [
         Path(r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026"),
@@ -171,7 +153,7 @@ def main() -> None:
             continue
 
         try:
-            extract_input = ensure_pdf(src_path, bid, converted_dir)
+            extract_input = resolve_extract_path(src_path)
         except Exception as exc:
             skipped.append(f"{bid} (failed: {src_path.name}: {exc})")
             merged.extend(

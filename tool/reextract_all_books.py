@@ -3,21 +3,93 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+# Allow `from epub_to_pdf import ...` when run as `python tool/reextract_all_books.py`
+_TOOL = Path(__file__).resolve().parent
+if str(_TOOL) not in sys.path:
+    sys.path.insert(0, str(_TOOL))
+
+from epub_to_pdf import epub_to_pdf  # noqa: E402
+
+
+def find_source_file(
+    source_name: str,
+    extra_paths: dict[str, Path],
+    search_dirs: list[Path],
+) -> Path | None:
+    if source_name in extra_paths:
+        p = extra_paths[source_name]
+        if p.is_file():
+            return p
+    for d in search_dirs:
+        if not d.is_dir():
+            continue
+        direct = d / source_name
+        if direct.is_file():
+            return direct
+        lowered = source_name.lower()
+        for f in d.iterdir():
+            if f.is_file() and f.name.lower() == lowered:
+                return f
+    return None
+
+
+def ensure_pdf(
+    source_path: Path,
+    book_id: str,
+    converted_dir: Path,
+) -> Path:
+    if source_path.suffix.lower() == ".pdf":
+        return source_path
+    if source_path.suffix.lower() != ".epub":
+        raise ValueError(f"Unsupported source type: {source_path}")
+
+    converted_dir.mkdir(parents=True, exist_ok=True)
+    out_pdf = converted_dir / f"{book_id}.pdf"
+    src_mtime = source_path.stat().st_mtime
+    if out_pdf.is_file() and out_pdf.stat().st_mtime >= src_mtime:
+        print(f"  Using cached PDF {out_pdf.name}", flush=True)
+        return out_pdf
+
+    print(f"  Converting EPUB to PDF -> {out_pdf.name} ...", flush=True)
+    epub_to_pdf(source_path, out_pdf)
+    return out_pdf
+
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Re-extract Core Review sources into assets/data/questions.json.",
+    )
+    parser.add_argument(
+        "--only",
+        nargs="+",
+        metavar="BOOK_ID",
+        help="Only re-extract these book ids (e.g. breast-imaging ultrasound). "
+        "Other books keep existing rows in questions.json.",
+    )
+    args = parser.parse_args()
+    only_ids: set[str] | None = set(args.only) if args.only else None
+
     repo = Path(__file__).resolve().parents[1]
     books_path = repo / "assets" / "data" / "books.json"
     questions_path = repo / "assets" / "data" / "questions.json"
     dest_images = repo / "assets" / "book_images"
     extract_script = repo / "tool" / "extract_pdf_to_json.py"
+    converted_dir = repo / ".reextract_workspace" / "converted"
 
-    # Paths verified on developer machine; adjust if files move.
+    search_dirs = [
+        Path(r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026"),
+        Path(r"C:\Users\nprim\Downloads"),
+        repo / "tool" / "sources",
+    ]
+
+    # Explicit overrides (optional). Keys must match books.json `sourceFileName` exactly.
     extra_paths: dict[str, Path] = {
         "Thoracic Imaging - A Core Review.pdf": Path(
             r"C:\Users\nprim\Downloads\Thoracic Imaging - A Core Review.pdf"
@@ -46,15 +118,26 @@ def main() -> None:
         "Vascular and Interventional Radiology - Unknown.pdf": Path(
             r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Vascular and Interventional Radiology - Unknown.pdf"
         ),
+        "Breast Imaging A Core Review.epub": Path(
+            r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Breast Imaging A Core Review.epub"
+        ),
+        "Ultrasound A Core Review.epub": Path(
+            r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Ultrasound A Core Review.epub"
+        ),
     }
 
     books: list[dict] = json.loads(books_path.read_text(encoding="utf-8"))
     books_sorted = sorted(books, key=lambda b: b["order"])
-    prod_questions: list[dict] = json.loads(questions_path.read_text(encoding="utf-8"))
-    prod_by_book: dict[str, list[dict]] = {}
-    for q in prod_questions:
+    existing_questions: list[dict] = json.loads(questions_path.read_text(encoding="utf-8"))
+    existing_by_book: dict[str, list[dict]] = {}
+    for q in existing_questions:
         bid = q.get("bookId", "")
-        prod_by_book.setdefault(bid, []).append(q)
+        existing_by_book.setdefault(bid, []).append(q)
+
+    if only_ids is not None:
+        unknown = only_ids - {b["id"] for b in books}
+        if unknown:
+            raise SystemExit(f"Unknown book id(s): {sorted(unknown)}")
 
     temp_root = repo / ".reextract_workspace"
     temp_root.mkdir(exist_ok=True)
@@ -66,12 +149,34 @@ def main() -> None:
     for book in books_sorted:
         bid = book["id"]
         src_name = book["sourceFileName"]
-        src_path = extra_paths.get(src_name)
-        if src_path is None or not src_path.is_file():
+
+        if only_ids is not None and bid not in only_ids:
+            merged.extend(
+                sorted(
+                    existing_by_book.get(bid, []),
+                    key=lambda q: (q.get("chapterNumber", 0), q.get("order", 0)),
+                )
+            )
+            continue
+
+        src_path = find_source_file(src_name, extra_paths, search_dirs)
+        if src_path is None:
             skipped.append(f"{bid} (missing: {src_name})")
             merged.extend(
                 sorted(
-                    prod_by_book.get(bid, []),
+                    existing_by_book.get(bid, []),
+                    key=lambda q: (q.get("chapterNumber", 0), q.get("order", 0)),
+                )
+            )
+            continue
+
+        try:
+            extract_input = ensure_pdf(src_path, bid, converted_dir)
+        except Exception as exc:
+            skipped.append(f"{bid} (failed: {src_path.name}: {exc})")
+            merged.extend(
+                sorted(
+                    existing_by_book.get(bid, []),
                     key=lambda q: (q.get("chapterNumber", 0), q.get("order", 0)),
                 )
             )
@@ -83,7 +188,7 @@ def main() -> None:
         work.mkdir(parents=True)
         (work / "assets" / "data").mkdir(parents=True)
 
-        print(f"Extracting {bid} from {src_path.name} ...", flush=True)
+        print(f"Extracting {bid} from {extract_input.name} ...", flush=True)
         subprocess.run(
             [
                 sys.executable,
@@ -91,7 +196,7 @@ def main() -> None:
                 "--project-root",
                 str(work),
                 "--inputs",
-                str(src_path),
+                str(extract_input),
             ],
             cwd=repo,
             check=True,

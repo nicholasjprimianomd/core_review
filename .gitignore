@@ -50,3 +50,6 @@ assets/data/validation_report.json
 
 # Full-book PDF re-extraction temp trees
 .reextract_workspace/
+
+# Local Core Review source epubs (add here and run reextract_all_books.py)
+tool/sources/*.epub

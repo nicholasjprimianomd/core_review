@@ -17,10 +17,20 @@ import fitz
 QUESTION_START_RE = re.compile(r"^(?P<number>\d+[a-z]?)\s*\.?\s+(?P<text>.+)$")
 QUESTION_NUMBER_ONLY_RE = re.compile(r"^(?P<number>\d+[a-z]?)\s*\.?$")
 ANSWER_START_RE = re.compile(
-    r"^(?P<number>\d+[a-z]?)\s*\.?\s+Answer(?::|\s+)\s*(?P<choice>[A-D])\s*\.\s*(?P<text>.*)$",
+    r"^(?P<number>\d{1,2}[a-z]?)\s*\.?\s+Answer(?::|\s+)\s*(?P<choice>[A-E])\s*\.\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
-CHOICE_START_RE = re.compile(r"^(?P<choice>[A-D])\.\s*(?P<text>.*)$")
+# Many Core Review chapters use "Answer A. ..." without a leading question number; pair with chapter order.
+ANSWER_UNNUMBERED_RE = re.compile(
+    r"^Answer\s+(?P<choice>[A-E])\s*\.\s*(?P<text>.*)$",
+    re.IGNORECASE,
+)
+# Citation page numbers can glue to the next line (e.g. "344 Answer D.") — treat like unnumbered.
+ANSWER_PAGE_REF_PREFIX_RE = re.compile(
+    r"^(?P<pref>\d{3,})\s+Answer\s+(?P<choice>[A-E])\s*\.\s*(?P<text>.*)$",
+    re.IGNORECASE,
+)
+CHOICE_START_RE = re.compile(r"^(?P<choice>[A-E])\.\s*(?P<text>.*)$")
 REFERENCE_START_RE = re.compile(r"^References?:\s*(?P<text>.*)$", re.IGNORECASE)
 CHAPTER_TOC_RE = re.compile(r"^(?P<number>\d+)\s+(?P<title>.+)$")
 GENERIC_CHAPTER_TOC_RE = re.compile(r"^Chapter\s+(?P<number>\d+)$", re.IGNORECASE)
@@ -333,7 +343,44 @@ def extract_page_lines(page: fitz.Page) -> list[LineInfo]:
                 page_lines.append(LineInfo(y=float(line["bbox"][1]), text=text))
 
     page_lines.sort(key=lambda entry: (entry.y, entry.text))
-    return preprocess_page_lines(page_lines)
+    page_lines = preprocess_page_lines(page_lines)
+    page_lines = merge_dangling_reference_answers(page_lines)
+    return expand_glued_reference_answers(page_lines)
+
+
+def merge_dangling_reference_answers(page_lines: list[LineInfo]) -> list[LineInfo]:
+    """Join lines like '...59-' + '70 Answer A.' into one line before splitting."""
+    if len(page_lines) < 2:
+        return page_lines
+    merged: list[LineInfo] = [page_lines[0]]
+    for i in range(1, len(page_lines)):
+        prev = merged[-1]
+        cur = page_lines[i]
+        if prev.text.rstrip().endswith("-") and re.match(
+            r"^\d+\s+Answer\s+[A-E]\.",
+            cur.text.strip(),
+            re.IGNORECASE,
+        ):
+            merged[-1] = LineInfo(y=prev.y, text=prev.text + cur.text)
+        else:
+            merged.append(cur)
+    return merged
+
+
+def expand_glued_reference_answers(page_lines: list[LineInfo]) -> list[LineInfo]:
+    """Split citation tails like '...59-70 Answer A.' into two lines so answers parse correctly."""
+    expanded: list[LineInfo] = []
+    glue_pat = re.compile(r"(-\d+)\s+(Answer\s+[A-E]\.\s*)", re.IGNORECASE)
+    for li in page_lines:
+        m = glue_pat.search(li.text)
+        if m is not None and m.start(2) > 0:
+            prefix = li.text[: m.start(2)].rstrip()
+            suffix = li.text[m.start(2) :].lstrip()
+            expanded.append(LineInfo(y=li.y, text=prefix))
+            expanded.append(LineInfo(y=li.y, text=suffix))
+        else:
+            expanded.append(li)
+    return expanded
 
 
 def preprocess_page_lines(page_lines: list[LineInfo]) -> list[LineInfo]:
@@ -656,6 +703,8 @@ def parse_book(
         current_active_question_id: str | None = None
         question_order = 0
         last_question_number: str | None = None
+        chapter_answer_ids: list[str] = []
+        answer_queue_index = 0
 
         def finalize_question() -> None:
             nonlocal current_question
@@ -713,12 +762,20 @@ def parse_book(
                     export_page_question_images_if_needed()
                     finalize_question()
                     mode = "answers"
+                    chapter_answer_ids = [
+                        q.id for q in questions if q.chapter.id == chapter.id
+                    ]
+                    answer_queue_index = 0
                     line_index += 1
                     continue
                 if header_key == "ANSWERS":
                     export_page_question_images_if_needed()
                     finalize_question()
                     mode = "answers"
+                    chapter_answer_ids = [
+                        q.id for q in questions if q.chapter.id == chapter.id
+                    ]
+                    answer_queue_index = 0
                     line_index += 1
                     continue
                 if header_key == "ANSWER":
@@ -738,10 +795,73 @@ def parse_book(
                         correct_choice=answer_match.group("choice").upper(),
                         lines=[],
                     )
+                    if (
+                        chapter_answer_ids
+                        and answer_question_id in chapter_answer_ids
+                    ):
+                        answer_queue_index = (
+                            chapter_answer_ids.index(answer_question_id) + 1
+                        )
                     answer_text = clean_text(answer_match.group("text"))
                     if answer_text:
                         current_answer.lines.append(answer_text)
                     line_index += 1
+                    continue
+
+                answer_unnumbered_match = ANSWER_UNNUMBERED_RE.match(current_line)
+                if (
+                    answer_unnumbered_match
+                    and mode == "answers"
+                    and chapter_answer_ids
+                    and answer_queue_index < len(chapter_answer_ids)
+                ):
+                    export_page_question_images_if_needed()
+                    finalize_question()
+                    finalize_answer()
+                    answer_question_id = chapter_answer_ids[answer_queue_index]
+                    answer_queue_index += 1
+                    current_answer = AnswerDraft(
+                        question_id=answer_question_id,
+                        correct_choice=answer_unnumbered_match.group("choice").upper(),
+                        lines=[],
+                    )
+                    answer_text = clean_text(answer_unnumbered_match.group("text"))
+                    if answer_text:
+                        current_answer.lines.append(answer_text)
+                    line_index += 1
+                    continue
+
+                answer_page_ref_match = ANSWER_PAGE_REF_PREFIX_RE.match(current_line)
+                if (
+                    answer_page_ref_match
+                    and mode == "answers"
+                    and chapter_answer_ids
+                    and answer_queue_index < len(chapter_answer_ids)
+                ):
+                    export_page_question_images_if_needed()
+                    finalize_question()
+                    finalize_answer()
+                    answer_question_id = chapter_answer_ids[answer_queue_index]
+                    answer_queue_index += 1
+                    current_answer = AnswerDraft(
+                        question_id=answer_question_id,
+                        correct_choice=answer_page_ref_match.group("choice").upper(),
+                        lines=[],
+                    )
+                    answer_text = clean_text(answer_page_ref_match.group("text"))
+                    if answer_text:
+                        current_answer.lines.append(answer_text)
+                    line_index += 1
+                    continue
+
+                if (
+                    mode == "answers"
+                    and current_answer is not None
+                    and re.fullmatch(r"\d{1,2}", current_line.strip())
+                    and line_index + 1 < len(page_lines)
+                ):
+                    current_answer.lines.append(page_lines[line_index + 1].text)
+                    line_index += 2
                     continue
 
                 if mode == "questions":

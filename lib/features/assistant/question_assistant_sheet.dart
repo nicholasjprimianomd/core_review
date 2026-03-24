@@ -181,6 +181,57 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
     }
   }
 
+  Future<void> _showFullReferencePage(
+    BuildContext context,
+    ReferenceBookMatch match,
+  ) async {
+    final body =
+        match.fullText.isNotEmpty ? match.fullText : match.excerpt;
+    if (body.isEmpty) {
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        final h = MediaQuery.of(ctx).size.height;
+        return AlertDialog(
+          title: Text('${match.bookLabel} · p. ${match.page}'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Text from the PDF index (figures are not included). '
+                  'If the index was built with a per-page character cap, text may be truncated.',
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(ctx).hintColor,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: h * 0.62),
+                  child: SingleChildScrollView(
+                    child: SelectionArea(
+                      child: Text(body),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final viewInsets = MediaQuery.of(context).viewInsets;
@@ -359,6 +410,24 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                             if (m.excerpt.isNotEmpty) ...[
                               const SizedBox(height: 8),
                               SelectionArea(child: Text(m.excerpt)),
+                            ],
+                            if (m.fullText.isNotEmpty ||
+                                m.excerpt.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton.icon(
+                                  onPressed: () =>
+                                      _showFullReferencePage(context, m),
+                                  icon: const Icon(
+                                    Icons.article_outlined,
+                                    size: 18,
+                                  ),
+                                  label: const Text(
+                                    'View full indexed page',
+                                  ),
+                                ),
+                              ),
                             ],
                           ],
                         ),

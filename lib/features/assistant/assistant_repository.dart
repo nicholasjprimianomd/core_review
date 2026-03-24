@@ -73,6 +73,7 @@ class ReferenceBookMatch {
     required this.fileName,
     required this.page,
     required this.excerpt,
+    required this.fullText,
   });
 
   final String bookLabel;
@@ -80,12 +81,16 @@ class ReferenceBookMatch {
   final int page;
   final String excerpt;
 
+  /// Full text stored in the index for this PDF page (may be capped when the index was built).
+  final String fullText;
+
   factory ReferenceBookMatch.fromJson(Map<String, dynamic> json) {
     return ReferenceBookMatch(
       bookLabel: json['bookLabel'] as String? ?? '',
       fileName: json['fileName'] as String? ?? '',
       page: (json['page'] as num?)?.toInt() ?? 0,
       excerpt: json['excerpt'] as String? ?? '',
+      fullText: json['fullText'] as String? ?? '',
     );
   }
 }

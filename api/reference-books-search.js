@@ -105,6 +105,7 @@ module.exports = async (req, res) => {
     fileName: page.fileName || '',
     page: page.page || 0,
     excerpt: excerpt(page.text || '', tokens),
+    fullText: `${page.text || ''}`.trim(),
     score,
   }));
 

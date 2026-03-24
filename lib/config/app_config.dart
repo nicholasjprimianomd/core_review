@@ -41,7 +41,7 @@ class AppConfig {
       return Uri.base.origin;
     }
 
-    return 'https://project-570gl.vercel.app';
+    return 'https://core-review-smoky.vercel.app';
   }
 
   static String resolveAssistantApiUrl() {
@@ -56,7 +56,7 @@ class AppConfig {
       return '${Uri.base.origin}/api/assistant';
     }
 
-    return 'https://project-570gl.vercel.app/api/assistant';
+    return 'https://core-review-smoky.vercel.app/api/assistant';
   }
 
   /// Keyword search over locally indexed Crack the Core / War Machine PDFs (`api/reference_books_index.json`).
@@ -72,7 +72,7 @@ class AppConfig {
       return '${Uri.base.origin}/api/reference-books-search';
     }
 
-    return 'https://project-570gl.vercel.app/api/reference-books-search';
+    return 'https://core-review-smoky.vercel.app/api/reference-books-search';
   }
 
   static String? resolveRemoteContentUrl(String relativePath) {

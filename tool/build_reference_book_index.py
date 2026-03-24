@@ -24,7 +24,8 @@ except ImportError as e:
 # "ctc" matches Crack the Core files often named "CTC 1 …", "CTC 2 …".
 NAME_KEYWORDS = ("crack", "war", "machine", "core", "ctc")
 
-MAX_TEXT_PER_PAGE = 900
+# Per PDF page cap when indexing (raise and rebuild if you need more text per page).
+MAX_TEXT_PER_PAGE = 12000
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUT = PROJECT_ROOT / "api" / "reference_books_index.json"
 

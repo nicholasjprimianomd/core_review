@@ -40,5 +40,5 @@ Re-extract merges each book with **safe merge** by default (preserves prior choi
 
 - `flutter test` should pass all tests; `flutter analyze` should report no issues for this repo state.
 - Supabase auth/storage is configured against a remote hosted instance (credentials baked into `lib/config/app_config.dart`). No local Supabase setup is needed.
-- The AI study assistant requires an `OPENAI_API_KEY` environment variable set on the Vercel serverless functions (`api/assistant.js`). It is not needed for the core quiz/study functionality.
+- The AI study assistant requires an `OPENAI_API_KEY` environment variable set on the Vercel serverless functions (`api/assistant.js`). Optional: `OPENAI_MODEL` (defaults to `gpt-4o-mini` for latency; use e.g. `gpt-5-mini` for heavier reasoning). It is not needed for the core quiz/study functionality.
 - When running `flutter run -d web-server`, the app serves on the specified port. Use Chrome to access it. The `web-server` device does not support hot-reload triggered by keypress; use `flutter run -d chrome` locally if interactive hot-reload is desired (requires a display).

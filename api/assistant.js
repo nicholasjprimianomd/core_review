@@ -1,5 +1,16 @@
-const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-5-mini';
 const OPENI_BASE_URL = 'https://openi.nlm.nih.gov';
+
+function resolveModel() {
+  return process.env.OPENAI_MODEL || 'gpt-4o-mini';
+}
+
+/** Only reasoning-capable models use the reasoning param (adds latency on mini chat models). */
+function openAiReasoningPayload(model) {
+  if (/^gpt-5|^o3|^o4/i.test(model)) {
+    return { reasoning: { effort: 'low' } };
+  }
+  return {};
+}
 
 const SYSTEM_PROMPT = `
 You are the Core Review study assistant for radiology board-review content.
@@ -69,6 +80,7 @@ module.exports = async (req, res) => {
 
     if (includeAnswer) {
       const prompt = buildUserPrompt({ userPrompt, studyContext });
+      const model = resolveModel();
       const openAiResponse = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
@@ -76,9 +88,9 @@ module.exports = async (req, res) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: DEFAULT_MODEL,
-          reasoning: { effort: 'low' },
-          max_output_tokens: 900,
+          model,
+          ...openAiReasoningPayload(model),
+          max_output_tokens: 600,
           text: {
             format: {
               type: 'json_schema',
@@ -160,7 +172,7 @@ module.exports = async (req, res) => {
       answer,
       searchTerms,
       webImages,
-      model: includeAnswer ? DEFAULT_MODEL : '',
+      model: includeAnswer ? resolveModel() : '',
     });
   } catch (error) {
     res.status(500).json({
@@ -266,7 +278,7 @@ async function fetchWebImages({ req, searchTerms, studyContext }) {
         url.searchParams.set('query', query);
         url.searchParams.set('it', 'xg');
         url.searchParams.set('m', '1');
-        url.searchParams.set('n', '3');
+        url.searchParams.set('n', '2');
 
         const response = await fetch(url);
         if (!response.ok) {
@@ -293,7 +305,7 @@ async function fetchWebImages({ req, searchTerms, studyContext }) {
       }
       seen.add(item.imageUrl);
       deduped.push(item);
-      if (deduped.length >= 6) {
+      if (deduped.length >= 4) {
         return deduped;
       }
     }

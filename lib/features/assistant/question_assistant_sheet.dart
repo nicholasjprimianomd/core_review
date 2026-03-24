@@ -176,24 +176,18 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
             ),
           ),
           const SizedBox(height: 24),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Ask something specific',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
           TextField(
             controller: _customPromptController,
             minLines: 2,
             maxLines: 5,
             textInputAction: TextInputAction.send,
             decoration: InputDecoration(
-              hintText: 'Your question…',
+              isDense: true,
+              labelText: 'Your question',
+              floatingLabelBehavior: FloatingLabelBehavior.always,
+              alignLabelWithHint: false,
               border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
               suffixIcon: _isAskingCustom
                   ? const Padding(
                       padding: EdgeInsets.all(12),

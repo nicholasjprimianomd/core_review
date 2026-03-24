@@ -21,34 +21,118 @@ class QuestionAssistantSheet extends StatefulWidget {
 }
 
 class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
-  final TextEditingController _promptController = TextEditingController();
+  final TextEditingController _customPromptController = TextEditingController();
 
-  bool _isAskingAssistant = false;
-  bool _isLoadingWebImages = false;
-  bool _hasRequestedWebImages = false;
+  bool _isExplaining = false;
+  bool _isAskingCustom = false;
   String? _errorMessage;
-  String? _lastSubmittedPrompt;
-  AssistantReply? _reply;
+  AssistantReply? _explainReply;
+  AssistantReply? _customReply;
   List<AssistantWebImage> _webImages = const <AssistantWebImage>[];
 
   @override
   void dispose() {
-    _promptController.dispose();
+    _customPromptController.dispose();
     super.dispose();
+  }
+
+  String _defaultExplainPrompt() {
+    if (widget.allowAnswerReveal) {
+      return 'Explain this question clearly for board review. Summarize the key teaching point, '
+          'why the correct answer is right, and provide 2–4 short search phrases for representative '
+          'radiology images (modality and pathology as appropriate).';
+    }
+    return 'Explain this question in study mode without naming or ranking the answer choices. '
+        'Focus on imaging findings, pathophysiology, and differential clues. Provide 2–4 short '
+        'search phrases for representative radiology images.';
+  }
+
+  Future<void> _explainWithImages() async {
+    setState(() {
+      _isExplaining = true;
+      _errorMessage = null;
+      _explainReply = null;
+      _webImages = const <AssistantWebImage>[];
+    });
+
+    try {
+      final reply = await widget.assistantRepository.askQuestion(
+        question: widget.question,
+        userPrompt: _defaultExplainPrompt(),
+        allowAnswerReveal: widget.allowAnswerReveal,
+        includeWebImages: true,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _explainReply = reply;
+        _webImages = reply.webImages;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = error.toString().replaceFirst('Bad state: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExplaining = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _askCustom() async {
+    final text = _customPromptController.text.trim();
+    if (text.isEmpty) {
+      setState(() {
+        _errorMessage = 'Type a question below.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isAskingCustom = true;
+      _errorMessage = null;
+      _customReply = null;
+    });
+
+    try {
+      final reply = await widget.assistantRepository.askQuestion(
+        question: widget.question,
+        userPrompt: text,
+        allowAnswerReveal: widget.allowAnswerReveal,
+        includeWebImages: false,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _customReply = reply;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = error.toString().replaceFirst('Bad state: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAskingCustom = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final viewInsets = MediaQuery.of(context).viewInsets;
-    final question = widget.question;
-    final isBusy = _isAskingAssistant || _isLoadingWebImages;
-    final webImages = _webImages;
-    final canShowWebImages =
-        _isAskingAssistant ||
-        _isLoadingWebImages ||
-        _hasRequestedWebImages ||
-        _reply != null ||
-        _webImages.isNotEmpty;
+    final isBusy = _isExplaining || _isAskingCustom;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -76,92 +160,56 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: isBusy ? null : _explainWithImages,
+              icon: _isExplaining
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.lightbulb_outline),
+              label: const Text('Explain question + images'),
+            ),
+          ),
+          const SizedBox(height: 24),
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              widget.allowAnswerReveal
-                  ? 'The assistant uses only this question and your prompt. It does not search through the rest of the textbook. Ask AI to get a quick explanation plus relevant pathology images from the web.'
-                  : 'The assistant uses only this question and your prompt. It does not search through the rest of the textbook. Before you submit an answer, it stays in hint mode while still pulling relevant pathology images from the web.',
+              'Ask something specific',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _QuickPromptChip(
-                label: 'Explain this question',
-                enabled: !isBusy,
-                onTap: () => _useQuickPrompt(
-                  'Explain the core teaching point of this question in plain language.',
-                ),
-              ),
-              _QuickPromptChip(
-                label: 'Differential clues',
-                enabled: !isBusy,
-                onTap: () => _useQuickPrompt(
-                  'What imaging clues help narrow the differential diagnosis for this question?',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           TextField(
-            controller: _promptController,
-            minLines: 3,
-            maxLines: 6,
+            controller: _customPromptController,
+            minLines: 2,
+            maxLines: 5,
             textInputAction: TextInputAction.send,
             decoration: InputDecoration(
-              labelText: 'Ask for a deeper explanation',
-              hintText:
-                  'Example: Explain the main teaching point and the differential clues for this question.',
+              hintText: 'Your question…',
               border: const OutlineInputBorder(),
-              suffixIcon: IconButton(
-                onPressed: isBusy ? null : _askAssistant,
-                tooltip: 'Ask AI',
-                icon: const Icon(Icons.keyboard_return),
-              ),
-            ),
-            onSubmitted: isBusy ? null : (_) => _askAssistant(),
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              question.hasImages
-                  ? 'This question already has ${question.imageAssets.length} textbook image${question.imageAssets.length == 1 ? '' : 's'} above. Ask AI to explain the question and pull matching web examples for comparison.'
-                  : 'Ask AI to explain the question and pull matching web examples that make the pathology easier to recognize.',
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              FilledButton.icon(
-                onPressed: isBusy ? null : _askAssistant,
-                icon: _isAskingAssistant
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
+              suffixIcon: _isAskingCustom
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
                         child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.auto_awesome_outlined),
-                label: const Text('Ask AI + Web Images'),
-              ),
-              OutlinedButton.icon(
-                onPressed: isBusy ? null : _showWebExamples,
-                icon: _isLoadingWebImages
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.image_search_outlined),
-                label: const Text('Refresh Web Images'),
-              ),
-            ],
+                      ),
+                    )
+                  : IconButton(
+                      onPressed: isBusy ? null : _askCustom,
+                      tooltip: 'Ask',
+                      icon: const Icon(Icons.send_outlined),
+                    ),
+            ),
+            onSubmitted: isBusy ? null : (_) => _askCustom(),
           ),
           const SizedBox(height: 16),
           Expanded(
@@ -177,210 +225,50 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                       ),
                     ),
                   ),
-                if (_reply != null) ...[
+                if (_explainReply != null) ...[
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: SelectionArea(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Assistant response',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(_reply!.answer),
-                          ],
-                        ),
+                        child: Text(_explainReply!.answer),
                       ),
                     ),
                   ),
-                  if (_reply!.searchTerms.isNotEmpty) ...[
+                ],
+                if (_webImages.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  for (final image in _webImages) ...[
+                    _WebImageCard(image: image),
                     const SizedBox(height: 12),
-                    Text(
-                      'Web image search terms',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _reply!.searchTerms
-                          .map((term) => Chip(label: Text(term)))
-                          .toList(growable: false),
-                    ),
                   ],
                 ],
-                if (canShowWebImages) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    'Example images from the web',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+                if (_customReply != null &&
+                    _customReply!.answer.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Follow-up',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  if (_isAskingAssistant || _isLoadingWebImages)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: LinearProgressIndicator(),
-                    )
-                  else if (webImages.isEmpty)
-                    const Text(
-                      'No open-access web image matches were found for this query. Try a more specific pathology or imaging pattern.',
-                    )
-                  else
-                    for (final image in webImages) ...[
-                      _WebImageCard(image: image),
-                      const SizedBox(height: 12),
-                    ],
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: SelectionArea(
+                        child: Text(_customReply!.answer),
+                      ),
+                    ),
+                  ),
                 ],
               ],
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Future<void> _askAssistant() async {
-    final userPrompt = _promptController.text.trim();
-    if (userPrompt.isEmpty) {
-      setState(() {
-        _errorMessage = 'Enter a question for the assistant first.';
-      });
-      return;
-    }
-
-    setState(() {
-      _isAskingAssistant = true;
-      _errorMessage = null;
-      _hasRequestedWebImages = true;
-      _reply = null;
-      _webImages = const <AssistantWebImage>[];
-    });
-
-    try {
-      final reply = await widget.assistantRepository.askQuestion(
-        question: widget.question,
-        userPrompt: userPrompt,
-        allowAnswerReveal: widget.allowAnswerReveal,
-        includeWebImages: true,
-      );
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _reply = reply;
-        _lastSubmittedPrompt = userPrompt;
-        _webImages = reply.webImages;
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _errorMessage = error.toString().replaceFirst('Bad state: ', '');
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isAskingAssistant = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _showWebExamples() async {
-    final currentPrompt = _promptController.text.trim();
-    final userPrompt = currentPrompt.isNotEmpty
-        ? currentPrompt
-        : (_lastSubmittedPrompt ?? _defaultWebExamplesPrompt());
-    final canReuseSearchTerms =
-        _reply != null &&
-        _reply!.searchTerms.isNotEmpty &&
-        _lastSubmittedPrompt == userPrompt;
-
-    setState(() {
-      _isLoadingWebImages = true;
-      _hasRequestedWebImages = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final reply = await widget.assistantRepository.askQuestion(
-        question: widget.question,
-        userPrompt: userPrompt,
-        allowAnswerReveal: widget.allowAnswerReveal,
-        includeAnswer: !canReuseSearchTerms,
-        includeWebImages: true,
-        searchTerms: canReuseSearchTerms
-            ? _reply!.searchTerms
-            : const <String>[],
-      );
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        if (!canReuseSearchTerms) {
-          _reply = reply;
-        }
-        _lastSubmittedPrompt = userPrompt;
-        _webImages = reply.webImages;
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _errorMessage = error.toString().replaceFirst('Bad state: ', '');
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingWebImages = false;
-        });
-      }
-    }
-  }
-
-  void _useQuickPrompt(String prompt) {
-    _promptController.text = prompt;
-    _promptController.selection = TextSelection.collapsed(
-      offset: _promptController.text.length,
-    );
-    _askAssistant();
-  }
-
-  String _defaultWebExamplesPrompt() {
-    if (widget.allowAnswerReveal) {
-      return 'Explain this question and show relevant pathology images from the web.';
-    }
-    return 'Help me study this question in hint mode and show relevant pathology images from the web without revealing the correct answer.';
-  }
-}
-
-class _QuickPromptChip extends StatelessWidget {
-  const _QuickPromptChip({
-    required this.label,
-    required this.onTap,
-    this.enabled = true,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return ActionChip(
-      avatar: const Icon(Icons.auto_awesome_outlined, size: 18),
-      label: Text(label),
-      onPressed: enabled ? onTap : null,
     );
   }
 }
@@ -402,19 +290,20 @@ class _WebImageCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              image.title,
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
+            if (image.title.isNotEmpty)
+              Text(
+                image.title,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            if (image.title.isNotEmpty) const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 if (image.query.isNotEmpty)
-                  Chip(label: Text('Search: ${image.query}')),
+                  Chip(label: Text(image.query)),
                 if (image.sourceLabel.isNotEmpty)
                   Chip(label: Text(image.sourceLabel)),
               ],
@@ -483,7 +372,7 @@ class _WebImageCard extends StatelessWidget {
           child: Scaffold(
             appBar: AppBar(
               title: Text(
-                image.title.isEmpty ? 'Web pathology example' : image.title,
+                image.title.isEmpty ? 'Image' : image.title,
               ),
             ),
             body: InteractiveViewer(

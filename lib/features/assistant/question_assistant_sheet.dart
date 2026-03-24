@@ -219,26 +219,8 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                       ),
                     ),
                   ),
-                if (_explainReply != null) ...[
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: SelectionArea(
-                        child: Text(_explainReply!.answer),
-                      ),
-                    ),
-                  ),
-                ],
-                if (_webImages.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  for (final image in _webImages) ...[
-                    _WebImageCard(image: image),
-                    const SizedBox(height: 12),
-                  ],
-                ],
                 if (_customReply != null &&
                     _customReply!.answer.trim().isNotEmpty) ...[
-                  const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -257,6 +239,24 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                ],
+                if (_explainReply != null) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: SelectionArea(
+                        child: Text(_explainReply!.answer),
+                      ),
+                    ),
+                  ),
+                ],
+                if (_webImages.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  for (final image in _webImages) ...[
+                    _WebImageCard(image: image),
+                    const SizedBox(height: 12),
+                  ],
                 ],
               ],
             ),

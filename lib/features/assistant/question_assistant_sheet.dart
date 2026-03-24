@@ -25,10 +25,12 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
 
   bool _isExplaining = false;
   bool _isAskingCustom = false;
+  bool _isSearchingRefBooks = false;
   String? _errorMessage;
   AssistantReply? _explainReply;
   AssistantReply? _customReply;
   List<AssistantWebImage> _webImages = const <AssistantWebImage>[];
+  ReferenceBooksSearchResult? _referenceResult;
 
   @override
   void dispose() {
@@ -129,10 +131,61 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
     }
   }
 
+  String _referenceBooksQuery() {
+    final q = widget.question;
+    final buf = StringBuffer()
+      ..write(q.prompt)
+      ..write(' ')
+      ..write(q.questionNumber);
+    for (final v in q.choices.values) {
+      buf.write(' ');
+      buf.write(v);
+    }
+    final s = buf.toString().trim();
+    if (s.length > 4000) {
+      return s.substring(0, 4000);
+    }
+    return s;
+  }
+
+  Future<void> _searchReferenceBooks() async {
+    setState(() {
+      _isSearchingRefBooks = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final result = await widget.assistantRepository.searchReferenceBooks(
+        query: _referenceBooksQuery(),
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _referenceResult = result;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = error.toString().replaceFirst('Bad state: ', '');
+        _referenceResult = null;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSearchingRefBooks = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final viewInsets = MediaQuery.of(context).viewInsets;
-    final isBusy = _isExplaining || _isAskingCustom;
+    final isBusy =
+        _isExplaining || _isAskingCustom || _isSearchingRefBooks;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -173,6 +226,25 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                     )
                   : const Icon(Icons.lightbulb_outline),
               label: const Text('Explain question + images'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: Tooltip(
+              message:
+                  'Search your deployed PDF text index for this question (build index locally).',
+              child: OutlinedButton.icon(
+                onPressed: isBusy ? null : _searchReferenceBooks,
+                icon: _isSearchingRefBooks
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.menu_book_outlined),
+                label: const Text('Crack the Core / War Machine pages'),
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -240,6 +312,61 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                ],
+                if (_referenceResult != null) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Crack the Core / War Machine',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_referenceResult!.message != null &&
+                      _referenceResult!.message!.trim().isNotEmpty &&
+                      _referenceResult!.matches.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        _referenceResult!.message!,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  for (final m in _referenceResult!.matches) ...[
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${m.bookLabel} · p. ${m.page}',
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            if (m.fileName.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                m.fileName,
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(
+                                  color: Theme.of(context).hintColor,
+                                ),
+                              ),
+                            ],
+                            if (m.excerpt.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              SelectionArea(child: Text(m.excerpt)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  const SizedBox(height: 8),
                 ],
                 if (_explainReply != null) ...[
                   Card(

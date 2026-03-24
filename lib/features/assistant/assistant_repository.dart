@@ -67,6 +67,49 @@ class AssistantWebImage {
   bool get hasImage => imageUrl.isNotEmpty || thumbnailUrl.isNotEmpty;
 }
 
+class ReferenceBookMatch {
+  const ReferenceBookMatch({
+    required this.bookLabel,
+    required this.fileName,
+    required this.page,
+    required this.excerpt,
+  });
+
+  final String bookLabel;
+  final String fileName;
+  final int page;
+  final String excerpt;
+
+  factory ReferenceBookMatch.fromJson(Map<String, dynamic> json) {
+    return ReferenceBookMatch(
+      bookLabel: json['bookLabel'] as String? ?? '',
+      fileName: json['fileName'] as String? ?? '',
+      page: (json['page'] as num?)?.toInt() ?? 0,
+      excerpt: json['excerpt'] as String? ?? '',
+    );
+  }
+}
+
+class ReferenceBooksSearchResult {
+  const ReferenceBooksSearchResult({
+    required this.matches,
+    this.message,
+  });
+
+  final List<ReferenceBookMatch> matches;
+  final String? message;
+
+  factory ReferenceBooksSearchResult.fromJson(Map<String, dynamic> json) {
+    return ReferenceBooksSearchResult(
+      matches: (json['matches'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((e) => ReferenceBookMatch.fromJson(Map<String, dynamic>.from(e)))
+          .toList(growable: false),
+      message: json['message'] as String?,
+    );
+  }
+}
+
 class AssistantRepository {
   AssistantRepository({http.Client? client}) : _client = client ?? http.Client();
 
@@ -142,6 +185,33 @@ class AssistantRepository {
     final reply = AssistantReply.fromJson(payload);
     _replyCache[cacheKey] = reply;
     return reply;
+  }
+
+  /// Search pre-built PDF text index (Crack the Core / War Machine). Only runs when called.
+  Future<ReferenceBooksSearchResult> searchReferenceBooks({
+    required String query,
+  }) async {
+    final uri = Uri.parse(AppConfig.resolveReferenceBooksSearchUrl());
+    final response = await _client
+        .post(
+          uri,
+          headers: const <String, String>{
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(<String, String>{'query': query}),
+        )
+        .timeout(const Duration(seconds: 45));
+
+    final payload = _decodeResponse(response.body);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError(
+        payload['error'] as String? ??
+            'Reference book search failed (${response.statusCode}).',
+      );
+    }
+
+    return ReferenceBooksSearchResult.fromJson(payload);
   }
 
   void dispose() {

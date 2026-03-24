@@ -59,6 +59,22 @@ class AppConfig {
     return 'https://project-570gl.vercel.app/api/assistant';
   }
 
+  /// Keyword search over locally indexed Crack the Core / War Machine PDFs (`api/reference_books_index.json`).
+  static String resolveReferenceBooksSearchUrl() {
+    if (assistantApiBaseUrl.isNotEmpty) {
+      final sanitizedBase = assistantApiBaseUrl.endsWith('/')
+          ? assistantApiBaseUrl.substring(0, assistantApiBaseUrl.length - 1)
+          : assistantApiBaseUrl;
+      return '$sanitizedBase/api/reference-books-search';
+    }
+
+    if (kIsWeb) {
+      return '${Uri.base.origin}/api/reference-books-search';
+    }
+
+    return 'https://project-570gl.vercel.app/api/reference-books-search';
+  }
+
   static String? resolveRemoteContentUrl(String relativePath) {
     final String base;
     if (kIsWeb) {

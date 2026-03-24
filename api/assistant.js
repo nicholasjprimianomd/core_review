@@ -1,11 +1,14 @@
 const OPENI_BASE_URL = 'https://openi.nlm.nih.gov';
 
 function resolveModel() {
-  return process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  return process.env.OPENAI_MODEL || 'gpt-5.4-nano';
 }
 
-/** Only reasoning-capable models use the reasoning param (adds latency on mini chat models). */
+/** Reasoning block adds latency; skip for nano/mini-style models and non-reasoning endpoints. */
 function openAiReasoningPayload(model) {
+  if (/nano|mini/i.test(model) && !/^o/i.test(model)) {
+    return {};
+  }
   if (/^gpt-5|^o3|^o4/i.test(model)) {
     return { reasoning: { effort: 'low' } };
   }

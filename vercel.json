@@ -3,11 +3,6 @@
   "installCommand": "if [ ! -d flutter ]; then git clone --depth 1 --branch stable https://github.com/flutter/flutter.git flutter; fi && flutter/bin/flutter config --enable-web && flutter/bin/flutter precache --web",
   "buildCommand": "python tool/build_web_for_vercel.py",
   "outputDirectory": "build/web_vercel",
-  "functions": {
-    "api/reference-books-search.js": {
-      "includeFiles": "api/reference_books_index.json"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",

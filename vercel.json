@@ -5,8 +5,7 @@
   "outputDirectory": "build/web_vercel",
   "functions": {
     "api/reference-books-search.js": {
-      "includeFiles": "api/reference_books_index.json",
-      "maxDuration": 30
+      "includeFiles": "api/reference_books_index.json"
     }
   },
   "rewrites": [

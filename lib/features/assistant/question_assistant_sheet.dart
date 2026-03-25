@@ -131,23 +131,6 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
     }
   }
 
-  String _referenceBooksQuery() {
-    final q = widget.question;
-    final buf = StringBuffer()
-      ..write(q.prompt)
-      ..write(' ')
-      ..write(q.questionNumber);
-    for (final v in q.choices.values) {
-      buf.write(' ');
-      buf.write(v);
-    }
-    final s = buf.toString().trim();
-    if (s.length > 4000) {
-      return s.substring(0, 4000);
-    }
-    return s;
-  }
-
   Future<void> _searchReferenceBooks() async {
     setState(() {
       _isSearchingRefBooks = true;
@@ -156,7 +139,8 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
 
     try {
       final result = await widget.assistantRepository.searchReferenceBooks(
-        query: _referenceBooksQuery(),
+        question: widget.question,
+        allowAnswerReveal: widget.allowAnswerReveal,
       );
       if (!mounted) {
         return;
@@ -214,7 +198,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                   constraints: BoxConstraints(maxHeight: h * 0.62),
                   child: SingleChildScrollView(
                     child: SelectionArea(
-                      child: Text(body),
+                      child: _FormattedBookText(body),
                     ),
                   ),
                 ),
@@ -284,7 +268,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
             width: double.infinity,
             child: Tooltip(
               message:
-                  'Search your deployed PDF text index for this question (build index locally).',
+                  'Uses a short model pass to pick topic and search terms, then matches text in your deployed book index.',
               child: OutlinedButton.icon(
                 onPressed: isBusy ? null : _searchReferenceBooks,
                 icon: _isSearchingRefBooks
@@ -375,6 +359,13 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                     ),
                   ),
                   const SizedBox(height: 8),
+                  if (_referenceResult!.searchMeta != null &&
+                      _referenceResult!.searchMeta!.hasDisplayableContent) ...[
+                    _ReferenceSearchMetaCard(
+                      meta: _referenceResult!.searchMeta!,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   if (_referenceResult!.message != null &&
                       _referenceResult!.message!.trim().isNotEmpty &&
                       _referenceResult!.matches.isEmpty)
@@ -409,7 +400,9 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                             ],
                             if (m.excerpt.isNotEmpty) ...[
                               const SizedBox(height: 8),
-                              SelectionArea(child: Text(m.excerpt)),
+                              SelectionArea(
+                                child: _FormattedBookText(m.excerpt),
+                              ),
                             ],
                             if (m.fullText.isNotEmpty ||
                                 m.excerpt.isNotEmpty) ...[
@@ -458,6 +451,97 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FormattedBookText extends StatelessWidget {
+  const _FormattedBookText(this.raw);
+
+  final String raw;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.42);
+    final normalized = raw.replaceAll('\t', '    ');
+    final blocks = normalized.split('\n\n');
+    if (blocks.length == 1) {
+      return Text(blocks[0], style: style);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < blocks.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          Text(blocks[i], style: style),
+        ],
+      ],
+    );
+  }
+}
+
+class _ReferenceSearchMetaCard extends StatelessWidget {
+  const _ReferenceSearchMetaCard({required this.meta});
+
+  final ReferenceBooksSearchMeta meta;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'How we searched the books',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (meta.topic.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(meta.topic, style: theme.textTheme.bodyMedium),
+            ],
+            if (meta.searchPhrases.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final p in meta.searchPhrases)
+                    Chip(
+                      label: Text(p, style: theme.textTheme.bodySmall),
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                ],
+              ),
+            ],
+            if (meta.fallbackNote != null &&
+                meta.fallbackNote!.trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                meta.fallbackNote!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.secondary,
+                ),
+              ),
+            ],
+            if (meta.llmError != null && meta.llmError!.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                meta.llmError!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

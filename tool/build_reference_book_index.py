@@ -30,6 +30,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUT = PROJECT_ROOT / "api" / "reference_books_index.json"
 
 
+def _normalize_pdf_text(text: str) -> str:
+    """Keep line breaks; collapse spaces within each line; trim tall blank stacks."""
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    lines: list[str] = []
+    for line in text.split("\n"):
+        lines.append(" ".join(line.split()))
+    text = "\n".join(lines)
+    text = re.sub(r"\n{4,}", "\n\n\n", text)
+    return text.strip()
+
+
 def _should_include_pdf(name: str) -> bool:
     lower = name.lower()
     if not lower.endswith(".pdf"):
@@ -44,9 +55,14 @@ def _extract_pages(pdf_path: Path, book_label: str) -> list[dict]:
         for i in range(doc.page_count):
             page = doc.load_page(i)
             text = page.get_text("text") or ""
-            text = re.sub(r"\s+", " ", text).strip()
+            text = _normalize_pdf_text(text)
             if len(text) > MAX_TEXT_PER_PAGE:
-                text = text[:MAX_TEXT_PER_PAGE] + "…"
+                cut = text[: MAX_TEXT_PER_PAGE + 1]
+                last_nl = cut.rfind("\n")
+                if last_nl > int(MAX_TEXT_PER_PAGE * 0.82):
+                    text = cut[:last_nl].rstrip() + "…"
+                else:
+                    text = cut[:MAX_TEXT_PER_PAGE].rstrip() + "…"
             out.append(
                 {
                     "bookLabel": book_label,

@@ -95,22 +95,69 @@ class ReferenceBookMatch {
   }
 }
 
+class ReferenceBooksSearchMeta {
+  const ReferenceBooksSearchMeta({
+    required this.topic,
+    required this.searchPhrases,
+    required this.usedLlm,
+    this.llmError,
+    this.fallbackNote,
+    this.combinedQueryPreview,
+  });
+
+  final String topic;
+  final List<String> searchPhrases;
+  final bool usedLlm;
+  final String? llmError;
+  final String? fallbackNote;
+  final String? combinedQueryPreview;
+
+  bool get hasDisplayableContent =>
+      topic.trim().isNotEmpty ||
+      searchPhrases.isNotEmpty ||
+      (fallbackNote?.trim().isNotEmpty ?? false) ||
+      (llmError?.trim().isNotEmpty ?? false);
+
+  factory ReferenceBooksSearchMeta.fromJson(Map<String, dynamic> json) {
+    return ReferenceBooksSearchMeta(
+      topic: json['topic'] as String? ?? '',
+      searchPhrases: (json['searchPhrases'] as List<dynamic>? ?? const [])
+          .whereType<String>()
+          .toList(growable: false),
+      usedLlm: json['usedLlm'] as bool? ?? false,
+      llmError: json['llmError'] as String?,
+      fallbackNote: json['fallbackNote'] as String?,
+      combinedQueryPreview: json['combinedQueryPreview'] as String?,
+    );
+  }
+}
+
 class ReferenceBooksSearchResult {
   const ReferenceBooksSearchResult({
     required this.matches,
     this.message,
+    this.searchMeta,
   });
 
   final List<ReferenceBookMatch> matches;
   final String? message;
+  final ReferenceBooksSearchMeta? searchMeta;
 
   factory ReferenceBooksSearchResult.fromJson(Map<String, dynamic> json) {
+    ReferenceBooksSearchMeta? meta;
+    final rawMeta = json['searchMeta'];
+    if (rawMeta is Map) {
+      meta = ReferenceBooksSearchMeta.fromJson(
+        Map<String, dynamic>.from(rawMeta),
+      );
+    }
     return ReferenceBooksSearchResult(
       matches: (json['matches'] as List<dynamic>? ?? const [])
           .whereType<Map>()
           .map((e) => ReferenceBookMatch.fromJson(Map<String, dynamic>.from(e)))
           .toList(growable: false),
       message: json['message'] as String?,
+      searchMeta: meta,
     );
   }
 }
@@ -192,9 +239,10 @@ class AssistantRepository {
     return reply;
   }
 
-  /// Search pre-built PDF text index (Crack the Core / War Machine). Only runs when called.
+  /// Search pre-built PDF text index (Crack the Core / War Machine). Server uses an LLM to derive topic and search phrases when `OPENAI_API_KEY` is set.
   Future<ReferenceBooksSearchResult> searchReferenceBooks({
-    required String query,
+    required BookQuestion question,
+    required bool allowAnswerReveal,
   }) async {
     final uri = Uri.parse(AppConfig.resolveReferenceBooksSearchUrl());
     final response = await _client
@@ -204,9 +252,22 @@ class AssistantRepository {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
           },
-          body: jsonEncode(<String, String>{'query': query}),
+          body: jsonEncode(<String, dynamic>{
+            'studyContext': <String, dynamic>{
+              'allowAnswerReveal': allowAnswerReveal,
+              'questionNumber': question.displayNumber,
+              'prompt': question.prompt,
+              'choices': question.choices,
+              'chapterTitle': question.chapterTitle,
+              if (question.topicTitle != null) 'topicTitle': question.topicTitle,
+              if (allowAnswerReveal) ...<String, dynamic>{
+                'correctChoice': question.correctChoice,
+                'correctChoiceText': question.correctChoiceText,
+              },
+            },
+          }),
         )
-        .timeout(const Duration(seconds: 45));
+        .timeout(const Duration(seconds: 90));
 
     final payload = _decodeResponse(response.body);
     if (response.statusCode < 200 || response.statusCode >= 300) {

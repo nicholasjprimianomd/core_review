@@ -1,4 +1,17 @@
-const ALLOWED_HOSTS = new Set(['openi.nlm.nih.gov']);
+function isAllowedImageHost(hostname) {
+  if (hostname === 'openi.nlm.nih.gov') {
+    return true;
+  }
+  // Thumbnails and image results from Google Image search API.
+  if (
+    hostname === 'encrypted-tbn0.gstatic.com' ||
+    hostname.endsWith('.googleusercontent.com') ||
+    hostname.endsWith('.gstatic.com')
+  ) {
+    return true;
+  }
+  return false;
+}
 
 module.exports = async (req, res) => {
   applyCors(res);
@@ -27,7 +40,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (!ALLOWED_HOSTS.has(targetUrl.hostname)) {
+  if (!isAllowedImageHost(targetUrl.hostname)) {
     res.status(400).json({ error: 'Unsupported image host.' });
     return;
   }

@@ -42,6 +42,8 @@ class AssistantWebImage {
     required this.sourceUrl,
     required this.sourceLabel,
     required this.query,
+    required this.choiceKey,
+    required this.choiceTextSnippet,
   });
 
   final String title;
@@ -52,6 +54,10 @@ class AssistantWebImage {
   final String sourceLabel;
   final String query;
 
+  /// Answer letter when this image is tied to a specific MCQ option.
+  final String choiceKey;
+  final String choiceTextSnippet;
+
   factory AssistantWebImage.fromJson(Map<String, dynamic> json) {
     return AssistantWebImage(
       title: json['title'] as String? ?? '',
@@ -61,6 +67,8 @@ class AssistantWebImage {
       sourceUrl: json['sourceUrl'] as String? ?? '',
       sourceLabel: json['sourceLabel'] as String? ?? '',
       query: json['query'] as String? ?? '',
+      choiceKey: json['choiceKey'] as String? ?? '',
+      choiceTextSnippet: json['choiceTextSnippet'] as String? ?? '',
     );
   }
 
@@ -223,7 +231,9 @@ class AssistantRepository {
             },
           }),
         )
-        .timeout(const Duration(seconds: 75));
+        .timeout(
+          Duration(seconds: includeWebImages ? 120 : 75),
+        );
 
     final payload = _decodeResponse(response.body);
     if (response.statusCode < 200 || response.statusCode >= 300) {

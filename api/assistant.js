@@ -24,8 +24,9 @@ Follow these rules:
 - Give concise but helpful educational explanations that focus on imaging findings, pathology patterns, and differential clues.
 - If answer reveal is not allowed, do not reveal the correct option, do not rank the choices, and do not state which answer is right. Stay in hint mode and focus on concepts, image patterns, and reasoning strategies.
 - If answer reveal is allowed, you may explain why the correct answer is right and why distractors are less likely.
-- Always provide focused search terms for open-access medical web image search.
-- Search terms should be specific pathology or imaging-pattern phrases, ideally including modality when useful.
+- Always provide search terms suited for web radiology IMAGE search (e.g. Google Images style): modality + key finding or disease name.
+- searchTerms: 2 to 4 aggregate phrases (overall question), each under 8 words.
+- choiceImageQueries: one object per answer choice key present in study context (e.g. A, B, C). Each object has choiceKey matching that key exactly, and queries: 1 to 2 short phrases to find EXAMPLE IMAGES for what THAT option describes—the correct option and every distractor must each get their own targeted imaging phrases (same structure in study mode; do not label which option is correct).
 - Do not claim to have inspected any image unless image content was actually provided.
 - If the supplied context does not support a claim, say so plainly.
 - This is for study support, not patient care.
@@ -33,8 +34,7 @@ Follow these rules:
 Return a JSON object with exactly these keys:
 - "answer": string
 - "searchTerms": string[]
-
-The "searchTerms" values should contain 2 to 4 short, high-yield pathology or imaging phrases, each under 8 words.
+- "choiceImageQueries": array of { "choiceKey": string, "queries": string[] }
 `;
 
 module.exports = async (req, res) => {
@@ -80,6 +80,7 @@ module.exports = async (req, res) => {
   try {
     let answer = '';
     let searchTerms = requestedSearchTerms;
+    let assistantPayload = null;
 
     if (includeAnswer) {
       const prompt = buildUserPrompt({ userPrompt, studyContext });
@@ -93,7 +94,7 @@ module.exports = async (req, res) => {
         body: JSON.stringify({
           model,
           ...openAiReasoningPayload(model),
-          max_output_tokens: 600,
+          max_output_tokens: 800,
           text: {
             format: {
               type: 'json_schema',
@@ -112,8 +113,23 @@ module.exports = async (req, res) => {
                       type: 'string',
                     },
                   },
+                  choiceImageQueries: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      additionalProperties: false,
+                      properties: {
+                        choiceKey: { type: 'string' },
+                        queries: {
+                          type: 'array',
+                          items: { type: 'string' },
+                        },
+                      },
+                      required: ['choiceKey', 'queries'],
+                    },
+                  },
                 },
-                required: ['answer', 'searchTerms'],
+                required: ['answer', 'searchTerms', 'choiceImageQueries'],
               },
             },
           },
@@ -150,7 +166,7 @@ module.exports = async (req, res) => {
         return;
       }
 
-      const assistantPayload =
+      assistantPayload =
         parseJsonSafely(outputText) || parseJsonObjectFromText(outputText);
       if (!assistantPayload || typeof assistantPayload !== 'object') {
         res.status(502).json({
@@ -163,10 +179,15 @@ module.exports = async (req, res) => {
       searchTerms = normalizeSearchTerms(assistantPayload.searchTerms);
     }
 
+    const choiceImageQueries = includeAnswer
+      ? normalizeChoiceImageQueries(assistantPayload?.choiceImageQueries)
+      : [];
+
     const webImages = includeWebImages
       ? await fetchWebImages({
           req,
           searchTerms,
+          choiceImageQueries,
           studyContext,
         })
       : [];
@@ -268,68 +289,238 @@ function normalizeSearchTerms(searchTerms) {
       .slice(0, 4);
 }
 
-async function fetchWebImages({ req, searchTerms, studyContext }) {
-  const queries = buildImageQueries({ searchTerms, studyContext });
-  if (queries.length === 0) {
+function normalizeChoiceImageQueries(rows) {
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+  return rows
+      .filter((r) => r && typeof r === 'object')
+      .map((r) => ({
+        choiceKey: `${r.choiceKey || ''}`.trim(),
+        queries: Array.isArray(r.queries)
+            ? r.queries
+                .filter((x) => typeof x === 'string')
+                .map((q) => q.trim())
+                .filter(Boolean)
+            : [],
+      }))
+      .filter((r) => r.choiceKey && r.queries.length > 0);
+}
+
+function resolveChoiceKey(raw, choices) {
+  if (!choices || typeof choices !== 'object') {
+    return null;
+  }
+  const r = `${raw || ''}`.trim();
+  if (choices[r]) {
+    return r;
+  }
+  const upper = r.toUpperCase();
+  if (choices[upper]) {
+    return upper;
+  }
+  const lower = r.toLowerCase();
+  for (const k of Object.keys(choices)) {
+    if (k.toLowerCase() === lower) {
+      return k;
+    }
+  }
+  return null;
+}
+
+function buildPerChoiceImageJobs({ choiceImageQueries, studyContext, searchTerms }) {
+  const choices =
+    studyContext?.choices && typeof studyContext.choices === 'object'
+      ? studyContext.choices
+      : {};
+  const keys = Object.keys(choices).sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true }),
+  );
+  const byKey = new Map();
+  for (const row of choiceImageQueries) {
+    const k = resolveChoiceKey(row.choiceKey, choices);
+    if (!k) {
+      continue;
+    }
+    const q = (row.queries || []).map(sanitizeImageQuery).find(Boolean);
+    if (q) {
+      byKey.set(k, q);
+    }
+  }
+  const jobs = [];
+  for (const k of keys) {
+    let q = byKey.get(k);
+    if (!q) {
+      const text = `${choices[k] || ''}`.trim();
+      q = sanitizeImageQuery(
+          text ? `${text} radiology imaging` : searchTerms[0] || '',
+      );
+    }
+    if (!q && searchTerms.length) {
+      q = sanitizeImageQuery(searchTerms[0]);
+    }
+    if (q) {
+      jobs.push({ choiceKey: k, query: q, choiceText: choices[k] || '' });
+    }
+  }
+  return jobs;
+}
+
+function shouldProxyImageUrl(urlStr) {
+  try {
+    const h = new URL(urlStr).hostname;
+    return (
+      h === 'openi.nlm.nih.gov' ||
+      h.endsWith('.googleusercontent.com') ||
+      h.endsWith('.gstatic.com')
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+function safeImageUrlForClient(req, urlStr) {
+  if (!urlStr) {
+    return '';
+  }
+  return shouldProxyImageUrl(urlStr)
+    ? buildImageProxyUrl(req, urlStr)
+    : urlStr;
+}
+
+function truncateText(s, n) {
+  const t = `${s || ''}`.replace(/\s+/g, ' ').trim();
+  if (t.length <= n) {
+    return t;
+  }
+  return `${t.slice(0, n - 1)}…`;
+}
+
+async function fetchGoogleFirstImageItem(apiKey, cx, query) {
+  try {
+    const u = new URL('https://www.googleapis.com/customsearch/v1');
+    u.searchParams.set('key', apiKey);
+    u.searchParams.set('cx', cx);
+    u.searchParams.set('q', query);
+    u.searchParams.set('searchType', 'image');
+    u.searchParams.set('num', '5');
+    u.searchParams.set('safe', 'active');
+    const r = await fetch(u);
+    if (!r.ok) {
+      return null;
+    }
+    const payload = await r.json();
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    for (const it of items) {
+      if (it?.link || it?.image?.thumbnailLink) {
+        return it;
+      }
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function mapGoogleImageResult(req, item, job) {
+  const link = `${item?.link || ''}`.trim();
+  const thumb = `${item?.image?.thumbnailLink || ''}`.trim();
+  const full = link || thumb;
+  const preview = thumb || link;
+  if (!full) {
+    return null;
+  }
+  let pageUrl = `${item?.image?.contextLink || item?.displayLink || ''}`.trim();
+  if (pageUrl && !pageUrl.startsWith('http')) {
+    pageUrl = `https://${pageUrl}`;
+  }
+  const choiceTextShort = truncateText(job.choiceText, 72);
+  return {
+    title: `Option ${job.choiceKey}${
+      choiceTextShort ? ` — ${choiceTextShort}` : ''
+    }`,
+    caption: `Image search: ${job.query}`,
+    imageUrl: safeImageUrlForClient(req, full),
+    thumbnailUrl: safeImageUrlForClient(req, preview),
+    sourceUrl: pageUrl,
+    sourceLabel: 'Google Images',
+    query: job.query,
+    choiceKey: job.choiceKey,
+    choiceTextSnippet: truncateText(job.choiceText, 200),
+  };
+}
+
+async function fetchOpeniSingleResult(req, job) {
+  try {
+    const url = new URL('/search', OPENI_BASE_URL);
+    url.searchParams.set('query', job.query);
+    url.searchParams.set('it', 'xg');
+    url.searchParams.set('m', '1');
+    url.searchParams.set('n', '3');
+    const response = await fetch(url);
+    if (!response.ok) {
+      return null;
+    }
+    const payload = await response.json();
+    const items = Array.isArray(payload?.list) ? payload.list : [];
+    for (const item of items) {
+      const m = mapOpeniResult(req, item, job.query, job);
+      if (m) {
+        return m;
+      }
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function fetchWebImages({ req, searchTerms, choiceImageQueries, studyContext }) {
+  const googleKey = process.env.GOOGLE_CUSTOM_SEARCH_API_KEY;
+  const googleCx = process.env.GOOGLE_CUSTOM_SEARCH_ENGINE_ID;
+  const jobs = buildPerChoiceImageJobs({
+    choiceImageQueries,
+    studyContext,
+    searchTerms,
+  });
+  if (jobs.length === 0) {
     return [];
   }
 
-  const results = await Promise.all(
-    queries.map(async (query) => {
-      try {
-        const url = new URL('/search', OPENI_BASE_URL);
-        url.searchParams.set('query', query);
-        url.searchParams.set('it', 'xg');
-        url.searchParams.set('m', '1');
-        url.searchParams.set('n', '2');
-
-        const response = await fetch(url);
-        if (!response.ok) {
-          return [];
-        }
-
-        const payload = await response.json();
-        const items = Array.isArray(payload?.list) ? payload.list : [];
-        return items
-          .map((item) => mapOpeniResult(req, item, query))
-          .filter(Boolean);
-      } catch (_) {
-        return [];
-      }
-    }),
-  );
-
-  const deduped = [];
+  const out = [];
   const seen = new Set();
-  for (const group of results) {
-    for (const item of group) {
-      if (!item || !item.imageUrl || seen.has(item.imageUrl)) {
-        continue;
-      }
-      seen.add(item.imageUrl);
-      deduped.push(item);
-      if (deduped.length >= 4) {
-        return deduped;
+  const maxTotal = 10;
+
+  for (const job of jobs) {
+    if (out.length >= maxTotal) {
+      break;
+    }
+    let mapped = null;
+    if (googleKey && googleCx) {
+      const gItem = await fetchGoogleFirstImageItem(
+          googleKey,
+          googleCx,
+          job.query,
+      );
+      if (gItem) {
+        mapped = mapGoogleImageResult(req, gItem, job);
       }
     }
+    if (!mapped) {
+      mapped = await fetchOpeniSingleResult(req, job);
+    }
+    if (!mapped) {
+      continue;
+    }
+    const dedupeKey = mapped.thumbnailUrl || mapped.imageUrl;
+    if (!dedupeKey || seen.has(dedupeKey)) {
+      continue;
+    }
+    seen.add(dedupeKey);
+    out.push(mapped);
   }
 
-  return deduped;
-}
-
-function buildImageQueries({ searchTerms, studyContext }) {
-  const queries = [...new Set(searchTerms.map(sanitizeImageQuery).filter(Boolean))];
-  if (queries.length > 0) {
-    return queries.slice(0, 4);
-  }
-
-  const fallbackQueries = [
-    studyContext?.correctChoiceText,
-  ]
-    .map(sanitizeImageQuery)
-    .filter(Boolean);
-
-  return [...new Set(fallbackQueries)].slice(0, 2);
+  return out;
 }
 
 function sanitizeImageQuery(value) {
@@ -340,7 +531,7 @@ function sanitizeImageQuery(value) {
   return value.replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
-function mapOpeniResult(req, item, query) {
+function mapOpeniResult(req, item, query, job) {
   const imageUrl = toAbsoluteUrl(item?.imgLarge || item?.imgThumbLarge);
   const thumbnailUrl = toAbsoluteUrl(
     item?.imgThumbLarge || item?.imgThumb || item?.imgGrid150 || item?.imgLarge,
@@ -350,9 +541,17 @@ function mapOpeniResult(req, item, query) {
     return null;
   }
 
+  const choiceTextShort = job ? truncateText(job.choiceText, 72) : '';
+  const titleBase = stripHtml(item?.title) || 'Open-i image result';
   return {
-    title: stripHtml(item?.title) || 'Open-i image result',
-    caption: stripHtml(item?.image?.caption) || 'No caption was available.',
+    title: job
+        ? `Option ${job.choiceKey}${
+          choiceTextShort ? ` — ${choiceTextShort}` : ''
+        }`
+        : titleBase,
+    caption: job
+        ? `Open-i — ${stripHtml(item?.image?.caption) || job.query}`
+        : stripHtml(item?.image?.caption) || 'No caption was available.',
     imageUrl: buildImageProxyUrl(req, imageUrl || thumbnailUrl),
     thumbnailUrl: buildImageProxyUrl(req, thumbnailUrl || imageUrl),
     sourceUrl: normalizeSourceUrl(
@@ -360,6 +559,8 @@ function mapOpeniResult(req, item, query) {
     ),
     sourceLabel: stripHtml(item?.journal_title) || 'Open-i',
     query,
+    choiceKey: job?.choiceKey || '',
+    choiceTextSnippet: job ? truncateText(job.choiceText, 200) : '',
   };
 }
 

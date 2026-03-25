@@ -576,10 +576,25 @@ class _WebImageCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
+                if (image.choiceKey.isNotEmpty)
+                  Chip(
+                    label: Text(
+                      image.choiceTextSnippet.isNotEmpty
+                          ? 'Option ${image.choiceKey}: ${image.choiceTextSnippet}'
+                          : 'Option ${image.choiceKey}',
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
                 if (image.query.isNotEmpty)
-                  Chip(label: Text(image.query)),
+                  Chip(
+                    label: Text(image.query),
+                    visualDensity: VisualDensity.compact,
+                  ),
                 if (image.sourceLabel.isNotEmpty)
-                  Chip(label: Text(image.sourceLabel)),
+                  Chip(
+                    label: Text(image.sourceLabel),
+                    visualDensity: VisualDensity.compact,
+                  ),
               ],
             ),
             if (previewUrl.isNotEmpty) ...[

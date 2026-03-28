@@ -36,13 +36,13 @@ class _CustomExamSetupScreenState extends State<CustomExamSetupScreen> {
   final Set<String> _chapterIds = {};
   final Set<String> _sectionIds = {};
 
-  final TextEditingController _countController = TextEditingController(text: '20');
+  final TextEditingController _countController = TextEditingController(text: '100');
   final TextEditingController _minutesController = TextEditingController(
     text: '45',
   );
 
-  CompletionFilter _completionFilter = CompletionFilter.allPool;
-  ExamMode _examMode = ExamMode.test;
+  CompletionFilter _completionFilter = CompletionFilter.unansweredOnly;
+  ExamMode _examMode = ExamMode.tutor;
   bool _noTimeLimit = true;
 
   @override

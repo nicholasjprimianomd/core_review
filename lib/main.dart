@@ -84,7 +84,6 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
     } catch (_) {
       currentUser = null;
     }
-    _currentUser = currentUser;
     StudyProgress progress;
     try {
       progress = await _progressRepository.loadProgress();
@@ -99,11 +98,17 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
       studyData = StudyData.empty;
     }
 
-    _themeMode = themeMode;
-    _textScale = textScale;
-    _content = content;
     _setProgress(progress);
     _studyDataNotifier.value = studyData;
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _themeMode = themeMode;
+      _textScale = textScale;
+      _content = content;
+      _currentUser = currentUser;
+    });
   }
 
   @override
@@ -169,6 +174,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
     if (context == null) {
       return;
     }
+    final scaleBeforeDialog = _textScale;
     var draft = _textScale;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -189,6 +195,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
                     label: '${(draft * 100).round()}%',
                     onChanged: (v) {
                       setLocalState(() => draft = v);
+                      unawaited(_setTextScale(v));
                     },
                   ),
                   Row(
@@ -213,7 +220,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
                 ),
                 FilledButton(
                   onPressed: () => Navigator.of(dialogContext).pop(true),
-                  child: const Text('Apply'),
+                  child: const Text('Done'),
                 ),
               ],
             );
@@ -222,8 +229,9 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
       },
     );
     if (confirmed == true) {
-      await _setTextScale(draft);
+      return;
     }
+    await _setTextScale(scaleBeforeDialog);
   }
 
   Future<void> _recordExamCompletion(ExamCompletionSnapshot snapshot) async {

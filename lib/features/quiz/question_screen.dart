@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import '../../models/book_models.dart';
 import '../../models/progress_models.dart';
 import '../../models/study_data_models.dart';
+import '../../models/text_highlight_utils.dart';
 import '../../widgets/book_image_gallery.dart';
+import '../../widgets/highlightable_selectable_text.dart';
 import '../assistant/assistant_repository.dart';
 import '../assistant/question_assistant_sheet.dart';
 import '../exam/exam_session_models.dart';
@@ -31,6 +33,7 @@ class QuestionScreen extends StatefulWidget {
     this.readOnlyAfterExam = false,
     this.onEndReview,
     this.onExamCompleted,
+    this.onOpenFontSettings,
     super.key,
   }) : assert(questions.length > 0, 'QuestionScreen requires at least 1 item.');
 
@@ -49,6 +52,7 @@ class QuestionScreen extends StatefulWidget {
   final bool readOnlyAfterExam;
   final VoidCallback? onEndReview;
   final Future<void> Function(ExamCompletionSnapshot snapshot)? onExamCompleted;
+  final VoidCallback? onOpenFontSettings;
 
   @override
   State<QuestionScreen> createState() => _QuestionScreenState();
@@ -86,6 +90,29 @@ class _QuestionScreenState extends State<QuestionScreen> {
       );
     });
     widget.onStudyDataChanged(_studyData);
+  }
+
+  void _updatePromptHighlights(List<TextHighlightSpan> ranges) {
+    _updateStudyData(
+      _currentStudyData.copyWith(promptHighlights: ranges),
+    );
+  }
+
+  void _updateChoiceHighlights(String choiceKey, List<TextHighlightSpan> ranges) {
+    final map =
+        Map<String, List<TextHighlightSpan>>.from(_currentStudyData.choiceHighlights);
+    if (ranges.isEmpty) {
+      map.remove(choiceKey);
+    } else {
+      map[choiceKey] = ranges;
+    }
+    _updateStudyData(_currentStudyData.copyWith(choiceHighlights: map));
+  }
+
+  void _updateExplanationHighlights(List<TextHighlightSpan> ranges) {
+    _updateStudyData(
+      _currentStudyData.copyWith(explanationHighlights: ranges),
+    );
   }
 
   void _toggleFlag() {
@@ -228,6 +255,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
             onStudyDataChanged: widget.onStudyDataChanged,
             readOnlyAfterExam: true,
             onEndReview: () => Navigator.of(context).pop(),
+            onOpenFontSettings: widget.onOpenFontSettings,
           ),
         ),
       );
@@ -344,6 +372,12 @@ class _QuestionScreenState extends State<QuestionScreen> {
                   tooltip: 'Study assistant',
                   icon: const Icon(Icons.auto_awesome_outlined),
                 ),
+              if (widget.onOpenFontSettings != null)
+                IconButton(
+                  onPressed: widget.onOpenFontSettings,
+                  tooltip: 'Text size',
+                  icon: const Icon(Icons.format_size),
+                ),
               IconButton(
                 onPressed: widget.onToggleTheme,
                 tooltip: widget.themeMode == ThemeMode.dark
@@ -404,11 +438,11 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                     ?.copyWith(fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 8),
-                              SelectionArea(
-                                child: Text(
-                                  question.prompt,
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                ),
+                              HighlightableSelectableText(
+                                text: question.prompt,
+                                style: Theme.of(context).textTheme.bodyLarge,
+                                highlights: currentStudyData.promptHighlights,
+                                onHighlightsChanged: _updatePromptHighlights,
                               ),
                               if (question.hasImages) ...[
                                 const SizedBox(height: 20),
@@ -453,6 +487,11 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                   child: _ChoiceTile(
                                     optionLabel: entry.key,
                                     optionText: entry.value,
+                                    textHighlights:
+                                        currentStudyData.choiceHighlights[entry.key] ??
+                                        const <TextHighlightSpan>[],
+                                    onTextHighlightsChanged: (ranges) =>
+                                        _updateChoiceHighlights(entry.key, ranges),
                                     isSelected: selectedChoice == entry.key,
                                     isCorrectAnswer: explanationsVisible &&
                                         question.correctChoice == entry.key,
@@ -581,6 +620,10 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                 AnswerRevealPanel(
                                   question: question,
                                   progress: questionProgress,
+                                  explanationHighlights:
+                                      currentStudyData.explanationHighlights,
+                                  onExplanationHighlightsChanged:
+                                      _updateExplanationHighlights,
                                 ),
                               ],
                             ],
@@ -1320,6 +1363,8 @@ class _ChoiceTile extends StatelessWidget {
   const _ChoiceTile({
     required this.optionLabel,
     required this.optionText,
+    required this.textHighlights,
+    required this.onTextHighlightsChanged,
     required this.isSelected,
     required this.isCorrectAnswer,
     required this.isIncorrectSelection,
@@ -1329,6 +1374,8 @@ class _ChoiceTile extends StatelessWidget {
 
   final String optionLabel;
   final String optionText;
+  final List<TextHighlightSpan> textHighlights;
+  final ValueChanged<List<TextHighlightSpan>> onTextHighlightsChanged;
   final bool isSelected;
   final bool isCorrectAnswer;
   final bool isIncorrectSelection;
@@ -1352,30 +1399,44 @@ class _ChoiceTile extends StatelessWidget {
       backgroundColor = theme.colorScheme.primary.withValues(alpha: 0.08);
     }
 
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(12),
-      child: Ink(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: borderColor ?? theme.dividerColor,
-            width: borderColor == null ? 1 : 2,
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: borderColor ?? theme.dividerColor,
+          width: borderColor == null ? 1 : 2,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(radius: 16, child: Text(optionLabel)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(optionText, style: theme.textTheme.bodyLarge),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: enabled ? onTap : null,
+                borderRadius: BorderRadius.circular(28),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: CircleAvatar(radius: 16, child: Text(optionLabel)),
+                ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: HighlightableSelectableText(
+                  text: optionText,
+                  style: theme.textTheme.bodyLarge,
+                  highlights: textHighlights,
+                  onHighlightsChanged: onTextHighlightsChanged,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

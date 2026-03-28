@@ -293,6 +293,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
             onStudyDataChanged: _setStudyData,
             readOnlyAfterExam: true,
             onEndReview: () => Navigator.of(context).pop(),
+            onOpenFontSettings: _openFontSettings,
           );
         },
       ),
@@ -413,6 +414,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
             onStudyDataChanged: _setStudyData,
             examSession: request.options,
             onExamCompleted: _recordExamCompletion,
+            onOpenFontSettings: _openFontSettings,
           );
         },
       ),
@@ -451,6 +453,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
             onToggleTheme: _toggleThemeMode,
             onProgressChanged: _setProgress,
             onStudyDataChanged: _setStudyData,
+            onOpenFontSettings: _openFontSettings,
           );
         },
       ),
@@ -626,11 +629,21 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
+        useMaterial3: true,
+        scaffoldBackgroundColor: Colors.black,
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.indigo,
           brightness: Brightness.dark,
+        ).copyWith(
+          surface: Colors.black,
+          surfaceDim: const Color(0xFF000000),
+          surfaceBright: const Color(0xFF1A1A1A),
+          surfaceContainerLowest: const Color(0xFF050505),
+          surfaceContainerLow: const Color(0xFF0F0F0F),
+          surfaceContainer: const Color(0xFF161616),
+          surfaceContainerHigh: const Color(0xFF1E1E1E),
+          surfaceContainerHighest: const Color(0xFF262626),
         ),
-        useMaterial3: true,
       ),
       themeMode: _themeMode,
       home: _content != null

@@ -700,12 +700,27 @@ def parse_book(
                 if rect.width < 80 or rect.height < 80:
                     continue
 
-                owning_question_id = active_question_id
+                # Map each image rect to the last question whose start line is above the image.
+                # If the image sits above *all* question lines on this page, attach it to the
+                # first question on the page (not end-of-previous-page carry). Carry is wrong
+                # for continuation pages where part (b) starts mid-page but figures sit in the
+                # top margin above that line.
+                applicable_owner: str | None = None
                 for anchor_y, anchor_question_id in anchors:
                     if anchor_y <= rect.y0 + 2:
-                        owning_question_id = anchor_question_id
+                        applicable_owner = anchor_question_id
                     else:
                         break
+                if applicable_owner is not None:
+                    owning_question_id = applicable_owner
+                elif anchors:
+                    first_anchor_y, first_anchor_id = anchors[0]
+                    if rect.y0 + 2 < first_anchor_y:
+                        owning_question_id = first_anchor_id
+                    else:
+                        owning_question_id = carry_question_id
+                else:
+                    owning_question_id = carry_question_id
 
                 if owning_question_id is None:
                     continue
@@ -984,8 +999,18 @@ def parse_book(
     merge_duplicate_questions(questions)
     assign_epub_inline_images(questions, pdf_path, image_output_dir, book_spec.id)
     assign_fallback_page_images(questions, pdf_path, image_output_dir, book_spec.id)
+    cap_question_image_assets(questions, max_assets=4)
 
     return questions, answers
+
+
+def cap_question_image_assets(
+    questions: list[QuestionDraft], max_assets: int = 4
+) -> None:
+    """Limit ZIP/image explosions: keep the first N embedded figures per question."""
+    for question in questions:
+        if len(question.image_assets) > max_assets:
+            question.image_assets = list(question.image_assets)[:max_assets]
 
 
 def promote_stem_only_questions(questions: list[QuestionDraft]) -> None:
@@ -1018,9 +1043,12 @@ def promote_stem_only_questions(questions: list[QuestionDraft]) -> None:
 
             for child in grouped[1:]:
                 child.prompt = clean_text(f"{stem_prompt} {child.prompt}")
-                child.image_assets = unique_preserving_order(
-                    stem_images + child.image_assets
-                )
+                # Only inherit stem figures when this part has no PDF-tagged images,
+                # so (b) is not flooded with figures extracted for (a), and vice versa.
+                if stem_images and not child.image_assets:
+                    child.image_assets = unique_preserving_order(
+                        stem_images + child.image_assets
+                    )
                 if stem_explanation and not child.explanation:
                     child.explanation = stem_explanation
                 if stem_references and not child.references:

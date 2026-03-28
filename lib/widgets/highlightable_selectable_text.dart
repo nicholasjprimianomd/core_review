@@ -119,20 +119,34 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final baseStyle =
-        widget.style ?? theme.textTheme.bodyLarge ?? const TextStyle();
+    final mq = MediaQuery.of(context);
+    final themeBody = theme.textTheme.bodyLarge ?? const TextStyle();
+    final resolved = widget.style ?? themeBody;
+    final baseSize =
+        resolved.fontSize ?? themeBody.fontSize ?? 16.0;
+
+    // Web: SelectableText selection is painted in a layer that misaligns when
+    // MediaQuery.textScaler != 1.0 (duplicate, smaller, shifted selection).
+    // Bake scale into fontSize and use noScaling here so selection matches text.
+    final explicitStyle = resolved.copyWith(
+      fontSize: mq.textScaler.scale(baseSize),
+    );
+
     final highlightColor = theme.brightness == Brightness.dark
         ? const Color(0xFF8B6914).withValues(alpha: 0.65)
         : const Color(0xFFFFF176).withValues(alpha: 0.85);
 
-    return SelectableText.rich(
-      _buildSpanTree(
-        text: widget.text,
-        highlights: widget.highlights,
-        baseStyle: baseStyle,
-        highlightColor: highlightColor,
+    return MediaQuery(
+      data: mq.copyWith(textScaler: TextScaler.noScaling),
+      child: SelectableText.rich(
+        _buildSpanTree(
+          text: widget.text,
+          highlights: widget.highlights,
+          baseStyle: explicitStyle,
+          highlightColor: highlightColor,
+        ),
+        onSelectionChanged: _onSelectionChanged,
       ),
-      onSelectionChanged: _onSelectionChanged,
     );
   }
 }

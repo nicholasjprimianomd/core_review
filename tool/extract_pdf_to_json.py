@@ -157,6 +157,56 @@ def unique_preserving_order(values: list[str]) -> list[str]:
     return ordered
 
 
+# Drop decorative PDF icons; real figures are almost always larger.
+_MIN_FIGURE_SIDE_PT = 90.0
+_MIN_FIGURE_AREA_PT2 = _MIN_FIGURE_SIDE_PT * _MIN_FIGURE_SIDE_PT
+
+
+def question_image_anchor_index_and_owner(
+    anchors: list[tuple[float, str]],
+    rect: fitz.Rect,
+    carry_question_id: str | None,
+) -> tuple[int | None, str | None]:
+    """
+    Map an image rect to a question id and the anchor row index for that question
+    (used to clip figures to the vertical band between adjacent questions).
+    """
+    applicable_index: int | None = None
+    applicable_owner: str | None = None
+    for i, (anchor_y, anchor_question_id) in enumerate(anchors):
+        if anchor_y <= rect.y0 + 2:
+            applicable_index = i
+            applicable_owner = anchor_question_id
+        else:
+            break
+    if applicable_owner is not None:
+        return applicable_index, applicable_owner
+    if anchors:
+        first_anchor_y, first_anchor_id = anchors[0]
+        if rect.y0 + 2 < first_anchor_y:
+            return 0, first_anchor_id
+        return None, carry_question_id
+    return None, carry_question_id
+
+
+def rect_in_question_vertical_band(
+    rect: fitz.Rect,
+    anchors: list[tuple[float, str]],
+    anchor_index: int,
+    page_height: float,
+    *,
+    y_slack_pt: float = 8.0,
+) -> bool:
+    """True if the figure's top lies between the previous and next question anchors."""
+    y_lo = anchors[anchor_index - 1][0] if anchor_index > 0 else 0.0
+    y_hi = (
+        anchors[anchor_index + 1][0]
+        if anchor_index + 1 < len(anchors)
+        else page_height
+    )
+    return (rect.y0 >= y_lo - y_slack_pt) and (rect.y0 < y_hi)
+
+
 def normalized_header_key(value: str) -> str:
     return re.sub(r"[^A-Z]", "", value.upper())
 
@@ -688,6 +738,7 @@ def parse_book(
     ) -> str | None:
         active_question_id = carry_question_id
         page_images = page.get_images(full=True)
+        page_height = float(page.rect.height)
 
         for image_index, image_info in enumerate(page_images, start=1):
             xref = image_info[0]
@@ -697,32 +748,26 @@ def parse_book(
                 continue
 
             for rect_index, rect in enumerate(rects, start=1):
-                if rect.width < 80 or rect.height < 80:
+                if (
+                    rect.width < _MIN_FIGURE_SIDE_PT
+                    or rect.height < _MIN_FIGURE_SIDE_PT
+                ):
+                    continue
+                if rect.width * rect.height < _MIN_FIGURE_AREA_PT2:
                     continue
 
-                # Map each image rect to the last question whose start line is above the image.
-                # If the image sits above *all* question lines on this page, attach it to the
-                # first question on the page (not end-of-previous-page carry). Carry is wrong
-                # for continuation pages where part (b) starts mid-page but figures sit in the
-                # top margin above that line.
-                applicable_owner: str | None = None
-                for anchor_y, anchor_question_id in anchors:
-                    if anchor_y <= rect.y0 + 2:
-                        applicable_owner = anchor_question_id
-                    else:
-                        break
-                if applicable_owner is not None:
-                    owning_question_id = applicable_owner
-                elif anchors:
-                    first_anchor_y, first_anchor_id = anchors[0]
-                    if rect.y0 + 2 < first_anchor_y:
-                        owning_question_id = first_anchor_id
-                    else:
-                        owning_question_id = carry_question_id
-                else:
-                    owning_question_id = carry_question_id
-
+                anchor_idx, owning_question_id = question_image_anchor_index_and_owner(
+                    anchors, rect, carry_question_id
+                )
                 if owning_question_id is None:
+                    continue
+                if (
+                    anchor_idx is not None
+                    and anchors
+                    and not rect_in_question_vertical_band(
+                        rect, anchors, anchor_idx, page_height
+                    )
+                ):
                     continue
 
                 filename = (
@@ -999,18 +1044,8 @@ def parse_book(
     merge_duplicate_questions(questions)
     assign_epub_inline_images(questions, pdf_path, image_output_dir, book_spec.id)
     assign_fallback_page_images(questions, pdf_path, image_output_dir, book_spec.id)
-    cap_question_image_assets(questions, max_assets=4)
 
     return questions, answers
-
-
-def cap_question_image_assets(
-    questions: list[QuestionDraft], max_assets: int = 4
-) -> None:
-    """Limit ZIP/image explosions: keep the first N embedded figures per question."""
-    for question in questions:
-        if len(question.image_assets) > max_assets:
-            question.image_assets = list(question.image_assets)[:max_assets]
 
 
 def promote_stem_only_questions(questions: list[QuestionDraft]) -> None:

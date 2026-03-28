@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/book_models.dart';
@@ -1401,18 +1402,20 @@ class _ChoiceTile extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: borderColor ?? theme.dividerColor,
-              width: borderColor == null ? 1 : 2,
-            ),
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: Ink(
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: borderColor ?? theme.dividerColor,
+            width: borderColor == null ? 1 : 2,
           ),
+        ),
+        child: _ChoiceTapDetector(
+          enabled: enabled,
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -1432,6 +1435,63 @@ class _ChoiceTile extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// [InkWell.onTap] does not fire over [SelectableText] on web; use raw pointers so
+/// a short click anywhere on the row selects the choice, while drag still highlights.
+class _ChoiceTapDetector extends StatefulWidget {
+  const _ChoiceTapDetector({
+    required this.enabled,
+    required this.onTap,
+    required this.child,
+  });
+
+  final bool enabled;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  State<_ChoiceTapDetector> createState() => _ChoiceTapDetectorState();
+}
+
+class _ChoiceTapDetectorState extends State<_ChoiceTapDetector> {
+  Offset? _pointerDownGlobal;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: widget.enabled
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      child: Listener(
+        behavior: HitTestBehavior.deferToChild,
+        onPointerDown: (event) {
+          if (!widget.enabled) {
+            return;
+          }
+          if (event.buttons == kSecondaryMouseButton) {
+            return;
+          }
+          _pointerDownGlobal = event.position;
+        },
+        onPointerCancel: (_) {
+          _pointerDownGlobal = null;
+        },
+        onPointerUp: (event) {
+          if (!widget.enabled || _pointerDownGlobal == null) {
+            _pointerDownGlobal = null;
+            return;
+          }
+          final moved = (event.position - _pointerDownGlobal!).distance;
+          _pointerDownGlobal = null;
+          if (moved <= kTouchSlop) {
+            widget.onTap();
+          }
+        },
+        child: widget.child,
       ),
     );
   }

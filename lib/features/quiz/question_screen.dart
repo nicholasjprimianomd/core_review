@@ -1399,44 +1399,38 @@ class _ChoiceTile extends StatelessWidget {
       backgroundColor = theme.colorScheme.primary.withValues(alpha: 0.08);
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: backgroundColor,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: borderColor ?? theme.dividerColor,
-          width: borderColor == null ? 1 : 2,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: enabled ? onTap : null,
-                borderRadius: BorderRadius.circular(28),
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: CircleAvatar(radius: 16, child: Text(optionLabel)),
-                ),
-              ),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: borderColor ?? theme.dividerColor,
+              width: borderColor == null ? 1 : 2,
             ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: HighlightableSelectableText(
-                  text: optionText,
-                  style: theme.textTheme.bodyLarge,
-                  highlights: textHighlights,
-                  onHighlightsChanged: onTextHighlightsChanged,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(radius: 16, child: Text(optionLabel)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: HighlightableSelectableText(
+                    text: optionText,
+                    style: theme.textTheme.bodyLarge,
+                    highlights: textHighlights,
+                    onHighlightsChanged: onTextHighlightsChanged,
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

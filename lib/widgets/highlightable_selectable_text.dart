@@ -119,7 +119,8 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final baseStyle = widget.style ?? DefaultTextStyle.of(context).style;
+    final baseStyle =
+        widget.style ?? theme.textTheme.bodyLarge ?? const TextStyle();
     final highlightColor = theme.brightness == Brightness.dark
         ? const Color(0xFF8B6914).withValues(alpha: 0.65)
         : const Color(0xFFFFF176).withValues(alpha: 0.85);
@@ -130,9 +131,6 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
         highlights: widget.highlights,
         baseStyle: baseStyle,
         highlightColor: highlightColor,
-      ),
-      key: ValueKey(
-        '${widget.text.length}_${widget.highlights.map((h) => '${h.start}:${h.end}').join(',')}',
       ),
       onSelectionChanged: _onSelectionChanged,
     );

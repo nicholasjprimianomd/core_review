@@ -64,6 +64,9 @@ class AuthRepository {
 
   SupabaseClient? get client => _client;
 
+  /// User access token for server APIs (e.g. `/api/study-progress`).
+  String? get accessToken => _client?.auth.currentSession?.accessToken;
+
   Future<AuthUser?> loadSession() async {
     if (_client == null) {
       _currentUser = null;

@@ -13,10 +13,10 @@ abstract class CloudProgressSync {
   Future<void> resetProgress({required String userId});
 }
 
-/// Persists study progress in Postgres (PostgREST) so the full JSON is always
-/// available. Always merges [core_review_study_progress] with
-/// `user_metadata.core_review_progress` so JWT-sized partial metadata and the
-/// table cannot drift (e.g. 136 + 336 keys).
+/// Loads full progress via Postgres RPC (`get_my_study_progress`) so RLS/jwt
+/// timing on direct table reads cannot return empty rows while Auth still
+/// works. Merges `user_metadata` for legacy drift. Parses JSON with
+/// [StudyProgress.fromServerMap] so one bad answer does not drop hundreds.
 class CloudProgressRepository implements CloudProgressSync {
   static const _table = 'core_review_study_progress';
   static const _metadataKey = 'core_review_progress';
@@ -39,28 +39,18 @@ class CloudProgressRepository implements CloudProgressSync {
       return null;
     }
 
-    var tableProgress = StudyProgress.empty;
-    try {
-      final row = await _client
-          .from(_table)
-          .select('progress')
-          .eq('user_id', userId)
-          .maybeSingle();
-
-      if (row != null && row['progress'] is Map<String, dynamic>) {
-        final decoded =
-            Map<String, dynamic>.from(row['progress'] as Map<String, dynamic>);
-        tableProgress = StudyProgress.fromJson(decoded);
-      }
-    } catch (_) {}
+    var tableProgress = await _loadTableProgressRpc();
+    if (tableProgress.answers.isEmpty) {
+      final rest = await _loadTableProgressRest(userId);
+      tableProgress = rest ?? StudyProgress.empty;
+    }
 
     var metaProgress = StudyProgress.empty;
     final progressJson = user.userMetadata?[_metadataKey];
     if (progressJson is Map<String, dynamic>) {
-      try {
-        metaProgress =
-            StudyProgress.fromJson(Map<String, dynamic>.from(progressJson));
-      } catch (_) {}
+      metaProgress = StudyProgress.fromServerMap(
+        Map<String, dynamic>.from(progressJson),
+      );
     }
 
     final combined = StudyProgress.empty
@@ -71,6 +61,46 @@ class CloudProgressRepository implements CloudProgressSync {
       return null;
     }
     return combined;
+  }
+
+  Future<StudyProgress> _loadTableProgressRpc() async {
+    try {
+      final raw = await _client.rpc('get_my_study_progress');
+      if (raw == null) {
+        return StudyProgress.empty;
+      }
+      if (raw is Map<String, dynamic>) {
+        return StudyProgress.fromServerMap(raw);
+      }
+      if (raw is Map) {
+        return StudyProgress.fromServerMap(Map<String, dynamic>.from(raw));
+      }
+    } catch (_) {}
+    return StudyProgress.empty;
+  }
+
+  Future<StudyProgress?> _loadTableProgressRest(String userId) async {
+    try {
+      final row = await _client
+          .from(_table)
+          .select('progress')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (row == null || row['progress'] == null) {
+        return null;
+      }
+      final p = row['progress'];
+      if (p is Map<String, dynamic>) {
+        return StudyProgress.fromServerMap(
+          Map<String, dynamic>.from(p),
+        );
+      }
+      if (p is Map) {
+        return StudyProgress.fromServerMap(Map<String, dynamic>.from(p));
+      }
+    } catch (_) {}
+    return null;
   }
 
   @override
@@ -93,14 +123,21 @@ class CloudProgressRepository implements CloudProgressSync {
     final payload = progress.toJson();
     final now = DateTime.now().toUtc().toIso8601String();
 
-    await _client.from(_table).upsert(
-      <String, dynamic>{
-        'user_id': userId,
-        'progress': payload,
-        'updated_at': now,
-      },
-      onConflict: 'user_id',
-    );
+    try {
+      await _client.rpc(
+        'upsert_my_study_progress',
+        params: <String, dynamic>{'payload': payload},
+      );
+    } catch (_) {
+      await _client.from(_table).upsert(
+        <String, dynamic>{
+          'user_id': userId,
+          'progress': payload,
+          'updated_at': now,
+        },
+        onConflict: 'user_id',
+      );
+    }
 
     try {
       final metadata = Map<String, dynamic>.from(
@@ -108,9 +145,7 @@ class CloudProgressRepository implements CloudProgressSync {
       );
       metadata[_metadataKey] = payload;
       await _client.auth.updateUser(UserAttributes(data: metadata));
-    } catch (_) {
-      // Table is authoritative; metadata is best-effort backup / old builds.
-    }
+    } catch (_) {}
   }
 
   @override
@@ -130,14 +165,18 @@ class CloudProgressRepository implements CloudProgressSync {
     final empty = StudyProgress.empty.toJson();
     final now = DateTime.now().toUtc().toIso8601String();
 
-    await _client.from(_table).upsert(
-      <String, dynamic>{
-        'user_id': userId,
-        'progress': empty,
-        'updated_at': now,
-      },
-      onConflict: 'user_id',
-    );
+    try {
+      await _client.rpc('clear_my_study_progress');
+    } catch (_) {
+      await _client.from(_table).upsert(
+        <String, dynamic>{
+          'user_id': userId,
+          'progress': empty,
+          'updated_at': now,
+        },
+        onConflict: 'user_id',
+      );
+    }
 
     try {
       final metadata = Map<String, dynamic>.from(

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../models/book_models.dart';
 import '../../models/progress_models.dart';
 import '../../models/study_data_models.dart';
+import '../progress/progress_library_stats.dart';
 import 'study_set_launcher.dart';
 
 class BookLibraryScreen extends StatelessWidget {
@@ -113,13 +114,17 @@ class BookLibraryScreen extends StatelessWidget {
       body: ValueListenableBuilder<StudyProgress>(
         valueListenable: progressListenable,
         builder: (context, progress, child) {
+          final libraryStats = ProgressLibraryStats.compute(content, progress);
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               _OverallSummaryCard(
-                answeredCount: progress.answeredCount,
+                answeredInLibrary: libraryStats.answeredInLibrary,
+                answeredStored: progress.answeredCount,
                 totalCount: content.questions.length,
-                correctCount: progress.correctCount,
+                correctInLibrary: libraryStats.correctInLibrary,
+                revealedInLibrary: libraryStats.revealedInLibrary,
+                orphanedRecords: libraryStats.orphanedRecords,
                 currentUserEmail: currentUserEmail,
               ),
               const SizedBox(height: 16),
@@ -148,20 +153,28 @@ class BookLibraryScreen extends StatelessWidget {
 
 class _OverallSummaryCard extends StatelessWidget {
   const _OverallSummaryCard({
-    required this.answeredCount,
+    required this.answeredInLibrary,
+    required this.answeredStored,
     required this.totalCount,
-    required this.correctCount,
+    required this.correctInLibrary,
+    required this.revealedInLibrary,
+    required this.orphanedRecords,
     required this.currentUserEmail,
   });
 
-  final int answeredCount;
+  final int answeredInLibrary;
+  final int answeredStored;
   final int totalCount;
-  final int correctCount;
+  final int correctInLibrary;
+  final int revealedInLibrary;
+  final int orphanedRecords;
   final String? currentUserEmail;
 
   @override
   Widget build(BuildContext context) {
-    final accuracy = answeredCount == 0 ? 0.0 : correctCount / answeredCount;
+    final accuracy = revealedInLibrary == 0
+        ? 0.0
+        : correctInLibrary / revealedInLibrary;
 
     return Card(
       child: Padding(
@@ -183,16 +196,31 @@ class _OverallSummaryCard extends StatelessWidget {
                 if (currentUserEmail != null)
                   _MetricChip(label: 'Signed in', value: currentUserEmail!),
                 _MetricChip(
-                  label: 'Answered',
-                  value: '$answeredCount / $totalCount',
+                  label: 'Saved answers',
+                  value: '$answeredStored',
                 ),
-                _MetricChip(label: 'Correct', value: '$correctCount'),
+                _MetricChip(
+                  label: 'In current bank',
+                  value: '$answeredInLibrary / $totalCount',
+                ),
+                _MetricChip(label: 'Correct (revealed)', value: '$correctInLibrary'),
                 _MetricChip(
                   label: 'Accuracy',
                   value: '${(accuracy * 100).toStringAsFixed(1)}%',
                 ),
               ],
             ),
+            if (orphanedRecords > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                '$orphanedRecords saved answers use question IDs that are not in '
+                'this app version (often after ID changes). They still count above '
+                'as Saved answers.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
           ],
         ),
       ),

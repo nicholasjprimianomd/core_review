@@ -51,6 +51,62 @@ class QuestionProgress {
           : answeredAt,
     );
   }
+
+  /// Tolerates loosely typed maps from PostgREST/JSON (skipped if invalid).
+  static QuestionProgress? tryParseMap(Object? value) {
+    if (value is! Map) {
+      return null;
+    }
+    final json = Map<String, dynamic>.from(value);
+    try {
+      final selected = json['selectedChoice'];
+      if (selected is! String || selected.isEmpty) {
+        return null;
+      }
+      final answeredRaw = json['answeredAt'];
+      if (answeredRaw is! String) {
+        return null;
+      }
+      final answeredAt = DateTime.parse(answeredRaw);
+      final isCorrect = _parseDynamicBool(json['isCorrect']);
+      final hasExplicitRevealState = json.containsKey('revealedAt');
+      final DateTime? revealedAt;
+      if (hasExplicitRevealState) {
+        final r = json['revealedAt'];
+        if (r == null) {
+          revealedAt = null;
+        } else if (r is String) {
+          revealedAt = DateTime.parse(r);
+        } else {
+          revealedAt = null;
+        }
+      } else {
+        revealedAt = answeredAt;
+      }
+      return QuestionProgress(
+        selectedChoice: selected,
+        isCorrect: isCorrect,
+        answeredAt: answeredAt,
+        revealedAt: revealedAt,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static bool _parseDynamicBool(Object? v) {
+    if (v is bool) {
+      return v;
+    }
+    if (v is num) {
+      return v != 0;
+    }
+    if (v is String) {
+      final s = v.toLowerCase();
+      return s == 'true' || s == '1' || s == 'yes';
+    }
+    return false;
+  }
 }
 
 class StudyProgress {
@@ -157,6 +213,37 @@ class StudyProgress {
       updatedAt: json['updatedAt'] == null
           ? null
           : DateTime.parse(json['updatedAt'] as String),
+    );
+  }
+
+  /// Parses server JSON without failing the whole blob on one bad answer row.
+  factory StudyProgress.fromServerMap(Map<String, dynamic> json) {
+    final answers = <String, QuestionProgress>{};
+    final raw = json['answers'];
+    if (raw is Map) {
+      for (final entry in Map<dynamic, dynamic>.from(raw).entries) {
+        final k = entry.key;
+        if (k is! String) {
+          continue;
+        }
+        final qp = QuestionProgress.tryParseMap(entry.value);
+        if (qp != null) {
+          answers[k] = qp;
+        }
+      }
+    }
+    final lv = json['lastVisitedQuestionId'];
+    DateTime? updatedAt;
+    final u = json['updatedAt'];
+    if (u is String) {
+      try {
+        updatedAt = DateTime.parse(u);
+      } catch (_) {}
+    }
+    return StudyProgress(
+      answers: answers,
+      lastVisitedQuestionId: lv is String ? lv : null,
+      updatedAt: updatedAt,
     );
   }
 

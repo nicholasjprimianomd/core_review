@@ -22,22 +22,27 @@ class CloudProgressRepository implements CloudProgressSync {
 
   @override
   Future<StudyProgress?> loadProgress({required String userId}) async {
-    final currentUser = _client.auth.currentUser;
-    if (currentUser == null || currentUser.id != userId) {
+    // Always use GET /user via getUser() so we read user_metadata from the Auth
+    // server. Relying on auth.currentUser alone can return null right after
+    // recoverSession on web, or a JWT snapshot that does not include full
+    // metadata rows for large payloads.
+    try {
+      final user = (await _client.auth.getUser()).user;
+      if (user == null || user.id != userId) {
+        return null;
+      }
+
+      final progressJson = user.userMetadata?[_progressKey];
+      if (progressJson is! Map<String, dynamic>) {
+        return null;
+      }
+
+      return StudyProgress.fromJson(Map<String, dynamic>.from(progressJson));
+    } on AuthSessionMissingException {
+      return null;
+    } catch (_) {
       return null;
     }
-
-    final user = (await _client.auth.getUser()).user ?? currentUser;
-    if (user.id != userId) {
-      return null;
-    }
-
-    final progressJson = user.userMetadata?[_progressKey];
-    if (progressJson is! Map<String, dynamic>) {
-      return null;
-    }
-
-    return StudyProgress.fromJson(Map<String, dynamic>.from(progressJson));
   }
 
   @override

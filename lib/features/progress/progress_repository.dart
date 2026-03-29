@@ -8,47 +8,56 @@ import '../../repositories/key_value_store.dart';
 class ProgressRepository {
   ProgressRepository({
     KeyValueStore? store,
-    CloudProgressRepository? cloudProgressRepository,
+    CloudProgressSync? cloudProgressRepository,
     String? Function()? userIdProvider,
   })  : _store = store ?? createKeyValueStore(namespace: 'core_review_progress'),
         _cloudProgressRepository = cloudProgressRepository,
         _userIdProvider = userIdProvider;
 
   final KeyValueStore _store;
-  final CloudProgressRepository? _cloudProgressRepository;
+  final CloudProgressSync? _cloudProgressRepository;
   final String? Function()? _userIdProvider;
   Future<void> _pendingWrite = Future<void>.value();
 
   Future<StudyProgress> loadProgress() async {
     await _pendingWrite.catchError((_) {});
+    final userId = _userIdProvider?.call();
     StudyProgress localProgress;
     try {
-      localProgress = await _readLocal();
+      localProgress = await _readCombinedLocal(userId);
     } catch (_) {
       // Corrupt or unreadable local data must not block cloud merge; otherwise
       // bootstrap can replace progress with empty and the next save overwrites remote.
       localProgress = StudyProgress.empty;
     }
-    final userId = _userIdProvider?.call();
-    if (userId != null && _cloudProgressRepository != null) {
+    if (userId != null &&
+        userId.isNotEmpty &&
+        _cloudProgressRepository != null) {
       try {
         final remoteProgress = await _cloudProgressRepository.loadProgress(
           userId: userId,
         );
-        if (remoteProgress != null) {
-          final mergedProgress = localProgress.mergeWith(remoteProgress);
-          await _writeLocal(mergedProgress);
-          if (!_isSameProgress(mergedProgress, remoteProgress)) {
-            await _cloudProgressRepository.saveProgress(
-              userId: userId,
-              progress: mergedProgress,
-            );
-          }
-          return mergedProgress;
+        final mergedProgress = StudyProgress.empty
+            .mergeWith(remoteProgress ?? StudyProgress.empty)
+            .mergeWith(localProgress);
+        await _writeLocal(mergedProgress);
+        await _store.delete('guest_progress');
+        if (remoteProgress == null ||
+            !_isSameProgress(mergedProgress, remoteProgress)) {
+          await _cloudProgressRepository.saveProgress(
+            userId: userId,
+            progress: mergedProgress,
+          );
         }
+        return mergedProgress;
       } catch (_) {
         // Fall back to local progress if cloud sync is unavailable.
       }
+    }
+
+    if (userId != null && userId.isNotEmpty) {
+      await _writeLocal(localProgress);
+      await _store.delete('guest_progress');
     }
 
     return localProgress;
@@ -68,15 +77,31 @@ class ProgressRepository {
     StudyProgress progress, {
     required bool syncToCloud,
   }) async {
-    await _writeLocal(progress);
-
     final userId = _userIdProvider?.call();
-    if (syncToCloud && userId != null && _cloudProgressRepository != null) {
+    final cloud = _cloudProgressRepository;
+    var toPersist = progress;
+    if (syncToCloud &&
+        userId != null &&
+        userId.isNotEmpty &&
+        cloud != null) {
       try {
-        await _cloudProgressRepository.saveProgress(
-          userId: userId,
-          progress: progress,
-        );
+        final remote = await cloud.loadProgress(userId: userId);
+        toPersist = StudyProgress.empty
+            .mergeWith(remote ?? StudyProgress.empty)
+            .mergeWith(progress);
+      } catch (_) {
+        // Use in-memory progress if the authoritative read fails.
+      }
+    }
+
+    await _writeLocal(toPersist);
+
+    if (syncToCloud &&
+        userId != null &&
+        userId.isNotEmpty &&
+        cloud != null) {
+      try {
+        await cloud.saveProgress(userId: userId, progress: toPersist);
       } catch (_) {
         // Keep local progress even if remote sync fails.
       }
@@ -96,6 +121,7 @@ class ProgressRepository {
 
   Future<void> _resetProgressInternal(StudyProgress clearedProgress) async {
     await _writeLocal(clearedProgress);
+    await _store.delete('guest_progress');
 
     final userId = _userIdProvider?.call();
     if (userId != null && _cloudProgressRepository != null) {
@@ -107,8 +133,17 @@ class ProgressRepository {
     }
   }
 
-  Future<StudyProgress> _readLocal() async {
-    final raw = await _store.read(_localProgressKey());
+  Future<StudyProgress> _readCombinedLocal(String? userId) async {
+    if (userId == null || userId.isEmpty) {
+      return _readRawProgress(_localProgressKey());
+    }
+    final guest = await _readRawProgress('guest_progress');
+    final userLocal = await _readRawProgress('progress_$userId');
+    return StudyProgress.empty.mergeWith(guest).mergeWith(userLocal);
+  }
+
+  Future<StudyProgress> _readRawProgress(String key) async {
+    final raw = await _store.read(key);
     if (raw == null || raw.isEmpty) {
       return StudyProgress.empty;
     }

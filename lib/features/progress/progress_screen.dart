@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/book_models.dart';
 import '../../models/progress_models.dart';
 import '../books/study_set_launcher.dart';
+import 'progress_library_stats.dart';
 
 class ProgressScreen extends StatelessWidget {
   const ProgressScreen({
@@ -50,6 +51,7 @@ class ProgressScreen extends StatelessWidget {
           final incorrectQuestions = content.questionsForIds(
             progress.incorrectQuestionIds,
           );
+          final libraryStats = ProgressLibraryStats.compute(content, progress);
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -68,12 +70,24 @@ class ProgressScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Answered: ${progress.answeredCount} / ${content.questions.length}',
+                        'Answered in this library: '
+                        '${libraryStats.answeredInLibrary} / ${content.questions.length}',
                       ),
-                      Text('Correct: ${progress.correctCount}'),
+                      Text('Correct (revealed): ${libraryStats.correctInLibrary}'),
                       Text(
-                        'Accuracy: ${(progress.accuracy * 100).toStringAsFixed(1)}%',
+                        'Accuracy: ${(libraryStats.accuracy * 100).toStringAsFixed(1)}%',
                       ),
+                      if (libraryStats.orphanedRecords > 0) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Stored answer records: ${progress.answeredCount} '
+                          '(${libraryStats.orphanedRecords} use question IDs '
+                          'not in this build, often after content updates)',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
                       if (progress.lastVisitedQuestionId != null) ...[
                         const SizedBox(height: 8),
                         Text('Last visited: ${progress.lastVisitedQuestionId}'),

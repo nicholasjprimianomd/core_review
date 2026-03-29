@@ -164,6 +164,14 @@ class StudyProgress {
     StudyProgress candidate,
     StudyProgress other,
   ) {
+    // Never take the "reset" shortcut when that would drop answers from the
+    // other side (e.g. empty local with a fresh timestamp vs full cloud data).
+    if (candidate.answers.isEmpty && other.answers.isNotEmpty) {
+      return false;
+    }
+    if (candidate.answers.isNotEmpty && other.answers.isEmpty) {
+      return false;
+    }
     final candidateUpdatedAt = candidate.updatedAt;
     final otherUpdatedAt = other.updatedAt;
     if (candidate.answers.isNotEmpty ||

@@ -2,13 +2,25 @@ import 'package:supabase/supabase.dart';
 
 import '../models/progress_models.dart';
 
-class CloudProgressRepository {
+abstract class CloudProgressSync {
+  Future<StudyProgress?> loadProgress({required String userId});
+
+  Future<void> saveProgress({
+    required String userId,
+    required StudyProgress progress,
+  });
+
+  Future<void> resetProgress({required String userId});
+}
+
+class CloudProgressRepository implements CloudProgressSync {
   static const _progressKey = 'core_review_progress';
 
   CloudProgressRepository(this._client);
 
   final SupabaseClient _client;
 
+  @override
   Future<StudyProgress?> loadProgress({required String userId}) async {
     final currentUser = _client.auth.currentUser;
     if (currentUser == null || currentUser.id != userId) {
@@ -28,6 +40,7 @@ class CloudProgressRepository {
     return StudyProgress.fromJson(Map<String, dynamic>.from(progressJson));
   }
 
+  @override
   Future<void> saveProgress({
     required String userId,
     required StudyProgress progress,
@@ -35,6 +48,7 @@ class CloudProgressRepository {
     await _updateUserMetadata(userId: userId, progress: progress);
   }
 
+  @override
   Future<void> resetProgress({required String userId}) async {
     await _updateUserMetadata(userId: userId, progress: StudyProgress.empty);
   }

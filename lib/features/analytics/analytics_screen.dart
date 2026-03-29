@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/book_models.dart';
 import '../../models/progress_models.dart';
+import '../progress/progress_library_stats.dart';
 
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({
@@ -42,7 +43,9 @@ class AnalyticsScreen extends StatelessWidget {
       body: ValueListenableBuilder<StudyProgress>(
         valueListenable: progressListenable,
         builder: (context, progress, _) {
-          if (progress.answeredCount == 0) {
+          final libraryStats = ProgressLibraryStats.compute(content, progress);
+          if (libraryStats.answeredInLibrary == 0 &&
+              progress.answeredCount == 0) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(32),
@@ -57,7 +60,11 @@ class AnalyticsScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _OverallStatsCard(content: content, progress: progress),
+              _OverallStatsCard(
+                content: content,
+                progress: progress,
+                libraryStats: libraryStats,
+              ),
               const SizedBox(height: 16),
               _AccuracyByBookCard(content: content, progress: progress),
               const SizedBox(height: 16),
@@ -73,20 +80,25 @@ class AnalyticsScreen extends StatelessWidget {
 }
 
 class _OverallStatsCard extends StatelessWidget {
-  const _OverallStatsCard({required this.content, required this.progress});
+  const _OverallStatsCard({
+    required this.content,
+    required this.progress,
+    required this.libraryStats,
+  });
 
   final BookContent content;
   final StudyProgress progress;
+  final ProgressLibraryStats libraryStats;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final total = content.questions.length;
-    final answered = progress.answeredCount;
-    final revealed = progress.revealedCount;
-    final correct = progress.correctCount;
+    final answered = libraryStats.answeredInLibrary;
+    final revealed = libraryStats.revealedInLibrary;
+    final correct = libraryStats.correctInLibrary;
     final incorrect = revealed - correct;
-    final accuracy = progress.accuracy;
+    final accuracy = libraryStats.accuracy;
     final completion = total == 0 ? 0.0 : answered / total;
 
     return Card(
@@ -133,6 +145,16 @@ class _OverallStatsCard extends StatelessWidget {
                 _StatChip(label: 'Remaining', value: '${total - answered}'),
               ],
             ),
+            if (libraryStats.orphanedRecords > 0) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Also ${libraryStats.orphanedRecords} stored records use old '
+                'question IDs (not in this build).',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ],
         ),
       ),

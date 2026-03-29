@@ -84,6 +84,9 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
     } catch (_) {
       currentUser = null;
     }
+    // ProgressRepository.userIdProvider reads _currentUser; set it before load
+    // so logged-in users merge cloud + per-user localStorage, not guest only.
+    _currentUser = currentUser;
     StudyProgress progress;
     try {
       progress = await _progressRepository.loadProgress();

@@ -21,9 +21,7 @@ import 'models/study_data_models.dart';
 import 'repositories/app_settings_repository.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/book_repository.dart';
-import 'config/app_config.dart';
 import 'repositories/cloud_progress_repository.dart';
-import 'repositories/http_cloud_progress_repository.dart';
 import 'repositories/study_data_repository.dart';
 
 void main() {
@@ -54,24 +52,13 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
   );
   late final AuthRepository _authRepository;
   late final ProgressRepository _progressRepository = ProgressRepository(
-    cloudProgressRepository: _buildCloudProgressSync(),
+    cloudProgressRepository: _authRepository.client == null
+        ? null
+        : CloudProgressRepository(_authRepository.client!),
     // Use AuthRepository as source of truth so userId is available as soon as
     // loadSession() completes, even before setState assigns _currentUser.
     userIdProvider: () => _authRepository.currentUser?.id,
   );
-
-  CloudProgressSync? _buildCloudProgressSync() {
-    final client = _authRepository.client;
-    if (client == null) {
-      return null;
-    }
-    final fallback = CloudProgressRepository(client);
-    return HttpPrimaryCloudProgressRepository(
-      apiUrl: AppConfig.resolveStudyProgressApiUrl(),
-      accessToken: () async => _authRepository.accessToken,
-      fallback: fallback,
-    );
-  }
   late final BookRepository _bookRepository;
   late final AppSettingsRepository _appSettingsRepository;
   late final StudyDataRepository _studyDataRepository;
@@ -127,6 +114,17 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
       _content = content;
       _currentUser = currentUser;
     });
+    if (currentUser != null) {
+      // Session-backed cloud progress can become available shortly after the
+      // first bootstrap load on web. Retry once so we do not stay stuck on
+      // stale local-only counts until the user manually re-auths.
+      unawaited(_refreshProgressSoon());
+    }
+  }
+
+  Future<void> _refreshProgressSoon() async {
+    await Future<void>.delayed(const Duration(milliseconds: 750));
+    await _refreshProgress();
   }
 
   @override

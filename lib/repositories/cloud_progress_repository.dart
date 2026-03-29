@@ -31,15 +31,7 @@ class CloudProgressRepository implements CloudProgressSync {
 
   @override
   Future<StudyProgress?> loadProgress({required String userId}) async {
-    User? user;
-    try {
-      user = (await _client.auth.getUser()).user;
-    } on AuthSessionMissingException {
-      return null;
-    } catch (_) {
-      return null;
-    }
-    if (user == null || user.id != userId) {
+    if (!_hasAccessToken) {
       return null;
     }
 
@@ -53,11 +45,23 @@ class CloudProgressRepository implements CloudProgressSync {
     }
 
     var metaProgress = StudyProgress.empty;
-    final progressJson = user.userMetadata?[_metadataKey];
-    if (progressJson is Map<String, dynamic>) {
-      metaProgress = StudyProgress.fromServerMap(
-        Map<String, dynamic>.from(progressJson),
-      );
+    try {
+      final user = (await _client.auth.getUser()).user;
+      if (user != null && user.id == userId) {
+        final progressJson = user.userMetadata?[_metadataKey];
+        if (progressJson is Map<String, dynamic>) {
+          metaProgress = StudyProgress.fromServerMap(
+            Map<String, dynamic>.from(progressJson),
+          );
+        }
+      }
+    } catch (_) {}
+
+    if (tableProgress.answers.isEmpty && metaProgress.answers.isEmpty) {
+      final localSessionUserId = _client.auth.currentSession?.user.id;
+      if (localSessionUserId != null && localSessionUserId != userId) {
+        return null;
+      }
     }
 
     final combined = StudyProgress.empty
@@ -136,15 +140,11 @@ class CloudProgressRepository implements CloudProgressSync {
     required String userId,
     required StudyProgress progress,
   }) async {
-    User? user;
-    try {
-      user = (await _client.auth.getUser()).user;
-    } on AuthSessionMissingException {
-      throw StateError('No authenticated Supabase user available.');
-    } catch (_) {
+    if (!_hasAccessToken) {
       throw StateError('No authenticated Supabase user available.');
     }
-    if (user == null || user.id != userId) {
+    final localSessionUserId = _client.auth.currentSession?.user.id;
+    if (localSessionUserId != null && localSessionUserId != userId) {
       throw StateError('No authenticated Supabase user available.');
     }
 
@@ -179,6 +179,10 @@ class CloudProgressRepository implements CloudProgressSync {
     }
 
     try {
+      final user = (await _client.auth.getUser()).user;
+      if (user == null || user.id != userId) {
+        return;
+      }
       final metadata = Map<String, dynamic>.from(
         user.userMetadata ?? <String, dynamic>{},
       );
@@ -189,15 +193,11 @@ class CloudProgressRepository implements CloudProgressSync {
 
   @override
   Future<void> resetProgress({required String userId}) async {
-    User? user;
-    try {
-      user = (await _client.auth.getUser()).user;
-    } on AuthSessionMissingException {
-      throw StateError('No authenticated Supabase user available.');
-    } catch (_) {
+    if (!_hasAccessToken) {
       throw StateError('No authenticated Supabase user available.');
     }
-    if (user == null || user.id != userId) {
+    final localSessionUserId = _client.auth.currentSession?.user.id;
+    if (localSessionUserId != null && localSessionUserId != userId) {
       throw StateError('No authenticated Supabase user available.');
     }
 
@@ -229,6 +229,10 @@ class CloudProgressRepository implements CloudProgressSync {
     }
 
     try {
+      final user = (await _client.auth.getUser()).user;
+      if (user == null || user.id != userId) {
+        return;
+      }
       final metadata = Map<String, dynamic>.from(
         user.userMetadata ?? <String, dynamic>{},
       );
@@ -239,6 +243,11 @@ class CloudProgressRepository implements CloudProgressSync {
 
   Uri _rpcUri(String functionName) =>
       Uri.parse('${AppConfig.supabaseUrl}/rest/v1/rpc/$functionName');
+
+  bool get _hasAccessToken {
+    final token = _client.auth.currentSession?.accessToken;
+    return token != null && token.isNotEmpty;
+  }
 
   Future<Map<String, String>> _rpcHeaders() async {
     final token = _client.auth.currentSession?.accessToken;

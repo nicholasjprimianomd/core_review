@@ -1,5 +1,9 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
 import 'package:supabase/supabase.dart';
 
+import '../config/app_config.dart';
 import '../models/progress_models.dart';
 
 abstract class CloudProgressSync {
@@ -39,7 +43,10 @@ class CloudProgressRepository implements CloudProgressSync {
       return null;
     }
 
-    var tableProgress = await _loadTableProgressRpc();
+    var tableProgress = await _loadTableProgressHttp();
+    if (tableProgress.answers.isEmpty) {
+      tableProgress = await _loadTableProgressRpc();
+    }
     if (tableProgress.answers.isEmpty) {
       final rest = await _loadTableProgressRest(userId);
       tableProgress = rest ?? StudyProgress.empty;
@@ -61,6 +68,27 @@ class CloudProgressRepository implements CloudProgressSync {
       return null;
     }
     return combined;
+  }
+
+  Future<StudyProgress> _loadTableProgressHttp() async {
+    try {
+      final response = await http.post(
+        _rpcUri('get_my_study_progress'),
+        headers: await _rpcHeaders(),
+        body: const JsonEncoder().convert(<String, dynamic>{}),
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return StudyProgress.empty;
+      }
+      final raw = jsonDecode(response.body);
+      if (raw is Map<String, dynamic>) {
+        return StudyProgress.fromServerMap(raw);
+      }
+      if (raw is Map) {
+        return StudyProgress.fromServerMap(Map<String, dynamic>.from(raw));
+      }
+    } catch (_) {}
+    return StudyProgress.empty;
   }
 
   Future<StudyProgress> _loadTableProgressRpc() async {
@@ -124,19 +152,30 @@ class CloudProgressRepository implements CloudProgressSync {
     final now = DateTime.now().toUtc().toIso8601String();
 
     try {
-      await _client.rpc(
-        'upsert_my_study_progress',
-        params: <String, dynamic>{'payload': payload},
+      final response = await http.post(
+        _rpcUri('upsert_my_study_progress'),
+        headers: await _rpcHeaders(),
+        body: jsonEncode(<String, dynamic>{'payload': payload}),
       );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw StateError('HTTP RPC upsert failed: ${response.statusCode}');
+      }
     } catch (_) {
-      await _client.from(_table).upsert(
-        <String, dynamic>{
-          'user_id': userId,
-          'progress': payload,
-          'updated_at': now,
-        },
-        onConflict: 'user_id',
-      );
+      try {
+        await _client.rpc(
+          'upsert_my_study_progress',
+          params: <String, dynamic>{'payload': payload},
+        );
+      } catch (_) {
+        await _client.from(_table).upsert(
+          <String, dynamic>{
+            'user_id': userId,
+            'progress': payload,
+            'updated_at': now,
+          },
+          onConflict: 'user_id',
+        );
+      }
     }
 
     try {
@@ -166,16 +205,27 @@ class CloudProgressRepository implements CloudProgressSync {
     final now = DateTime.now().toUtc().toIso8601String();
 
     try {
-      await _client.rpc('clear_my_study_progress');
-    } catch (_) {
-      await _client.from(_table).upsert(
-        <String, dynamic>{
-          'user_id': userId,
-          'progress': empty,
-          'updated_at': now,
-        },
-        onConflict: 'user_id',
+      final response = await http.post(
+        _rpcUri('clear_my_study_progress'),
+        headers: await _rpcHeaders(),
+        body: const JsonEncoder().convert(<String, dynamic>{}),
       );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw StateError('HTTP RPC clear failed: ${response.statusCode}');
+      }
+    } catch (_) {
+      try {
+        await _client.rpc('clear_my_study_progress');
+      } catch (_) {
+        await _client.from(_table).upsert(
+          <String, dynamic>{
+            'user_id': userId,
+            'progress': empty,
+            'updated_at': now,
+          },
+          onConflict: 'user_id',
+        );
+      }
     }
 
     try {
@@ -185,5 +235,21 @@ class CloudProgressRepository implements CloudProgressSync {
       metadata[_metadataKey] = empty;
       await _client.auth.updateUser(UserAttributes(data: metadata));
     } catch (_) {}
+  }
+
+  Uri _rpcUri(String functionName) =>
+      Uri.parse('${AppConfig.supabaseUrl}/rest/v1/rpc/$functionName');
+
+  Future<Map<String, String>> _rpcHeaders() async {
+    final token = _client.auth.currentSession?.accessToken;
+    if (token == null || token.isEmpty) {
+      throw AuthSessionMissingException();
+    }
+    return <String, String>{
+      'apikey': AppConfig.supabaseAnonKey,
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
   }
 }

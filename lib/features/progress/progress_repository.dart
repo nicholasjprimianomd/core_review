@@ -21,7 +21,14 @@ class ProgressRepository {
 
   Future<StudyProgress> loadProgress() async {
     await _pendingWrite.catchError((_) {});
-    final localProgress = await _readLocal();
+    StudyProgress localProgress;
+    try {
+      localProgress = await _readLocal();
+    } catch (_) {
+      // Corrupt or unreadable local data must not block cloud merge; otherwise
+      // bootstrap can replace progress with empty and the next save overwrites remote.
+      localProgress = StudyProgress.empty;
+    }
     final userId = _userIdProvider?.call();
     if (userId != null && _cloudProgressRepository != null) {
       try {

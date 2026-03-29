@@ -14,9 +14,9 @@ abstract class CloudProgressSync {
 }
 
 /// Persists study progress in Postgres (PostgREST) so the full JSON is always
-/// returned. `auth.users.user_metadata` is only used as a legacy fallback
-/// because large payloads are often missing or truncated in JWT-backed user
-/// objects on the client.
+/// available. Always merges [core_review_study_progress] with
+/// `user_metadata.core_review_progress` so JWT-sized partial metadata and the
+/// table cannot drift (e.g. 136 + 336 keys).
 class CloudProgressRepository implements CloudProgressSync {
   static const _table = 'core_review_study_progress';
   static const _metadataKey = 'core_review_progress';
@@ -39,6 +39,7 @@ class CloudProgressRepository implements CloudProgressSync {
       return null;
     }
 
+    var tableProgress = StudyProgress.empty;
     try {
       final row = await _client
           .from(_table)
@@ -46,39 +47,30 @@ class CloudProgressRepository implements CloudProgressSync {
           .eq('user_id', userId)
           .maybeSingle();
 
-      if (row != null) {
-        final raw = row['progress'];
-        if (raw is Map<String, dynamic>) {
-          final decoded = Map<String, dynamic>.from(raw);
-          final answers = decoded['answers'];
-          if (answers is Map && answers.isNotEmpty) {
-            try {
-              return StudyProgress.fromJson(decoded);
-            } catch (_) {}
-          }
-        }
+      if (row != null && row['progress'] is Map<String, dynamic>) {
+        final decoded =
+            Map<String, dynamic>.from(row['progress'] as Map<String, dynamic>);
+        tableProgress = StudyProgress.fromJson(decoded);
       }
     } catch (_) {}
 
-    return _loadProgressFromUserMetadata(userId);
-  }
+    var metaProgress = StudyProgress.empty;
+    final progressJson = user.userMetadata?[_metadataKey];
+    if (progressJson is Map<String, dynamic>) {
+      try {
+        metaProgress =
+            StudyProgress.fromJson(Map<String, dynamic>.from(progressJson));
+      } catch (_) {}
+    }
 
-  Future<StudyProgress?> _loadProgressFromUserMetadata(String userId) async {
-    try {
-      final user = (await _client.auth.getUser()).user;
-      if (user == null || user.id != userId) {
-        return null;
-      }
-      final progressJson = user.userMetadata?[_metadataKey];
-      if (progressJson is! Map<String, dynamic>) {
-        return null;
-      }
-      return StudyProgress.fromJson(Map<String, dynamic>.from(progressJson));
-    } on AuthSessionMissingException {
-      return null;
-    } catch (_) {
+    final combined = StudyProgress.empty
+        .mergeWith(tableProgress)
+        .mergeWith(metaProgress);
+
+    if (combined.answers.isEmpty) {
       return null;
     }
+    return combined;
   }
 
   @override

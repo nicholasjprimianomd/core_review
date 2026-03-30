@@ -1,15 +1,13 @@
 /**
  * Study progress sync: verifies the user's JWT, then reads/writes progress via PostgREST.
+ * Tokens may be sent in the JSON body (preferred for web: avoids oversized headers / 494).
  *
- * Supabase project resolution (must match the Flutter app JWT / anon key):
- *   1) process.env SUPABASE_* / NEXT_PUBLIC_SUPABASE_*
- *   2) api/_build_supabase_config.js (emitted by tool/build_web_for_vercel.py from the same
- *      env vars used for flutter --dart-define)
- *   3) hardcoded defaults from lib/config/app_config.dart
- *
- * Tables tried in order: core_review_study_progress, then user_progress (see supabase/schema.sql).
- *
- * Optional: SUPABASE_SERVICE_ROLE_KEY for legacy user_metadata merge via admin API.
+ * Operations:
+ *   GET — load (auth via Authorization + optional X-Refresh-Token headers)
+ *   PUT — save (body: { progress }; auth headers)
+ *   POST — load: { op: "load", access_token?, refresh_token? }
+ *          save: { op: "save", progress, access_token?, refresh_token? }
+ *        Back-compat: POST with only { progress } without op is treated as save.
  */
 
 function applyCors(res) {
@@ -140,7 +138,6 @@ async function readMetaProgress(supabaseUrl, serviceKey, userId) {
   return metaProgress;
 }
 
-// Written by tool/build_web_for_vercel.py so this API uses the *same* Supabase project as the Flutter bundle.
 let supabaseBuildConfig = null;
 try {
   supabaseBuildConfig = require('./_build_supabase_config.js');
@@ -148,7 +145,6 @@ try {
   supabaseBuildConfig = null;
 }
 
-// Fallbacks match lib/config/app_config.dart (already public in the client).
 const DEFAULT_SUPABASE_URL = 'https://szerwpvldtnamhfpqmih.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY =
   'sb_publishable_gmJyumfHSnoOTqpMkVS-qw_A6axiU62';
@@ -161,6 +157,24 @@ function resolveSupabaseConfig() {
   const serviceKey = `${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`.trim();
   const anonKey = `${process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || supabaseBuildConfig?.anonKey || DEFAULT_SUPABASE_ANON_KEY}`.trim();
   return { supabaseUrl, serviceKey, anonKey };
+}
+
+/** Pull tokens from headers first, then JSON body (body wins when set). */
+function extractSessionTokens(req, body) {
+  const authHeader = `${req.headers.authorization || ''}`;
+  const m = authHeader.match(/^Bearer\s+(\S+)/i);
+  let userJwt = m ? m[1].trim() : '';
+  let refreshToken = `${req.headers['x-refresh-token'] || ''}`.trim();
+
+  const at = body.access_token ?? body.accessToken;
+  const rt = body.refresh_token ?? body.refreshToken;
+  if (typeof at === 'string' && at.trim()) {
+    userJwt = at.trim();
+  }
+  if (typeof rt === 'string' && rt.trim()) {
+    refreshToken = rt.trim();
+  }
+  return { userJwt, refreshToken };
 }
 
 module.exports = async (req, res) => {
@@ -184,10 +198,10 @@ module.exports = async (req, res) => {
 
   const useServiceRole = Boolean(serviceKey);
 
-  const authHeader = `${req.headers.authorization || ''}`;
-  const refreshToken = `${req.headers['x-refresh-token'] || ''}`;
-  const m = authHeader.match(/^Bearer\s+(\S+)/i);
-  let userJwt = m ? m[1] : '';
+  const rawBody =
+    req.method === 'POST' || req.method === 'PUT' ? parseBody(req.body) : {};
+  const { userJwt: jwtFromMessage, refreshToken } = extractSessionTokens(req, rawBody);
+  let userJwt = jwtFromMessage;
 
   let userId = null;
   if (userJwt) {
@@ -247,7 +261,13 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/json',
       };
 
-  if (req.method === 'GET') {
+  const isSave =
+    req.method === 'PUT' ||
+    (req.method === 'POST' &&
+      (rawBody.op === 'save' ||
+        (rawBody.progress != null && typeof rawBody.progress === 'object' && rawBody.op !== 'load')));
+
+  if (req.method === 'GET' || (req.method === 'POST' && !isSave)) {
     const { tableProgress } = await selectProgressRow(supabaseUrl, restHeaders, userId);
     const metaProgress = useServiceRole
       ? await readMetaProgress(supabaseUrl, serviceKey, userId)
@@ -257,9 +277,8 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (req.method === 'PUT' || req.method === 'POST') {
-    const body = parseBody(req.body);
-    const incoming = body.progress;
+  if (isSave) {
+    const incoming = rawBody.progress;
     if (!incoming || typeof incoming !== 'object') {
       res.status(400).json({ error: 'JSON body must include a "progress" object.' });
       return;
@@ -295,5 +314,5 @@ module.exports = async (req, res) => {
     return;
   }
 
-  res.status(405).json({ error: 'Use GET or PUT.' });
+  res.status(405).json({ error: 'Use GET, PUT, or POST.' });
 };

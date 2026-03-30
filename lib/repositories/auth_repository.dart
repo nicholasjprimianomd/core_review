@@ -111,9 +111,11 @@ class AuthRepository {
 
     final rawSession = await _store.read('session');
     if (rawSession != null && rawSession.isNotEmpty) {
+      Session? storedSession;
       try {
         final decoded = jsonDecode(rawSession) as Map<String, dynamic>;
-        final storedSession = Session.fromJson(decoded);
+        storedSession = Session.fromJson(decoded);
+        _currentUser = _mapUser(storedSession?.user);
         final response =
             storedSession != null &&
                 storedSession.isExpired &&
@@ -128,7 +130,10 @@ class AuthRepository {
         _currentUser = _mapUser(response.user ?? liveSession?.user);
         return _currentUser;
       } catch (_) {
-        await _store.delete('session');
+        if (storedSession != null) {
+          _currentUser = _mapUser(storedSession.user);
+          return _currentUser;
+        }
       }
     }
 

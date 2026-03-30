@@ -239,8 +239,10 @@ class AuthRepository {
   Future<void> _handleAuthStateChange(AuthState authState) async {
     final session = authState.session;
     if (session == null) {
-      _currentUser = null;
-      await _store.delete('session');
+      if (authState.event == AuthChangeEvent.signedOut) {
+        _currentUser = null;
+        await _store.delete('session');
+      }
       return;
     }
 

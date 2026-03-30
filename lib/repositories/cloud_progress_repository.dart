@@ -48,7 +48,9 @@ class CloudProgressDiagnostics {
 /// [StudyProgress.fromServerMap] so one bad answer does not drop hundreds.
 class CloudProgressRepository implements CloudProgressSync {
   static const _table = 'core_review_study_progress';
+  static const _legacyTable = 'user_progress';
   static const _metadataKey = 'core_review_progress';
+  static const List<String> _progressTables = [_table, _legacyTable];
 
   CloudProgressRepository(
     this._client, {
@@ -155,26 +157,28 @@ class CloudProgressRepository implements CloudProgressSync {
   }
 
   Future<StudyProgress?> _loadTableProgressRest(String userId) async {
-    try {
-      final row = await _client
-          .from(_table)
-          .select('progress')
-          .eq('user_id', userId)
-          .maybeSingle();
+    for (final table in _progressTables) {
+      try {
+        final row = await _client
+            .from(table)
+            .select('progress')
+            .eq('user_id', userId)
+            .maybeSingle();
 
-      if (row == null || row['progress'] == null) {
-        return null;
-      }
-      final p = row['progress'];
-      if (p is Map<String, dynamic>) {
-        return StudyProgress.fromServerMap(
-          Map<String, dynamic>.from(p),
-        );
-      }
-      if (p is Map) {
-        return StudyProgress.fromServerMap(Map<String, dynamic>.from(p));
-      }
-    } catch (_) {}
+        if (row == null || row['progress'] == null) {
+          continue;
+        }
+        final p = row['progress'];
+        if (p is Map<String, dynamic>) {
+          return StudyProgress.fromServerMap(
+            Map<String, dynamic>.from(p),
+          );
+        }
+        if (p is Map) {
+          return StudyProgress.fromServerMap(Map<String, dynamic>.from(p));
+        }
+      } catch (_) {}
+    }
     return null;
   }
 
@@ -210,14 +214,7 @@ class CloudProgressRepository implements CloudProgressSync {
           params: <String, dynamic>{'payload': payload},
         );
       } catch (_) {
-        await _client.from(_table).upsert(
-          <String, dynamic>{
-            'user_id': userId,
-            'progress': payload,
-            'updated_at': now,
-          },
-          onConflict: 'user_id',
-        );
+        await _upsertProgressTable(userId, payload, now);
       }
     }
 
@@ -232,6 +229,30 @@ class CloudProgressRepository implements CloudProgressSync {
       metadata[_metadataKey] = payload;
       await _client.auth.updateUser(UserAttributes(data: metadata));
     } catch (_) {}
+  }
+
+  Future<void> _upsertProgressTable(
+    String userId,
+    Map<String, dynamic> payload,
+    String updatedAt,
+  ) async {
+    Object lastError = StateError('No progress table accepted upsert.');
+    for (final table in _progressTables) {
+      try {
+        await _client.from(table).upsert(
+          <String, dynamic>{
+            'user_id': userId,
+            'progress': payload,
+            'updated_at': updatedAt,
+          },
+          onConflict: 'user_id',
+        );
+        return;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError;
   }
 
   @override
@@ -260,14 +281,7 @@ class CloudProgressRepository implements CloudProgressSync {
       try {
         await _client.rpc('clear_my_study_progress');
       } catch (_) {
-        await _client.from(_table).upsert(
-          <String, dynamic>{
-            'user_id': userId,
-            'progress': empty,
-            'updated_at': now,
-          },
-          onConflict: 'user_id',
-        );
+        await _upsertProgressTable(userId, empty, now);
       }
     }
 

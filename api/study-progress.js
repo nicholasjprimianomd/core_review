@@ -1,15 +1,15 @@
 /**
- * Study progress sync: verifies the user's JWT, then reads/writes
- * `core_review_study_progress` via PostgREST.
+ * Study progress sync: verifies the user's JWT, then reads/writes progress via PostgREST.
  *
- * Preferred (full merge with legacy user_metadata):
- *   SUPABASE_URL
- *   SUPABASE_SERVICE_ROLE_KEY
+ * Supabase project resolution (must match the Flutter app JWT / anon key):
+ *   1) process.env SUPABASE_* / NEXT_PUBLIC_SUPABASE_*
+ *   2) api/_build_supabase_config.js (emitted by tool/build_web_for_vercel.py from the same
+ *      env vars used for flutter --dart-define)
+ *   3) hardcoded defaults from lib/config/app_config.dart
  *
- * Fallback (matches shipped Flutter defaults; uses the caller's JWT + anon key):
- *   Reads/writes succeed when the table has RLS policies for authenticated users
- *   (same pattern as `supabase/schema.sql` for `user_progress`).
- *   Set SUPABASE_URL / SUPABASE_ANON_KEY on Vercel to override defaults.
+ * Tables tried in order: core_review_study_progress, then user_progress (see supabase/schema.sql).
+ *
+ * Optional: SUPABASE_SERVICE_ROLE_KEY for legacy user_metadata merge via admin API.
  */
 
 function applyCors(res) {
@@ -72,21 +72,51 @@ function mergeProgress(tableProg, otherProg) {
   };
 }
 
-async function readTableProgress(supabaseUrl, restHeaders, userId) {
-  let tableProgress = { answers: {} };
-  try {
-    const sel = await fetch(
-      `${supabaseUrl}/rest/v1/core_review_study_progress?user_id=eq.${encodeURIComponent(userId)}&select=progress`,
-      { headers: restHeaders },
-    );
-    if (sel.ok) {
-      const rows = await sel.json();
-      if (rows[0]?.progress && typeof rows[0].progress === 'object') {
-        tableProgress = rows[0].progress;
+/** Repo schema used `user_progress`; app code often uses `core_review_study_progress`. */
+const PROGRESS_TABLE_CANDIDATES = ['core_review_study_progress', 'user_progress'];
+
+async function selectProgressRow(supabaseUrl, restHeaders, userId) {
+  for (const table of PROGRESS_TABLE_CANDIDATES) {
+    try {
+      const sel = await fetch(
+        `${supabaseUrl}/rest/v1/${table}?user_id=eq.${encodeURIComponent(userId)}&select=progress`,
+        { headers: restHeaders },
+      );
+      if (!sel.ok) {
+        continue;
       }
+      const rows = await sel.json();
+      const tableProgress =
+        rows[0]?.progress && typeof rows[0].progress === 'object'
+          ? rows[0].progress
+          : { answers: {} };
+      return { table, tableProgress };
+    } catch (_) {}
+  }
+  return { table: null, tableProgress: { answers: {} } };
+}
+
+async function upsertProgressRow(supabaseUrl, restHeaders, userId, row, preferredTable) {
+  const order = preferredTable
+    ? [preferredTable, ...PROGRESS_TABLE_CANDIDATES.filter((t) => t !== preferredTable)]
+    : PROGRESS_TABLE_CANDIDATES.slice();
+  let lastDetail = '';
+  for (const table of order) {
+    const upsertUrl = `${supabaseUrl}/rest/v1/${table}?on_conflict=user_id`;
+    const up = await fetch(upsertUrl, {
+      method: 'POST',
+      headers: {
+        ...restHeaders,
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify(row),
+    });
+    if (up.ok) {
+      return { ok: true };
     }
-  } catch (_) {}
-  return tableProgress;
+    lastDetail = await up.text();
+  }
+  return { ok: false, detail: lastDetail };
 }
 
 async function readMetaProgress(supabaseUrl, serviceKey, userId) {
@@ -110,15 +140,26 @@ async function readMetaProgress(supabaseUrl, serviceKey, userId) {
   return metaProgress;
 }
 
-// Defaults match lib/config/app_config.dart (same project / anon key is already public in the client).
+// Written by tool/build_web_for_vercel.py so this API uses the *same* Supabase project as the Flutter bundle.
+let supabaseBuildConfig = null;
+try {
+  supabaseBuildConfig = require('./_build_supabase_config.js');
+} catch (_) {
+  supabaseBuildConfig = null;
+}
+
+// Fallbacks match lib/config/app_config.dart (already public in the client).
 const DEFAULT_SUPABASE_URL = 'https://szerwpvldtnamhfpqmih.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY =
   'sb_publishable_gmJyumfHSnoOTqpMkVS-qw_A6axiU62';
 
 function resolveSupabaseConfig() {
-  const supabaseUrl = `${process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL}`.replace(/\/$/, '');
+  const supabaseUrl = `${process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || supabaseBuildConfig?.url || DEFAULT_SUPABASE_URL}`.replace(
+    /\/$/,
+    '',
+  );
   const serviceKey = `${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`.trim();
-  const anonKey = `${process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY}`.trim();
+  const anonKey = `${process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || supabaseBuildConfig?.anonKey || DEFAULT_SUPABASE_ANON_KEY}`.trim();
   return { supabaseUrl, serviceKey, anonKey };
 }
 
@@ -207,7 +248,7 @@ module.exports = async (req, res) => {
       };
 
   if (req.method === 'GET') {
-    const tableProgress = await readTableProgress(supabaseUrl, restHeaders, userId);
+    const { tableProgress } = await selectProgressRow(supabaseUrl, restHeaders, userId);
     const metaProgress = useServiceRole
       ? await readMetaProgress(supabaseUrl, serviceKey, userId)
       : null;
@@ -224,7 +265,11 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const tableProgress = await readTableProgress(supabaseUrl, restHeaders, userId);
+    const { tableProgress, table: preferredTable } = await selectProgressRow(
+      supabaseUrl,
+      restHeaders,
+      userId,
+    );
     const metaProgress = useServiceRole
       ? await readMetaProgress(supabaseUrl, serviceKey, userId)
       : null;
@@ -239,19 +284,10 @@ module.exports = async (req, res) => {
       updated_at: new Date().toISOString(),
     };
 
-    const upsertUrl = `${supabaseUrl}/rest/v1/core_review_study_progress?on_conflict=user_id`;
-    const up = await fetch(upsertUrl, {
-      method: 'POST',
-      headers: {
-        ...restHeaders,
-        Prefer: 'resolution=merge-duplicates,return=minimal',
-      },
-      body: JSON.stringify(row),
-    });
+    const up = await upsertProgressRow(supabaseUrl, restHeaders, userId, row, preferredTable);
 
     if (!up.ok) {
-      const detail = await up.text();
-      res.status(502).json({ error: 'Failed to save progress.', detail });
+      res.status(502).json({ error: 'Failed to save progress.', detail: up.detail });
       return;
     }
 

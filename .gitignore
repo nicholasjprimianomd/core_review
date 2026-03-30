@@ -48,6 +48,9 @@ app.*.map.json
 # Generated validation output
 assets/data/validation_report.json
 
+# Injected on Vercel so api/study-progress.js matches the Flutter build's Supabase project
+api/_build_supabase_config.js
+
 # Full-book PDF re-extraction temp trees
 .reextract_workspace/
 

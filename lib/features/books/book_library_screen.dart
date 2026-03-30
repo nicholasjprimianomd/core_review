@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../progress/progress_repository.dart';
 import '../../models/book_models.dart';
 import '../../models/progress_models.dart';
 import '../../models/study_data_models.dart';
@@ -13,6 +14,7 @@ class BookLibraryScreen extends StatelessWidget {
   const BookLibraryScreen({
     required this.content,
     required this.progressListenable,
+    required this.diagnosticsListenable,
     required this.studyDataListenable,
     required this.themeMode,
     required this.currentUserEmail,
@@ -31,6 +33,7 @@ class BookLibraryScreen extends StatelessWidget {
 
   final BookContent content;
   final ValueListenable<StudyProgress> progressListenable;
+  final ValueListenable<ProgressSyncDiagnostics> diagnosticsListenable;
   final ValueListenable<StudyData> studyDataListenable;
   final ThemeMode themeMode;
   final String? currentUserEmail;
@@ -127,6 +130,15 @@ class BookLibraryScreen extends StatelessWidget {
                 orphanedRecords: libraryStats.orphanedRecords,
                 currentUserEmail: currentUserEmail,
               ),
+              if (currentUserEmail != null) ...[
+                const SizedBox(height: 12),
+                ValueListenableBuilder<ProgressSyncDiagnostics>(
+                  valueListenable: diagnosticsListenable,
+                  builder: (context, diagnostics, child) {
+                    return _SyncDebugCard(diagnostics: diagnostics);
+                  },
+                ),
+              ],
               const SizedBox(height: 16),
               for (final book in books)
                 Padding(
@@ -219,6 +231,76 @@ class _OverallSummaryCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SyncDebugCard extends StatelessWidget {
+  const _SyncDebugCard({required this.diagnostics});
+
+  final ProgressSyncDiagnostics diagnostics;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Sync diagnostics',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _MetricChip(label: 'Local', value: '${diagnostics.localCount}'),
+                _MetricChip(
+                  label: 'Cloud HTTP RPC',
+                  value: '${diagnostics.cloudHttpRpcCount}',
+                ),
+                _MetricChip(
+                  label: 'Cloud SDK RPC',
+                  value: '${diagnostics.cloudSdkRpcCount}',
+                ),
+                _MetricChip(
+                  label: 'Cloud REST',
+                  value: '${diagnostics.cloudRestCount}',
+                ),
+                _MetricChip(
+                  label: 'Metadata',
+                  value: '${diagnostics.metadataCount}',
+                ),
+                _MetricChip(
+                  label: 'Cloud merged',
+                  value: '${diagnostics.cloudMergedCount}',
+                ),
+                _MetricChip(
+                  label: 'Final merged',
+                  value: '${diagnostics.finalMergedCount}',
+                ),
+                _MetricChip(label: 'Status', value: diagnostics.status),
+              ],
+            ),
+            if (diagnostics.error != null && diagnostics.error!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                diagnostics.error!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
               ),
             ],
           ],

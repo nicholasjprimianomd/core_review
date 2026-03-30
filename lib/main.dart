@@ -677,6 +677,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
           ? BookLibraryScreen(
               content: _content!,
               progressListenable: _progressNotifier,
+              diagnosticsListenable: _progressRepository.diagnostics,
               studyDataListenable: _studyDataNotifier,
               themeMode: _themeMode,
               currentUserEmail: _currentUser?.email,
@@ -717,6 +718,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
                 return BookLibraryScreen(
                   content: _content!,
                   progressListenable: _progressNotifier,
+                  diagnosticsListenable: _progressRepository.diagnostics,
                   studyDataListenable: _studyDataNotifier,
                   themeMode: _themeMode,
                   currentUserEmail: _currentUser?.email,

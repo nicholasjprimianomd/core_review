@@ -1,4 +1,5 @@
 import 'package:core_review/features/books/book_library_screen.dart';
+import 'package:core_review/features/progress/progress_repository.dart';
 import 'package:core_review/models/book_models.dart';
 import 'package:core_review/models/progress_models.dart';
 import 'package:core_review/models/study_data_models.dart';
@@ -76,12 +77,22 @@ void main() {
 
     final studyDataListenable = ValueNotifier<StudyData>(StudyData.empty);
     addTearDown(studyDataListenable.dispose);
+    final diagnosticsListenable = ValueNotifier<ProgressSyncDiagnostics>(
+      const ProgressSyncDiagnostics(
+        localCount: 1,
+        cloudMergedCount: 3,
+        finalMergedCount: 3,
+        status: 'merged',
+      ),
+    );
+    addTearDown(diagnosticsListenable.dispose);
 
     await tester.pumpWidget(
       MaterialApp(
         home: BookLibraryScreen(
           content: content,
           progressListenable: progressListenable,
+          diagnosticsListenable: diagnosticsListenable,
           studyDataListenable: studyDataListenable,
           themeMode: ThemeMode.dark,
           currentUserEmail: 'reader@example.com',

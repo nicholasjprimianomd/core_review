@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase/supabase.dart';
 
@@ -17,6 +18,30 @@ abstract class CloudProgressSync {
   Future<void> resetProgress({required String userId});
 }
 
+class CloudProgressDiagnostics {
+  const CloudProgressDiagnostics({
+    this.hasToken = false,
+    this.httpRpcCount = 0,
+    this.sdkRpcCount = 0,
+    this.restCount = 0,
+    this.metadataCount = 0,
+    this.mergedCloudCount = 0,
+    this.status = 'idle',
+    this.error,
+  });
+
+  static const empty = CloudProgressDiagnostics();
+
+  final bool hasToken;
+  final int httpRpcCount;
+  final int sdkRpcCount;
+  final int restCount;
+  final int metadataCount;
+  final int mergedCloudCount;
+  final String status;
+  final String? error;
+}
+
 /// Loads full progress via Postgres RPC (`get_my_study_progress`) so RLS/jwt
 /// timing on direct table reads cannot return empty rows while Auth still
 /// works. Merges `user_metadata` for legacy drift. Parses JSON with
@@ -32,21 +57,30 @@ class CloudProgressRepository implements CloudProgressSync {
 
   final SupabaseClient _client;
   final Future<String?> Function()? _accessTokenProvider;
+  final ValueNotifier<CloudProgressDiagnostics> diagnostics = ValueNotifier(
+    CloudProgressDiagnostics.empty,
+  );
 
   @override
   Future<StudyProgress?> loadProgress({required String userId}) async {
-    if (!await _hasAccessToken()) {
+    final hasToken = await _hasAccessToken();
+    if (!hasToken) {
+      diagnostics.value = const CloudProgressDiagnostics(status: 'no_token');
       return null;
     }
 
-    var tableProgress = await _loadTableProgressHttp();
-    if (tableProgress.answers.isEmpty) {
-      tableProgress = await _loadTableProgressRpc();
+    final localSessionUserId = _client.auth.currentSession?.user.id;
+    if (localSessionUserId != null && localSessionUserId != userId) {
+      diagnostics.value = const CloudProgressDiagnostics(
+        hasToken: true,
+        status: 'user_mismatch',
+      );
+      return null;
     }
-    if (tableProgress.answers.isEmpty) {
-      final rest = await _loadTableProgressRest(userId);
-      tableProgress = rest ?? StudyProgress.empty;
-    }
+
+    final httpProgress = await _loadTableProgressHttp();
+    final sdkProgress = await _loadTableProgressRpc();
+    final restProgress = await _loadTableProgressRest(userId) ?? StudyProgress.empty;
 
     var metaProgress = StudyProgress.empty;
     try {
@@ -61,16 +95,21 @@ class CloudProgressRepository implements CloudProgressSync {
       }
     } catch (_) {}
 
-    if (tableProgress.answers.isEmpty && metaProgress.answers.isEmpty) {
-      final localSessionUserId = _client.auth.currentSession?.user.id;
-      if (localSessionUserId != null && localSessionUserId != userId) {
-        return null;
-      }
-    }
-
     final combined = StudyProgress.empty
-        .mergeWith(tableProgress)
+        .mergeWith(httpProgress)
+        .mergeWith(sdkProgress)
+        .mergeWith(restProgress)
         .mergeWith(metaProgress);
+
+    diagnostics.value = CloudProgressDiagnostics(
+      hasToken: true,
+      httpRpcCount: httpProgress.answers.length,
+      sdkRpcCount: sdkProgress.answers.length,
+      restCount: restProgress.answers.length,
+      metadataCount: metaProgress.answers.length,
+      mergedCloudCount: combined.answers.length,
+      status: combined.answers.isEmpty ? 'empty' : 'ok',
+    );
 
     if (combined.answers.isEmpty) {
       return null;

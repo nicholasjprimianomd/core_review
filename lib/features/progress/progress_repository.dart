@@ -1,9 +1,37 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import '../../models/progress_models.dart';
 import '../../repositories/cloud_progress_repository.dart';
 import '../../repositories/key_value_store.dart';
+
+class ProgressSyncDiagnostics {
+  const ProgressSyncDiagnostics({
+    this.localCount = 0,
+    this.cloudHttpRpcCount = 0,
+    this.cloudSdkRpcCount = 0,
+    this.cloudRestCount = 0,
+    this.metadataCount = 0,
+    this.cloudMergedCount = 0,
+    this.finalMergedCount = 0,
+    this.status = 'idle',
+    this.error,
+  });
+
+  static const empty = ProgressSyncDiagnostics();
+
+  final int localCount;
+  final int cloudHttpRpcCount;
+  final int cloudSdkRpcCount;
+  final int cloudRestCount;
+  final int metadataCount;
+  final int cloudMergedCount;
+  final int finalMergedCount;
+  final String status;
+  final String? error;
+}
 
 class ProgressRepository {
   ProgressRepository({
@@ -18,6 +46,9 @@ class ProgressRepository {
   final CloudProgressSync? _cloudProgressRepository;
   final String? Function()? _userIdProvider;
   Future<void> _pendingWrite = Future<void>.value();
+  final ValueNotifier<ProgressSyncDiagnostics> diagnostics = ValueNotifier(
+    ProgressSyncDiagnostics.empty,
+  );
 
   Future<StudyProgress> loadProgress() async {
     await _pendingWrite.catchError((_) {});
@@ -42,6 +73,11 @@ class ProgressRepository {
             .mergeWith(localProgress);
         await _writeLocal(mergedProgress);
         await _store.delete('guest_progress');
+        _updateDiagnostics(
+          localCount: localProgress.answeredCount,
+          finalMergedCount: mergedProgress.answeredCount,
+          status: remoteProgress == null ? 'local_only' : 'merged',
+        );
         if (remoteProgress == null ||
             !_isSameProgress(mergedProgress, remoteProgress)) {
           await _cloudProgressRepository.saveProgress(
@@ -50,7 +86,13 @@ class ProgressRepository {
           );
         }
         return mergedProgress;
-      } catch (_) {
+      } catch (error) {
+        _updateDiagnostics(
+          localCount: localProgress.answeredCount,
+          finalMergedCount: localProgress.answeredCount,
+          status: 'cloud_error',
+          error: error.toString(),
+        );
         // Fall back to local progress if cloud sync is unavailable.
       }
     }
@@ -59,6 +101,12 @@ class ProgressRepository {
       await _writeLocal(localProgress);
       await _store.delete('guest_progress');
     }
+
+    _updateDiagnostics(
+      localCount: localProgress.answeredCount,
+      finalMergedCount: localProgress.answeredCount,
+      status: userId == null || userId.isEmpty ? 'guest' : 'local_only',
+    );
 
     return localProgress;
   }
@@ -189,5 +237,29 @@ class ProgressRepository {
       return 'guest_progress';
     }
     return 'progress_$userId';
+  }
+
+  void _updateDiagnostics({
+    required int localCount,
+    required int finalMergedCount,
+    required String status,
+    String? error,
+  }) {
+    final cloud = _cloudProgressRepository;
+    CloudProgressDiagnostics cloudDiagnostics = CloudProgressDiagnostics.empty;
+    if (cloud is CloudProgressRepository) {
+      cloudDiagnostics = cloud.diagnostics.value;
+    }
+    diagnostics.value = ProgressSyncDiagnostics(
+      localCount: localCount,
+      cloudHttpRpcCount: cloudDiagnostics.httpRpcCount,
+      cloudSdkRpcCount: cloudDiagnostics.sdkRpcCount,
+      cloudRestCount: cloudDiagnostics.restCount,
+      metadataCount: cloudDiagnostics.metadataCount,
+      cloudMergedCount: cloudDiagnostics.mergedCloudCount,
+      finalMergedCount: finalMergedCount,
+      status: status,
+      error: error,
+    );
   }
 }

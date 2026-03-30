@@ -47,23 +47,24 @@ class HttpPrimaryCloudProgressRepository implements CloudProgressSync {
       if (response.statusCode == 200) {
         final map = jsonDecode(response.body) as Map<String, dynamic>;
         final raw = map['progress'];
-        StudyProgress? progress;
+        final StudyProgress progress;
         if (raw is Map<String, dynamic>) {
           progress = StudyProgress.fromServerMap(
             Map<String, dynamic>.from(raw),
           );
         } else if (raw is Map) {
           progress = StudyProgress.fromServerMap(Map<String, dynamic>.from(raw));
+        } else {
+          // Authenticated empty account / missing key — still counts as cloud ok.
+          progress = StudyProgress.empty;
         }
-        if (progress != null) {
-          diagnostics.value = CloudProgressDiagnostics(
-            hasToken: true,
-            httpRpcCount: progress.answers.length,
-            mergedCloudCount: progress.answers.length,
-            status: 'http_primary_ok',
-          );
-          return progress.answers.isEmpty ? null : progress;
-        }
+        diagnostics.value = CloudProgressDiagnostics(
+          hasToken: true,
+          httpRpcCount: progress.answers.length,
+          mergedCloudCount: progress.answers.length,
+          status: 'http_primary_ok',
+        );
+        return progress;
       }
       diagnostics.value = CloudProgressDiagnostics(
         hasToken: true,

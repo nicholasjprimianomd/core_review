@@ -94,14 +94,6 @@ def write_question_chunks(project_root: Path) -> None:
         )
 
 
-def copy_vercel_api(output_dir: Path) -> None:
-    source_api_dir = PROJECT_ROOT / "api"
-    if not source_api_dir.exists():
-        return
-
-    shutil.copytree(source_api_dir, output_dir / "api", dirs_exist_ok=True)
-
-
 def run(command: list[str], *, cwd: Path) -> None:
     subprocess.run(command, cwd=str(cwd), check=True)
 
@@ -145,7 +137,9 @@ def main() -> None:
         shutil.rmtree(OUTPUT_DIR, ignore_errors=True)
     shutil.copytree(built_web_dir, OUTPUT_DIR, dirs_exist_ok=True)
     shutil.copy2(PROJECT_ROOT / "vercel.json", OUTPUT_DIR / "vercel.json")
-    copy_vercel_api(OUTPUT_DIR)
+    # Do not copy repo `api/` into the static output. Vercel would otherwise
+    # serve those `.js` files as static assets and the real `/api/*` serverless
+    # routes (e.g. study-progress) would not run.
     copy_book_images(OUTPUT_DIR)
     shutil.rmtree(temp_project, ignore_errors=True)
 

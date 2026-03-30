@@ -127,6 +127,7 @@ def main() -> None:
         "build",
         "web",
         "--release",
+        "--pwa-strategy=none",
     ]
     if content_base_url:
         build_command.append(f"--dart-define=CONTENT_BASE_URL={content_base_url}")

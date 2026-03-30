@@ -265,9 +265,15 @@ class AuthRepository {
       return;
     }
 
-    await _client.auth.signOut();
-    _currentUser = null;
-    await _store.delete('session');
+    try {
+      await _client.auth.signOut();
+    } catch (_) {
+      // If the logout request fails, still clear local auth so the browser can
+      // recover by signing in again instead of remaining in a broken state.
+    } finally {
+      _currentUser = null;
+      await _store.delete('session');
+    }
   }
 
   Future<void> dispose() async {

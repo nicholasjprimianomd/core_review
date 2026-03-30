@@ -78,8 +78,23 @@ class AuthRepository {
     try {
       final decoded = jsonDecode(rawSession) as Map<String, dynamic>;
       final session = Session.fromJson(decoded);
-      final token = session?.accessToken;
-      if (token == null || token.isEmpty) {
+      if (session == null) {
+        return null;
+      }
+      if (session.isExpired &&
+          _client != null &&
+          session.refreshToken != null &&
+          session.refreshToken!.isNotEmpty) {
+        final refreshed = await _client.auth.setSession(session.refreshToken!);
+        final nextSession = refreshed.session;
+        if (nextSession != null) {
+          await _persistSession(nextSession);
+          _currentUser = _mapUser(refreshed.user ?? nextSession.user);
+          return nextSession.accessToken;
+        }
+      }
+      final token = session.accessToken;
+      if (token.isEmpty) {
         return null;
       }
       return token;
@@ -97,8 +112,20 @@ class AuthRepository {
     final rawSession = await _store.read('session');
     if (rawSession != null && rawSession.isNotEmpty) {
       try {
-        final response = await _client.auth.recoverSession(rawSession);
-        _currentUser = _mapUser(response.user ?? response.session?.user);
+        final decoded = jsonDecode(rawSession) as Map<String, dynamic>;
+        final storedSession = Session.fromJson(decoded);
+        final response =
+            storedSession != null &&
+                storedSession.isExpired &&
+                storedSession.refreshToken != null &&
+                storedSession.refreshToken!.isNotEmpty
+            ? await _client.auth.setSession(storedSession.refreshToken!)
+            : await _client.auth.recoverSession(rawSession);
+        final liveSession = response.session;
+        if (liveSession != null) {
+          await _persistSession(liveSession);
+        }
+        _currentUser = _mapUser(response.user ?? liveSession?.user);
         return _currentUser;
       } catch (_) {
         await _store.delete('session');

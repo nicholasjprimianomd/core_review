@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../models/progress_models.dart';
 import '../../repositories/cloud_progress_repository.dart';
+import '../../repositories/http_cloud_progress_repository.dart';
 import '../../repositories/key_value_store.dart';
 
 class ProgressSyncDiagnostics {
@@ -247,7 +248,9 @@ class ProgressRepository {
   }) {
     final cloud = _cloudProgressRepository;
     CloudProgressDiagnostics cloudDiagnostics = CloudProgressDiagnostics.empty;
-    if (cloud is CloudProgressRepository) {
+    if (cloud is HttpPrimaryCloudProgressRepository) {
+      cloudDiagnostics = cloud.diagnostics.value;
+    } else if (cloud is CloudProgressRepository) {
       cloudDiagnostics = cloud.diagnostics.value;
     }
     diagnostics.value = ProgressSyncDiagnostics(

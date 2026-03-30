@@ -75,7 +75,8 @@ class AppConfig {
     return 'https://core-review-smoky.vercel.app/api/reference-books-search';
   }
 
-  /// Server route `api/study-progress.js` (service role). Same base resolution as the assistant API.
+  /// Server route `api/study-progress.js` (service role). Same base resolution
+  /// as the assistant API.
   static String resolveStudyProgressApiUrl() {
     if (assistantApiBaseUrl.isNotEmpty) {
       final sanitizedBase = assistantApiBaseUrl.endsWith('/')

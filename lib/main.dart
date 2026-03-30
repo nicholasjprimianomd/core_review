@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'config/app_config.dart';
 import 'features/analytics/analytics_screen.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/books/book_library_screen.dart';
@@ -22,6 +23,7 @@ import 'repositories/app_settings_repository.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/book_repository.dart';
 import 'repositories/cloud_progress_repository.dart';
+import 'repositories/http_cloud_progress_repository.dart';
 import 'repositories/study_data_repository.dart';
 
 void main() {
@@ -54,9 +56,13 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
   late final ProgressRepository _progressRepository = ProgressRepository(
     cloudProgressRepository: _authRepository.client == null
         ? null
-        : CloudProgressRepository(
-            _authRepository.client!,
-            accessTokenProvider: _authRepository.loadAccessToken,
+        : HttpPrimaryCloudProgressRepository(
+            apiUrl: AppConfig.resolveStudyProgressApiUrl(),
+            accessToken: _authRepository.loadAccessToken,
+            fallback: CloudProgressRepository(
+              _authRepository.client!,
+              accessTokenProvider: _authRepository.loadAccessToken,
+            ),
           ),
     // Use AuthRepository as source of truth so userId is available as soon as
     // loadSession() completes, even before setState assigns _currentUser.

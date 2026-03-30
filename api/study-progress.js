@@ -4,7 +4,7 @@
  *
  * Vercel env (required for this route):
  *   SUPABASE_URL
- *   SUPABASE_SERVICE_ROLE_KEY  (Settings → API → service_role — never ship to the client)
+ *   SUPABASE_SERVICE_ROLE_KEY  (Settings -> API -> service_role; never ship to the client)
  */
 
 function applyCors(res) {
@@ -53,15 +53,53 @@ function mergeAnswerMaps(a, b) {
   return merged;
 }
 
-function mergeProgress(tableProg, metaProg) {
+function mergeProgress(tableProg, otherProg) {
   const t = tableProg && typeof tableProg === 'object' ? tableProg : { answers: {} };
-  const m = metaProg && typeof metaProg === 'object' ? metaProg : { answers: {} };
-  const answers = mergeAnswerMaps(t.answers || {}, m.answers || {});
+  const o = otherProg && typeof otherProg === 'object' ? otherProg : { answers: {} };
+  const answers = mergeAnswerMaps(t.answers || {}, o.answers || {});
   return {
     answers,
-    lastVisitedQuestionId: t.lastVisitedQuestionId || m.lastVisitedQuestionId || null,
-    updatedAt: t.updatedAt || m.updatedAt || new Date().toISOString(),
+    lastVisitedQuestionId: o.lastVisitedQuestionId || t.lastVisitedQuestionId || null,
+    updatedAt: o.updatedAt || t.updatedAt || new Date().toISOString(),
   };
+}
+
+async function readTableProgress(supabaseUrl, restHeaders, userId) {
+  let tableProgress = { answers: {} };
+  try {
+    const sel = await fetch(
+      `${supabaseUrl}/rest/v1/core_review_study_progress?user_id=eq.${encodeURIComponent(userId)}&select=progress`,
+      { headers: restHeaders },
+    );
+    if (sel.ok) {
+      const rows = await sel.json();
+      if (rows[0]?.progress && typeof rows[0].progress === 'object') {
+        tableProgress = rows[0].progress;
+      }
+    }
+  } catch (_) {}
+  return tableProgress;
+}
+
+async function readMetaProgress(supabaseUrl, serviceKey, userId) {
+  let metaProgress = null;
+  try {
+    const adminRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+      },
+    });
+    if (adminRes.ok) {
+      const adminData = await adminRes.json();
+      const u = adminData.user || adminData;
+      const um = u?.user_metadata;
+      if (um?.core_review_progress && typeof um.core_review_progress === 'object') {
+        metaProgress = um.core_review_progress;
+      }
+    }
+  } catch (_) {}
+  return metaProgress;
 }
 
 module.exports = async (req, res) => {
@@ -118,38 +156,8 @@ module.exports = async (req, res) => {
   };
 
   if (req.method === 'GET') {
-    let tableProgress = { answers: {} };
-    try {
-      const sel = await fetch(
-        `${supabaseUrl}/rest/v1/core_review_study_progress?user_id=eq.${encodeURIComponent(userId)}&select=progress`,
-        { headers: restHeaders },
-      );
-      if (sel.ok) {
-        const rows = await sel.json();
-        if (rows[0]?.progress && typeof rows[0].progress === 'object') {
-          tableProgress = rows[0].progress;
-        }
-      }
-    } catch (_) {}
-
-    let metaProgress = null;
-    try {
-      const adminRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
-        headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-        },
-      });
-      if (adminRes.ok) {
-        const adminData = await adminRes.json();
-        const u = adminData.user || adminData;
-        const um = u?.user_metadata;
-        if (um?.core_review_progress && typeof um.core_review_progress === 'object') {
-          metaProgress = um.core_review_progress;
-        }
-      }
-    } catch (_) {}
-
+    const tableProgress = await readTableProgress(supabaseUrl, restHeaders, userId);
+    const metaProgress = await readMetaProgress(supabaseUrl, serviceKey, userId);
     const progress = mergeProgress(tableProgress, metaProgress);
     res.status(200).json({ progress });
     return;
@@ -157,15 +165,19 @@ module.exports = async (req, res) => {
 
   if (req.method === 'PUT' || req.method === 'POST') {
     const body = parseBody(req.body);
-    const progress = body.progress;
-    if (!progress || typeof progress !== 'object') {
+    const incoming = body.progress;
+    if (!incoming || typeof incoming !== 'object') {
       res.status(400).json({ error: 'JSON body must include a "progress" object.' });
       return;
     }
 
+    const tableProgress = await readTableProgress(supabaseUrl, restHeaders, userId);
+    const metaProgress = await readMetaProgress(supabaseUrl, serviceKey, userId);
+    const merged = mergeProgress(mergeProgress(tableProgress, metaProgress), incoming);
+
     const row = {
       user_id: userId,
-      progress,
+      progress: merged,
       updated_at: new Date().toISOString(),
     };
 

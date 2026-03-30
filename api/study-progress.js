@@ -1,10 +1,15 @@
 /**
- * Authoritative study progress sync: verifies the user's JWT, then reads/writes
- * `core_review_study_progress` with the service role (bypasses RLS + flaky client PostgREST).
+ * Study progress sync: verifies the user's JWT, then reads/writes
+ * `core_review_study_progress` via PostgREST.
  *
- * Vercel env (required for this route):
+ * Preferred (full merge with legacy user_metadata):
  *   SUPABASE_URL
- *   SUPABASE_SERVICE_ROLE_KEY  (Settings -> API -> service_role; never ship to the client)
+ *   SUPABASE_SERVICE_ROLE_KEY
+ *
+ * Fallback (matches shipped Flutter defaults; uses the caller's JWT + anon key):
+ *   Reads/writes succeed when the table has RLS policies for authenticated users
+ *   (same pattern as `supabase/schema.sql` for `user_progress`).
+ *   Set SUPABASE_URL / SUPABASE_ANON_KEY on Vercel to override defaults.
  */
 
 function applyCors(res) {
@@ -105,6 +110,18 @@ async function readMetaProgress(supabaseUrl, serviceKey, userId) {
   return metaProgress;
 }
 
+// Defaults match lib/config/app_config.dart (same project / anon key is already public in the client).
+const DEFAULT_SUPABASE_URL = 'https://szerwpvldtnamhfpqmih.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY =
+  'sb_publishable_gmJyumfHSnoOTqpMkVS-qw_A6axiU62';
+
+function resolveSupabaseConfig() {
+  const supabaseUrl = `${process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL}`.replace(/\/$/, '');
+  const serviceKey = `${process.env.SUPABASE_SERVICE_ROLE_KEY || ''}`.trim();
+  const anonKey = `${process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY}`.trim();
+  return { supabaseUrl, serviceKey, anonKey };
+}
+
 module.exports = async (req, res) => {
   applyCors(res);
 
@@ -113,16 +130,18 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const supabaseUrl = `${process.env.SUPABASE_URL || ''}`.replace(/\/$/, '');
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const { supabaseUrl, serviceKey, anonKey } = resolveSupabaseConfig();
+  const apiKeyForAuth = serviceKey || anonKey;
 
-  if (!supabaseUrl || !serviceKey) {
+  if (!supabaseUrl || !apiKeyForAuth) {
     res.status(503).json({
       error:
-        'Study progress API not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY on Vercel.',
+        'Study progress API not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY on Vercel.',
     });
     return;
   }
+
+  const useServiceRole = Boolean(serviceKey);
 
   const authHeader = `${req.headers.authorization || ''}`;
   const refreshToken = `${req.headers['x-refresh-token'] || ''}`;
@@ -133,7 +152,7 @@ module.exports = async (req, res) => {
   if (userJwt) {
     const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
       headers: {
-        apikey: serviceKey,
+        apikey: apiKeyForAuth,
         Authorization: `Bearer ${userJwt}`,
       },
     });
@@ -151,8 +170,8 @@ module.exports = async (req, res) => {
       {
         method: 'POST',
         headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
+          apikey: apiKeyForAuth,
+          Authorization: `Bearer ${apiKeyForAuth}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ refresh_token: refreshToken }),
@@ -175,16 +194,24 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const restHeaders = {
-    apikey: serviceKey,
-    Authorization: `Bearer ${serviceKey}`,
-    'Content-Type': 'application/json',
-  };
+  const restHeaders = useServiceRole
+    ? {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+      }
+    : {
+        apikey: anonKey,
+        Authorization: `Bearer ${userJwt}`,
+        'Content-Type': 'application/json',
+      };
 
   if (req.method === 'GET') {
     const tableProgress = await readTableProgress(supabaseUrl, restHeaders, userId);
-    const metaProgress = await readMetaProgress(supabaseUrl, serviceKey, userId);
-    const progress = mergeProgress(tableProgress, metaProgress);
+    const metaProgress = useServiceRole
+      ? await readMetaProgress(supabaseUrl, serviceKey, userId)
+      : null;
+    const progress = mergeProgress(tableProgress, metaProgress || { answers: {} });
     res.status(200).json({ progress });
     return;
   }
@@ -198,8 +225,13 @@ module.exports = async (req, res) => {
     }
 
     const tableProgress = await readTableProgress(supabaseUrl, restHeaders, userId);
-    const metaProgress = await readMetaProgress(supabaseUrl, serviceKey, userId);
-    const merged = mergeProgress(mergeProgress(tableProgress, metaProgress), incoming);
+    const metaProgress = useServiceRole
+      ? await readMetaProgress(supabaseUrl, serviceKey, userId)
+      : null;
+    const merged = mergeProgress(
+      mergeProgress(tableProgress, metaProgress || { answers: {} }),
+      incoming,
+    );
 
     const row = {
       user_id: userId,

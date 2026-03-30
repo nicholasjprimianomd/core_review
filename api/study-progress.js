@@ -122,30 +122,53 @@ module.exports = async (req, res) => {
   }
 
   const authHeader = `${req.headers.authorization || ''}`;
+  const refreshToken = `${req.headers['x-refresh-token'] || ''}`;
   const m = authHeader.match(/^Bearer\s+(\S+)/i);
-  if (!m) {
-    res.status(401).json({ error: 'Missing Authorization: Bearer <access_token>.' });
-    return;
+  let userJwt = m ? m[1] : '';
+
+  let userId = null;
+  if (userJwt) {
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${userJwt}`,
+      },
+    });
+
+    if (userRes.ok) {
+      const userPayload = await userRes.json();
+      const sessionUser = userPayload.user || userPayload;
+      userId = sessionUser.id;
+    }
   }
-  const userJwt = m[1];
 
-  const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${userJwt}`,
-    },
-  });
+  if (!userId && refreshToken) {
+    const refreshRes = await fetch(
+      `${supabaseUrl}/auth/v1/token?grant_type=refresh_token`,
+      {
+        method: 'POST',
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      },
+    );
 
-  if (!userRes.ok) {
-    res.status(401).json({ error: 'Invalid or expired session.' });
-    return;
+    if (refreshRes.ok) {
+      const refreshed = await refreshRes.json();
+      const sessionUser = refreshed.user || refreshed.session?.user;
+      userJwt = refreshed.access_token || refreshed.session?.access_token || userJwt;
+      userId = sessionUser?.id || null;
+    }
   }
 
-  const userPayload = await userRes.json();
-  const sessionUser = userPayload.user || userPayload;
-  const userId = sessionUser.id;
   if (!userId) {
-    res.status(401).json({ error: 'Could not read user id from session.' });
+    res.status(401).json({
+      error: 'Invalid or expired session.',
+      detail: 'Could not read user id from access token or refresh token.',
+    });
     return;
   }
 

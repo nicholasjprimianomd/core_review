@@ -103,6 +103,30 @@ class AuthRepository {
     }
   }
 
+  Future<String?> loadRefreshToken() async {
+    final inMemory = _client?.auth.currentSession?.refreshToken;
+    if (inMemory != null && inMemory.isNotEmpty) {
+      return inMemory;
+    }
+
+    final rawSession = await _store.read('session');
+    if (rawSession == null || rawSession.isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(rawSession) as Map<String, dynamic>;
+      final session = Session.fromJson(decoded);
+      final token = session?.refreshToken;
+      if (token == null || token.isEmpty) {
+        return null;
+      }
+      return token;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<AuthUser?> loadSession() async {
     if (_client == null) {
       _currentUser = null;

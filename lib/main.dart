@@ -59,6 +59,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
         : HttpPrimaryCloudProgressRepository(
             apiUrl: AppConfig.resolveStudyProgressApiUrl(),
             accessToken: _authRepository.loadAccessToken,
+            refreshToken: _authRepository.loadRefreshToken,
             fallback: CloudProgressRepository(
               _authRepository.client!,
               accessTokenProvider: _authRepository.loadAccessToken,

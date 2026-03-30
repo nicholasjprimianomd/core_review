@@ -127,6 +127,15 @@ class AuthRepository {
     }
   }
 
+  Future<bool> hasSyncCredentials() async {
+    final access = await loadAccessToken();
+    if (access != null && access.isNotEmpty) {
+      return true;
+    }
+    final refresh = await loadRefreshToken();
+    return refresh != null && refresh.isNotEmpty;
+  }
+
   Future<AuthUser?> loadSession() async {
     if (_client == null) {
       _currentUser = null;
@@ -152,17 +161,29 @@ class AuthRepository {
           await _persistSession(liveSession);
         }
         _currentUser = _mapUser(response.user ?? liveSession?.user);
-        return _currentUser;
+        if (await hasSyncCredentials()) {
+          return _currentUser;
+        }
+        _currentUser = null;
+        return null;
       } catch (_) {
         if (storedSession != null) {
           _currentUser = _mapUser(storedSession.user);
-          return _currentUser;
+          if (await hasSyncCredentials()) {
+            return _currentUser;
+          }
+          _currentUser = null;
+          return null;
         }
       }
     }
 
     _currentUser = _mapUser(_client.auth.currentUser);
-    return _currentUser;
+    if (await hasSyncCredentials()) {
+      return _currentUser;
+    }
+    _currentUser = null;
+    return null;
   }
 
   Future<AuthUser?> recoverSessionFromCurrentUrlIfPresent() async {

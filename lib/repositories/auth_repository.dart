@@ -64,8 +64,29 @@ class AuthRepository {
 
   SupabaseClient? get client => _client;
 
-  /// User access token for server APIs (e.g. `/api/study-progress`).
-  String? get accessToken => _client?.auth.currentSession?.accessToken;
+  Future<String?> loadAccessToken() async {
+    final inMemory = _client?.auth.currentSession?.accessToken;
+    if (inMemory != null && inMemory.isNotEmpty) {
+      return inMemory;
+    }
+
+    final rawSession = await _store.read('session');
+    if (rawSession == null || rawSession.isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(rawSession) as Map<String, dynamic>;
+      final session = Session.fromJson(decoded);
+      final token = session?.accessToken;
+      if (token == null || token.isEmpty) {
+        return null;
+      }
+      return token;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<AuthUser?> loadSession() async {
     if (_client == null) {

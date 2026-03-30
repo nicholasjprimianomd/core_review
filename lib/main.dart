@@ -54,7 +54,10 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
   late final ProgressRepository _progressRepository = ProgressRepository(
     cloudProgressRepository: _authRepository.client == null
         ? null
-        : CloudProgressRepository(_authRepository.client!),
+        : CloudProgressRepository(
+            _authRepository.client!,
+            accessTokenProvider: _authRepository.loadAccessToken,
+          ),
     // Use AuthRepository as source of truth so userId is available as soon as
     // loadSession() completes, even before setState assigns _currentUser.
     userIdProvider: () => _authRepository.currentUser?.id,

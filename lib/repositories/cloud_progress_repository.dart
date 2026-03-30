@@ -25,13 +25,17 @@ class CloudProgressRepository implements CloudProgressSync {
   static const _table = 'core_review_study_progress';
   static const _metadataKey = 'core_review_progress';
 
-  CloudProgressRepository(this._client);
+  CloudProgressRepository(
+    this._client, {
+    Future<String?> Function()? accessTokenProvider,
+  }) : _accessTokenProvider = accessTokenProvider;
 
   final SupabaseClient _client;
+  final Future<String?> Function()? _accessTokenProvider;
 
   @override
   Future<StudyProgress?> loadProgress({required String userId}) async {
-    if (!_hasAccessToken) {
+    if (!await _hasAccessToken()) {
       return null;
     }
 
@@ -140,7 +144,7 @@ class CloudProgressRepository implements CloudProgressSync {
     required String userId,
     required StudyProgress progress,
   }) async {
-    if (!_hasAccessToken) {
+    if (!await _hasAccessToken()) {
       throw StateError('No authenticated Supabase user available.');
     }
     final localSessionUserId = _client.auth.currentSession?.user.id;
@@ -193,7 +197,7 @@ class CloudProgressRepository implements CloudProgressSync {
 
   @override
   Future<void> resetProgress({required String userId}) async {
-    if (!_hasAccessToken) {
+    if (!await _hasAccessToken()) {
       throw StateError('No authenticated Supabase user available.');
     }
     final localSessionUserId = _client.auth.currentSession?.user.id;
@@ -244,13 +248,13 @@ class CloudProgressRepository implements CloudProgressSync {
   Uri _rpcUri(String functionName) =>
       Uri.parse('${AppConfig.supabaseUrl}/rest/v1/rpc/$functionName');
 
-  bool get _hasAccessToken {
-    final token = _client.auth.currentSession?.accessToken;
+  Future<bool> _hasAccessToken() async {
+    final token = await _resolveAccessToken();
     return token != null && token.isNotEmpty;
   }
 
   Future<Map<String, String>> _rpcHeaders() async {
-    final token = _client.auth.currentSession?.accessToken;
+    final token = await _resolveAccessToken();
     if (token == null || token.isEmpty) {
       throw AuthSessionMissingException();
     }
@@ -260,5 +264,17 @@ class CloudProgressRepository implements CloudProgressSync {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
+  }
+
+  Future<String?> _resolveAccessToken() async {
+    final inMemory = _client.auth.currentSession?.accessToken;
+    if (inMemory != null && inMemory.isNotEmpty) {
+      return inMemory;
+    }
+    final provider = _accessTokenProvider;
+    if (provider == null) {
+      return null;
+    }
+    return await provider();
   }
 }

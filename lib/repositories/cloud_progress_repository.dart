@@ -196,7 +196,7 @@ class CloudProgressRepository implements CloudProgressSync {
 
     try {
       final response = await http.post(
-        _rpcUri('upsert_my_study_progress'),
+        _rpcUri('merge_my_study_progress'),
         headers: await _rpcHeaders(),
         body: jsonEncode(<String, dynamic>{'payload': payload}),
       );
@@ -206,7 +206,7 @@ class CloudProgressRepository implements CloudProgressSync {
     } catch (_) {
       try {
         await _client.rpc(
-          'upsert_my_study_progress',
+          'merge_my_study_progress',
           params: <String, dynamic>{'payload': payload},
         );
       } catch (_) {

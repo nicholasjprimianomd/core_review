@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/book_models.dart';
 import '../../models/progress_models.dart';
 import '../../models/text_highlight_utils.dart';
+import '../../widgets/book_image_gallery.dart';
 import '../../widgets/formatted_explanation_select.dart';
 
 class AnswerRevealPanel extends StatelessWidget {
@@ -70,6 +71,10 @@ class AnswerRevealPanel extends StatelessWidget {
               highlights: explanationHighlights,
               onHighlightsChanged: onExplanationHighlightsChanged,
             ),
+            if (question.hasExplanationImages) ...[
+              const SizedBox(height: 16),
+              BookImageGallery(imageAssets: question.explanationImageAssets),
+            ],
             if (question.references.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(

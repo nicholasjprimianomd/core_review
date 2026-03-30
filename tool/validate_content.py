@@ -37,7 +37,18 @@ def build_report(
         choices = question.get("choices", {})
         explanation = str(question.get("explanation", "")).strip()
         image_assets = question.get("imageAssets", [])
+        explanation_image_assets = question.get("explanationImageAssets", [])
         prompt = str(question.get("prompt", ""))
+
+        if not isinstance(explanation_image_assets, list):
+            issues.append(
+                {
+                    "type": "bad_explanation_image_assets",
+                    "questionId": question_id,
+                    "message": "explanationImageAssets must be a list.",
+                }
+            )
+            explanation_image_assets = []
 
         for asset_path in image_assets:
             if not isinstance(asset_path, str) or not asset_path.strip():
@@ -49,6 +60,19 @@ def build_report(
                         "type": "image_not_found",
                         "questionId": question_id,
                         "message": f"Image asset not found: {asset_path}",
+                    }
+                )
+
+        for asset_path in explanation_image_assets:
+            if not isinstance(asset_path, str) or not asset_path.strip():
+                continue
+            resolved = (assets_root / asset_path.replace("assets/", "")).resolve()
+            if not resolved.is_file():
+                issues.append(
+                    {
+                        "type": "explanation_image_not_found",
+                        "questionId": question_id,
+                        "message": f"Explanation image asset not found: {asset_path}",
                     }
                 )
 
@@ -93,6 +117,20 @@ def build_report(
                     "type": "missing_image",
                     "questionId": question_id,
                     "message": "Prompt suggests an image but no image asset is linked.",
+                }
+            )
+
+        explanation_mentions_figure = bool(IMAGE_REFERENCE_RE.search(explanation))
+        if (
+            explanation_mentions_figure
+            and not image_assets
+            and not explanation_image_assets
+        ):
+            issues.append(
+                {
+                    "type": "missing_explanation_image",
+                    "questionId": question_id,
+                    "message": "Explanation suggests an image but no stem or explanation image is linked.",
                 }
             )
 

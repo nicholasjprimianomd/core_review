@@ -309,6 +309,7 @@ class BookQuestion {
     required this.explanation,
     required this.references,
     required this.imageAssets,
+    this.explanationImageAssets = const <String>[],
     required this.stemGroup,
     this.topicId,
     this.topicTitle,
@@ -335,6 +336,7 @@ class BookQuestion {
   final String explanation;
   final List<String> references;
   final List<String> imageAssets;
+  final List<String> explanationImageAssets;
   final String stemGroup;
 
   String get displayNumber => questionNumber;
@@ -342,6 +344,8 @@ class BookQuestion {
   String get correctChoiceText => choices[correctChoice] ?? '';
 
   bool get hasImages => imageAssets.isNotEmpty;
+
+  bool get hasExplanationImages => explanationImageAssets.isNotEmpty;
 
   factory BookQuestion.fromJson(Map<String, dynamic> json) {
     return BookQuestion(
@@ -368,6 +372,9 @@ class BookQuestion {
           .cast<String>(),
       imageAssets: (json['imageAssets'] as List<dynamic>? ?? const [])
           .cast<String>(),
+      explanationImageAssets:
+          (json['explanationImageAssets'] as List<dynamic>? ?? const [])
+              .cast<String>(),
       stemGroup: json['stemGroup'] as String,
     );
   }

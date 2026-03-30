@@ -120,6 +120,7 @@ class QuestionDraft:
     explanation: str = ""
     references: list[str] = field(default_factory=list)
     image_assets: list[str] = field(default_factory=list)
+    explanation_image_assets: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -729,16 +730,23 @@ def parse_book(
     answer_lookup: dict[str, str] = {}
     answer_references: dict[str, list[str]] = {}
     image_map: dict[str, list[str]] = defaultdict(list)
+    explanation_image_map: dict[str, list[str]] = defaultdict(list)
 
-    def export_images_for_page(
+    def flush_page_figures(
         page: fitz.Page,
         page_number: int,
-        anchors: list[tuple[float, str]],
-        carry_question_id: str | None,
-    ) -> str | None:
-        active_question_id = carry_question_id
+        *,
+        split_y: float | None,
+        mode_end: str | None,
+        page_question_anchors: list[tuple[float, str]],
+        page_answer_anchors: list[tuple[float, str]],
+        stem_carry: str | None,
+        answer_carry: str | None,
+    ) -> None:
+        """Assign every sufficiently large figure on the page to stem or explanation buckets."""
         page_images = page.get_images(full=True)
         page_height = float(page.rect.height)
+        y_slack = 8.0
 
         for image_index, image_info in enumerate(page_images, start=1):
             xref = image_info[0]
@@ -756,8 +764,24 @@ def parse_book(
                 if rect.width * rect.height < _MIN_FIGURE_AREA_PT2:
                     continue
 
+                if split_y is not None:
+                    use_explanation = rect.y0 >= split_y - y_slack
+                elif mode_end == "answers":
+                    use_explanation = True
+                else:
+                    use_explanation = False
+
+                if use_explanation:
+                    anchors = page_answer_anchors
+                    carry = answer_carry
+                    destination = explanation_image_map
+                else:
+                    anchors = page_question_anchors
+                    carry = stem_carry
+                    destination = image_map
+
                 anchor_idx, owning_question_id = question_image_anchor_index_and_owner(
-                    anchors, rect, carry_question_id
+                    anchors, rect, carry
                 )
                 if owning_question_id is None:
                     continue
@@ -778,12 +802,8 @@ def parse_book(
                 pixmap.save(output_path)
                 asset_path = f"assets/book_images/{filename}"
 
-                if asset_path not in image_map[owning_question_id]:
-                    image_map[owning_question_id].append(asset_path)
-
-        if anchors:
-            return anchors[-1][1]
-        return active_question_id
+                if asset_path not in destination[owning_question_id]:
+                    destination[owning_question_id].append(asset_path)
 
     for chapter in book_spec.chapters:
         current_question: QuestionDraft | None = None
@@ -794,6 +814,7 @@ def parse_book(
         last_question_number: str | None = None
         chapter_answer_ids: list[str] = []
         answer_queue_index = 0
+        answer_region_default_id: str | None = None
 
         def finalize_question() -> None:
             nonlocal current_question
@@ -820,22 +841,11 @@ def parse_book(
             page = doc[page_number - 1]
             page_lines = extract_page_lines(page)
             page_question_anchors: list[tuple[float, str]] = []
+            page_answer_anchors: list[tuple[float, str]] = []
+            answers_section_start_y: float | None = None
             current_section = active_section(chapter, page_number)
             page_carry_question_id = current_active_question_id
-            page_images_exported = False
             line_index = 0
-
-            def export_page_question_images_if_needed() -> None:
-                nonlocal current_active_question_id, page_images_exported
-                if page_images_exported:
-                    return
-                current_active_question_id = export_images_for_page(
-                    page,
-                    page_number,
-                    page_question_anchors,
-                    page_carry_question_id,
-                )
-                page_images_exported = True
 
             while line_index < len(page_lines):
                 current_line = page_lines[line_index].text
@@ -844,27 +854,36 @@ def parse_book(
                 if header_key == "QUESTIONS":
                     finalize_answer()
                     mode = "questions"
+                    answer_region_default_id = None
                     line_index += 1
                     continue
 
                 if header_key == "ANSWERSANDEXPLANATIONS":
-                    export_page_question_images_if_needed()
                     finalize_question()
+                    if answers_section_start_y is None:
+                        answers_section_start_y = page_lines[line_index].y
                     mode = "answers"
                     chapter_answer_ids = [
                         q.id for q in questions if q.chapter.id == chapter.id
                     ]
                     answer_queue_index = 0
+                    answer_region_default_id = (
+                        chapter_answer_ids[0] if chapter_answer_ids else None
+                    )
                     line_index += 1
                     continue
                 if header_key == "ANSWERS":
-                    export_page_question_images_if_needed()
                     finalize_question()
+                    if answers_section_start_y is None:
+                        answers_section_start_y = page_lines[line_index].y
                     mode = "answers"
                     chapter_answer_ids = [
                         q.id for q in questions if q.chapter.id == chapter.id
                     ]
                     answer_queue_index = 0
+                    answer_region_default_id = (
+                        chapter_answer_ids[0] if chapter_answer_ids else None
+                    )
                     line_index += 1
                     continue
                 if header_key == "ANSWER":
@@ -873,12 +892,12 @@ def parse_book(
 
                 answer_match = ANSWER_START_RE.match(current_line)
                 if answer_match:
-                    export_page_question_images_if_needed()
                     finalize_question()
                     finalize_answer()
                     answer_question_id = (
                         f"{book_spec.id}-{chapter.number}-{answer_match.group('number').lower()}"
                     )
+                    page_answer_anchors.append((page_lines[line_index].y, answer_question_id))
                     current_answer = AnswerDraft(
                         question_id=answer_question_id,
                         correct_choice=answer_match.group("choice").upper(),
@@ -904,11 +923,11 @@ def parse_book(
                     and chapter_answer_ids
                     and answer_queue_index < len(chapter_answer_ids)
                 ):
-                    export_page_question_images_if_needed()
                     finalize_question()
                     finalize_answer()
                     answer_question_id = chapter_answer_ids[answer_queue_index]
                     answer_queue_index += 1
+                    page_answer_anchors.append((page_lines[line_index].y, answer_question_id))
                     current_answer = AnswerDraft(
                         question_id=answer_question_id,
                         correct_choice=answer_unnumbered_match.group("choice").upper(),
@@ -927,11 +946,11 @@ def parse_book(
                     and chapter_answer_ids
                     and answer_queue_index < len(chapter_answer_ids)
                 ):
-                    export_page_question_images_if_needed()
                     finalize_question()
                     finalize_answer()
                     answer_question_id = chapter_answer_ids[answer_queue_index]
                     answer_queue_index += 1
+                    page_answer_anchors.append((page_lines[line_index].y, answer_question_id))
                     current_answer = AnswerDraft(
                         question_id=answer_question_id,
                         correct_choice=answer_page_ref_match.group("choice").upper(),
@@ -1025,8 +1044,25 @@ def parse_book(
 
                 line_index += 1
 
-            if mode == "questions":
-                export_page_question_images_if_needed()
+            answer_carry_end = (
+                current_answer.question_id
+                if current_answer is not None
+                else (
+                    page_answer_anchors[-1][1]
+                    if page_answer_anchors
+                    else answer_region_default_id
+                )
+            )
+            flush_page_figures(
+                page,
+                page_number,
+                split_y=answers_section_start_y,
+                mode_end=mode,
+                page_question_anchors=page_question_anchors,
+                page_answer_anchors=page_answer_anchors,
+                stem_carry=page_carry_question_id,
+                answer_carry=answer_carry_end,
+            )
 
         finalize_question()
         finalize_answer()
@@ -1038,6 +1074,9 @@ def parse_book(
         question.explanation = answer_lookup.get(question.id, "")
         question.references = answer_references.get(question.id, [])
         question.image_assets = image_map.get(question.id, [])
+        question.explanation_image_assets = explanation_image_map.get(
+            question.id, []
+        )
 
     promote_stem_only_questions(questions)
     fill_shared_explanations(questions)
@@ -1073,6 +1112,7 @@ def promote_stem_only_questions(questions: list[QuestionDraft]) -> None:
         ):
             stem_prompt = question.prompt
             stem_images = list(question.image_assets)
+            stem_explanation_images = list(question.explanation_image_assets)
             stem_references = list(question.references)
             stem_explanation = question.explanation
 
@@ -1084,10 +1124,10 @@ def promote_stem_only_questions(questions: list[QuestionDraft]) -> None:
                     child.image_assets = unique_preserving_order(
                         stem_images + child.image_assets
                     )
-                if stem_explanation and not child.explanation:
-                    child.explanation = stem_explanation
-                if stem_references and not child.references:
-                    child.references = list(stem_references)
+                if stem_explanation_images and not child.explanation_image_assets:
+                    child.explanation_image_assets = unique_preserving_order(
+                        stem_explanation_images + child.explanation_image_assets
+                    )
                 rewritten.append(child)
         else:
             rewritten.extend(grouped)
@@ -1114,6 +1154,14 @@ def fill_shared_explanations(questions: list[QuestionDraft]) -> None:
             (question.references for question in grouped if question.references),
             [],
         )
+        shared_explanation_images = next(
+            (
+                question.explanation_image_assets
+                for question in grouped
+                if question.explanation_image_assets
+            ),
+            [],
+        )
 
         if not shared_explanation:
             continue
@@ -1123,6 +1171,8 @@ def fill_shared_explanations(questions: list[QuestionDraft]) -> None:
                 question.explanation = shared_explanation
             if not question.references:
                 question.references = list(shared_references)
+            if not question.explanation_image_assets and shared_explanation_images:
+                question.explanation_image_assets = list(shared_explanation_images)
 
 
 def merge_duplicate_questions(questions: list[QuestionDraft]) -> None:
@@ -1157,6 +1207,9 @@ def merge_duplicate_questions(questions: list[QuestionDraft]) -> None:
             )
             base.image_assets = unique_preserving_order(
                 base.image_assets + other.image_assets
+            )
+            base.explanation_image_assets = unique_preserving_order(
+                base.explanation_image_assets + other.explanation_image_assets
             )
 
             if base.section is None and other.section is not None:
@@ -1540,6 +1593,7 @@ def build_questions_json(
                 "explanation": question.explanation,
                 "references": question.references,
                 "imageAssets": question.image_assets,
+                "explanationImageAssets": question.explanation_image_assets,
                 "stemGroup": question.stem_group,
             }
         )
@@ -1556,7 +1610,19 @@ def build_validation_report(questions: list[dict[str, object]]) -> dict[str, obj
         explanation = str(question.get("explanation", "")).strip()
         correct_choice = str(question.get("correctChoice", "")).strip()
         image_assets = question.get("imageAssets", [])
+        explanation_image_assets = question.get("explanationImageAssets", [])
         prompt = str(question.get("prompt", ""))
+
+        if explanation_image_assets is not None and not isinstance(
+            explanation_image_assets, list
+        ):
+            issues.append(
+                {
+                    "type": "bad_explanation_image_assets",
+                    "questionId": question_id,
+                    "message": "explanationImageAssets must be a list.",
+                }
+            )
 
         if not isinstance(choices, dict) or len(choices) < 2:
             issues.append(

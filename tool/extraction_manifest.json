@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "generatedAt": "2026-03-28T14:52:17.195656+00:00",
+  "generatedAt": "2026-03-30T16:27:44.095913+00:00",
   "files": {
     "tool/extract_pdf_to_json.py": {
-      "sha256": "d6df0b57b5a10c4b7a16e1160853cd15f3a678577672acbf320f7d2aafcd6029"
+      "sha256": "86c93eb5bbfc83ca343d2c026a8aa4388230abbd9dbd041957b09d92ad959968"
     },
     "tool/safe_merge_questions.py": {
-      "sha256": "9bb2eed2a75011ca7ba9149261504c9e2fb5be6f805ba20441fe36cf2c4ea3db"
+      "sha256": "8e5a30b7ec30bf74cb9bb7c819d474e2486fe04d49424b0ae39a63b9a570c292"
     },
     "tool/reextract_all_books.py": {
       "sha256": "93a16840ec36cdfa446dc25f7585cf7463eb35c4af1d723854462a527806a188"
@@ -21,7 +21,7 @@
       "sha256": "2aea784141e56ac62e9190b0923f05077afb838680833e6e23c792a3845d5572"
     },
     "tool/validate_content.py": {
-      "sha256": "33283f95519bf337fae6b7fcb20af7f5155da3e856d27213ae291e304855c220"
+      "sha256": "fa9744ce59a8ce1afacfbbf8fc25c5e841eaa0bda147e39c6a1292ae19a36854"
     },
     "assets/data/books.json": {
       "sha256": "616bf84426391d376a7043b357980611a6fd4c484bc7fb41cae3142a57102650"

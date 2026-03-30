@@ -82,6 +82,18 @@ def merge_extracted_question(
         if merged_imgs:
             out["imageAssets"] = merged_imgs
 
+    ext_exp = extracted.get("explanationImageAssets") or []
+    prior_exp = prior.get("explanationImageAssets") or []
+    if isinstance(ext_exp, list) or isinstance(prior_exp, list):
+        merged_exp: list[str] = []
+        seen_exp: set[str] = set()
+        for src in (list(ext_exp) + list(prior_exp)):
+            if isinstance(src, str) and src.strip() and src not in seen_exp:
+                seen_exp.add(src)
+                merged_exp.append(src)
+        if merged_exp:
+            out["explanationImageAssets"] = merged_exp
+
     if prior.get("validationRelaxed") is True:
         out["validationRelaxed"] = True
 

@@ -73,6 +73,7 @@ def main() -> None:
         "explanation",
         "references",
         "imageAssets",
+        "explanationImageAssets",
     )
     diffs: list[dict[str, object]] = []
     for qid in sorted(prod_ids & ext_ids):

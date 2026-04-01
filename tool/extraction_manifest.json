@@ -1,15 +1,15 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-01T19:53:57.237782+00:00",
+  "generatedAt": "2026-04-01T22:29:40.967146+00:00",
   "files": {
     "tool/extract_pdf_to_json.py": {
       "sha256": "1a06f098ce9d3215d8da418c1de61e73693de71ec5a929f2eba73f1ae0921912"
     },
     "tool/safe_merge_questions.py": {
-      "sha256": "cc7c542b943ab7899478d2d42abec1c3aa65d4a170fdeb3f3351e7975d537e10"
+      "sha256": "a687765a10cb71acba440d0b068ef8961fb154fe5037932901a7960fb2705a44"
     },
     "tool/reextract_all_books.py": {
-      "sha256": "93a16840ec36cdfa446dc25f7585cf7463eb35c4af1d723854462a527806a188"
+      "sha256": "5069ca1b1e1843d13f78941dd4082864710085b43120fb6adb9bd2fdd68aeea5"
     },
     "tool/hybrid_fallback_answers.py": {
       "sha256": "8a2529ccf491bbff246255535c71bd0072b50b1a5771e8a19e67cbe7f40282d2"

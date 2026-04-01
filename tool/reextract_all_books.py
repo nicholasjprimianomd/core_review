@@ -15,7 +15,10 @@ _TOOL = Path(__file__).resolve().parent
 if str(_TOOL) not in sys.path:
     sys.path.insert(0, str(_TOOL))
 
-from safe_merge_questions import merge_book_extract
+from safe_merge_questions import (
+    merge_book_extract,
+    merge_book_extract_preserve_prior_order,
+)
 
 def find_source_file(
     source_name: str,
@@ -62,6 +65,13 @@ def main() -> None:
         "--no-safe-merge",
         action="store_true",
         help="Replace each re-extracted book with raw extractor output (not recommended).",
+    )
+    parser.add_argument(
+        "--preserve-prior-order",
+        action="store_true",
+        help="For re-extracted books only: keep the same question ids, order, and count as "
+        "production; merge each new extract row into the matching prior id. Extra extract "
+        "rows are ignored; missing ids keep the prior row.",
     )
     args = parser.parse_args()
     only_ids: set[str] | None = set(args.only) if args.only else None
@@ -196,6 +206,16 @@ def main() -> None:
         prior_for_book = existing_by_book.get(bid, [])
         if args.no_safe_merge:
             merged.extend(chunk)
+        elif args.preserve_prior_order:
+            merged.extend(
+                merge_book_extract_preserve_prior_order(
+                    sorted(
+                        prior_for_book,
+                        key=lambda q: (q.get("chapterNumber", 0), q.get("order", 0)),
+                    ),
+                    chunk,
+                )
+            )
         else:
             merged.extend(merge_book_extract(prior_for_book, chunk))
         extracted_ids.append(bid)
@@ -203,8 +223,9 @@ def main() -> None:
         img_src = work / "assets" / "book_images"
         if img_src.is_dir():
             dest_images.mkdir(parents=True, exist_ok=True)
-            for png in img_src.glob("*.png"):
-                shutil.copy2(png, dest_images / png.name)
+            for pattern in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
+                for img in img_src.glob(pattern):
+                    shutil.copy2(img, dest_images / img.name)
 
     for i, q in enumerate(merged, start=1):
         q["sortOrder"] = i

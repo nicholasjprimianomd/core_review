@@ -127,3 +127,27 @@ def merge_book_extract(
 ) -> list[dict[str, Any]]:
     prior_by_id = {q["id"]: q for q in prior_rows}
     return [merge_extracted_question(prior_by_id.get(q["id"]), q) for q in extracted_rows]
+
+
+def merge_book_extract_preserve_prior_order(
+    prior_rows: list[dict[str, Any]], extracted_rows: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Same row count and order as ``prior_rows``; same ``id`` on every row.
+
+    For each prior question, merge in the freshly extracted row with the same ``id``
+    when present; otherwise keep the prior row unchanged. Extract-only rows (no
+    matching prior ``id``) are dropped so study progress keyed by id stays stable.
+    """
+    ext_by_id = {q["id"]: q for q in extracted_rows}
+    out: list[dict[str, Any]] = []
+    for prior in prior_rows:
+        pid = prior.get("id")
+        if not isinstance(pid, str):
+            out.append(copy.deepcopy(prior))
+            continue
+        ext = ext_by_id.get(pid)
+        if ext is None:
+            out.append(copy.deepcopy(prior))
+        else:
+            out.append(merge_extracted_question(prior, ext))
+    return out

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-01T22:29:40.967146+00:00",
+  "generatedAt": "2026-04-01T22:47:17.921232+00:00",
   "files": {
     "tool/extract_pdf_to_json.py": {
       "sha256": "1a06f098ce9d3215d8da418c1de61e73693de71ec5a929f2eba73f1ae0921912"

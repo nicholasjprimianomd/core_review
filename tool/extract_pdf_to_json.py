@@ -158,6 +158,24 @@ def unique_preserving_order(values: list[str]) -> list[str]:
     return ordered
 
 
+# Avoid runaway unions when duplicate draft rows or merges stack unrelated assets.
+_IMAGE_LIST_MERGE_CAP = 6
+
+
+def capped_merge_image_lists(left: list[str], right: list[str]) -> list[str]:
+    """Union preserving order; if too long, keep the shorter single-source list."""
+    merged = unique_preserving_order(left + right)
+    if len(merged) <= _IMAGE_LIST_MERGE_CAP:
+        return merged
+    uleft = unique_preserving_order(left)
+    uright = unique_preserving_order(right)
+    if uleft and uright:
+        chosen = uleft if len(uleft) <= len(uright) else uright
+    else:
+        chosen = uleft or uright
+    return chosen[:_IMAGE_LIST_MERGE_CAP]
+
+
 # Drop decorative PDF icons; real figures are almost always larger.
 _MIN_FIGURE_SIDE_PT = 90.0
 _MIN_FIGURE_AREA_PT2 = _MIN_FIGURE_SIDE_PT * _MIN_FIGURE_SIDE_PT
@@ -723,6 +741,8 @@ def parse_book(
     book_spec: BookSpec,
     pdf_path: Path,
     image_output_dir: Path,
+    *,
+    full_page_figure_fallback: bool = False,
 ) -> tuple[list[QuestionDraft], dict[str, str]]:
     doc = fitz.open(pdf_path)
     questions: list[QuestionDraft] = []
@@ -1082,7 +1102,13 @@ def parse_book(
     fill_shared_explanations(questions)
     merge_duplicate_questions(questions)
     assign_epub_inline_images(questions, pdf_path, image_output_dir, book_spec.id)
-    assign_fallback_page_images(questions, pdf_path, image_output_dir, book_spec.id)
+    assign_fallback_page_images(
+        questions,
+        pdf_path,
+        image_output_dir,
+        book_spec.id,
+        full_page_fallback=full_page_figure_fallback,
+    )
 
     return questions, answers
 
@@ -1205,11 +1231,13 @@ def merge_duplicate_questions(questions: list[QuestionDraft]) -> None:
             base.references = unique_preserving_order(
                 base.references + other.references
             )
-            base.image_assets = unique_preserving_order(
-                base.image_assets + other.image_assets
+            base.image_assets = capped_merge_image_lists(
+                base.image_assets,
+                other.image_assets,
             )
-            base.explanation_image_assets = unique_preserving_order(
-                base.explanation_image_assets + other.explanation_image_assets
+            base.explanation_image_assets = capped_merge_image_lists(
+                base.explanation_image_assets,
+                other.explanation_image_assets,
             )
 
             if base.section is None and other.section is not None:
@@ -1419,12 +1447,65 @@ def export_epub_image_asset(
     return asset_path
 
 
+def _best_embedded_figure_asset(
+    *,
+    page: fitz.Page,
+    page_number: int,
+    question_id: str,
+    book_id: str,
+    image_output_dir: Path,
+) -> str | None:
+    """Largest qualifying embedded image on the page, or None."""
+    page_images = page.get_images(full=True)
+    best_rect: fitz.Rect | None = None
+    best_area = 0.0
+    best_image_index = 0
+    best_rect_index = 0
+    for image_index, image_info in enumerate(page_images, start=1):
+        xref = image_info[0]
+        try:
+            rects = page.get_image_rects(xref)
+        except RuntimeError:
+            continue
+        for rect_index, rect in enumerate(rects, start=1):
+            if (
+                rect.width < _MIN_FIGURE_SIDE_PT
+                or rect.height < _MIN_FIGURE_SIDE_PT
+            ):
+                continue
+            if rect.width * rect.height < _MIN_FIGURE_AREA_PT2:
+                continue
+            area = rect.width * rect.height
+            if area > best_area:
+                best_area = area
+                best_rect = rect
+                best_image_index = image_index
+                best_rect_index = rect_index
+    if best_rect is None:
+        return None
+    filename = (
+        f"{book_id}_{question_id}_fb_{page_number:03d}_"
+        f"img_{best_image_index}_{best_rect_index}.png"
+    )
+    output_path = image_output_dir / filename
+    pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), clip=best_rect, alpha=False)
+    pixmap.save(output_path)
+    return f"assets/book_images/{filename}"
+
+
 def assign_fallback_page_images(
     questions: list[QuestionDraft],
     pdf_path: Path,
     image_output_dir: Path,
     book_id: str,
+    *,
+    full_page_fallback: bool = False,
 ) -> None:
+    """When the prompt references a figure but none were linked, try embedded crops first.
+
+    Full-page renders are opt-in (`full_page_fallback`) and limited to **one** page per
+    question to avoid stacking many irrelevant screenshots.
+    """
     doc = fitz.open(pdf_path)
     sorted_questions = sorted(
         questions,
@@ -1442,19 +1523,39 @@ def assign_fallback_page_images(
                 next_question.chapter.id == question.chapter.id
                 and next_question.start_page > question.start_page
             ):
-                candidate_pages.update(range(question.start_page, next_question.start_page))
+                candidate_pages.update(
+                    range(question.start_page, next_question.start_page)
+                )
             elif question.start_page < len(doc):
                 candidate_pages.add(question.start_page + 1)
         elif question.start_page < len(doc):
             candidate_pages.add(question.start_page + 1)
 
+        added = False
         for candidate_page in sorted(candidate_pages):
             page = doc[candidate_page - 1]
-            filename = f"{book_id}_{question.id}_page_{candidate_page:03d}.png"
-            output_path = image_output_dir / filename
-            pixmap = page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5), alpha=False)
-            pixmap.save(output_path)
-            question.image_assets.append(f"assets/book_images/{filename}")
+            asset = _best_embedded_figure_asset(
+                page=page,
+                page_number=candidate_page,
+                question_id=question.id,
+                book_id=book_id,
+                image_output_dir=image_output_dir,
+            )
+            if asset:
+                question.image_assets.append(asset)
+                added = True
+                break
+
+        if added or not full_page_fallback:
+            continue
+
+        first_page = sorted(candidate_pages)[0]
+        page = doc[first_page - 1]
+        filename = f"{book_id}_{question.id}_page_{first_page:03d}_full.png"
+        output_path = image_output_dir / filename
+        pixmap = page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5), alpha=False)
+        pixmap.save(output_path)
+        question.image_assets.append(f"assets/book_images/{filename}")
 
     doc.close()
 
@@ -1684,6 +1785,12 @@ def main() -> None:
         default=Path(__file__).resolve().parents[1],
         help="Flutter project root containing the assets directory.",
     )
+    parser.add_argument(
+        "--full-page-figure-fallback",
+        action="store_true",
+        help="If a figure is still missing after embedded-image fallback, save one full-page "
+        "raster (default: off; avoids stacking irrelevant full pages).",
+    )
     args = parser.parse_args()
 
     pdf_paths = discover_pdf_paths(args.inputs)
@@ -1705,7 +1812,12 @@ def main() -> None:
 
     questions_by_book: dict[str, list[QuestionDraft]] = {}
     for book_spec, pdf_path in zip(book_specs, pdf_paths):
-        questions_by_book[book_spec.id], _ = parse_book(book_spec, pdf_path, image_dir)
+        questions_by_book[book_spec.id], _ = parse_book(
+            book_spec,
+            pdf_path,
+            image_dir,
+            full_page_figure_fallback=args.full_page_figure_fallback,
+        )
 
     books_json = build_books_json(book_specs, questions_by_book)
     topics_json = build_topics_json(book_specs, questions_by_book)

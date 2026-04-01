@@ -6,6 +6,39 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+_IMAGE_MERGE_CAP = 6
+
+
+def _string_list(paths: Any) -> list[str]:
+    if not isinstance(paths, list):
+        return []
+    return [p for p in paths if isinstance(p, str) and p.strip()]
+
+
+def _unique_preserving_strs(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for v in values:
+        t = v.strip()
+        if t in seen:
+            continue
+        seen.add(t)
+        out.append(v)
+    return out
+
+
+def _capped_merge_image_fields(ext: list[str], prior: list[str]) -> list[str]:
+    merged = _unique_preserving_strs(ext + prior)
+    if len(merged) <= _IMAGE_MERGE_CAP:
+        return merged
+    ue = _unique_preserving_strs(ext)
+    up = _unique_preserving_strs(prior)
+    if ue and up:
+        chosen = ue if len(ue) <= len(up) else up
+    else:
+        chosen = ue or up
+    return chosen[:_IMAGE_MERGE_CAP]
+
 
 def _choice_count(choices: Any) -> int:
     if not isinstance(choices, dict):
@@ -69,28 +102,17 @@ def merge_extracted_question(
     else:
         out["choices"] = copy.deepcopy(ext_ch if ext_n else prior_ch)
 
-    # Image paths: preserve union order (extract first, then prior-only)
-    ext_imgs = extracted.get("imageAssets") or []
-    prior_imgs = prior.get("imageAssets") or []
-    if isinstance(ext_imgs, list) or isinstance(prior_imgs, list):
-        merged_imgs: list[str] = []
-        seen: set[str] = set()
-        for src in (list(ext_imgs) + list(prior_imgs)):
-            if isinstance(src, str) and src.strip() and src not in seen:
-                seen.add(src)
-                merged_imgs.append(src)
+    ext_imgs = _string_list(extracted.get("imageAssets"))
+    prior_imgs = _string_list(prior.get("imageAssets"))
+    if ext_imgs or prior_imgs:
+        merged_imgs = _capped_merge_image_fields(ext_imgs, prior_imgs)
         if merged_imgs:
             out["imageAssets"] = merged_imgs
 
-    ext_exp = extracted.get("explanationImageAssets") or []
-    prior_exp = prior.get("explanationImageAssets") or []
-    if isinstance(ext_exp, list) or isinstance(prior_exp, list):
-        merged_exp: list[str] = []
-        seen_exp: set[str] = set()
-        for src in (list(ext_exp) + list(prior_exp)):
-            if isinstance(src, str) and src.strip() and src not in seen_exp:
-                seen_exp.add(src)
-                merged_exp.append(src)
+    ext_exp = _string_list(extracted.get("explanationImageAssets"))
+    prior_exp = _string_list(prior.get("explanationImageAssets"))
+    if ext_exp or prior_exp:
+        merged_exp = _capped_merge_image_fields(ext_exp, prior_exp)
         if merged_exp:
             out["explanationImageAssets"] = merged_exp
 

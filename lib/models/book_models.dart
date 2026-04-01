@@ -347,6 +347,69 @@ class BookQuestion {
 
   bool get hasExplanationImages => explanationImageAssets.isNotEmpty;
 
+  /// Stem [imageAssets] first, then [explanationImageAssets] not already listed (deduped).
+  List<String> get revealImageAssetsOrdered {
+    final seen = <String>{};
+    final out = <String>[];
+    for (final p in imageAssets) {
+      final t = p.trim();
+      if (t.isEmpty || !seen.add(t)) {
+        continue;
+      }
+      out.add(p);
+    }
+    for (final p in explanationImageAssets) {
+      final t = p.trim();
+      if (t.isEmpty || !seen.add(t)) {
+        continue;
+      }
+      out.add(p);
+    }
+    return out;
+  }
+
+  bool get hasRevealImages => revealImageAssetsOrdered.isNotEmpty;
+
+  /// Explanation figures that are not also stem [imageAssets].
+  List<String> get explanationOnlyImageAssets {
+    final stem = <String>{};
+    for (final p in imageAssets) {
+      final t = p.trim();
+      if (t.isNotEmpty) {
+        stem.add(t);
+      }
+    }
+    final out = <String>[];
+    final seen = <String>{};
+    for (final p in explanationImageAssets) {
+      final t = p.trim();
+      if (t.isEmpty || stem.contains(t) || !seen.add(t)) {
+        continue;
+      }
+      out.add(p);
+    }
+    return out;
+  }
+
+  /// When true, show separate "Case images" and "Explanation figures" blocks.
+  bool get shouldSplitRevealImageSections =>
+      imageAssets.isNotEmpty &&
+      explanationImageAssets.isNotEmpty &&
+      explanationOnlyImageAssets.isNotEmpty;
+
+  List<String> get stemImageAssetsDeduped {
+    final seen = <String>{};
+    final out = <String>[];
+    for (final p in imageAssets) {
+      final t = p.trim();
+      if (t.isEmpty || !seen.add(t)) {
+        continue;
+      }
+      out.add(p);
+    }
+    return out;
+  }
+
   factory BookQuestion.fromJson(Map<String, dynamic> json) {
     return BookQuestion(
       id: json['id'] as String,

@@ -1,7 +1,7 @@
 {
   "cleanUrls": true,
-  "installCommand": "if [ ! -d flutter ]; then git clone --depth 1 --branch stable https://github.com/flutter/flutter.git flutter; fi && flutter/bin/flutter config --enable-web && flutter/bin/flutter precache --web",
-  "buildCommand": "python tool/build_web_for_vercel.py",
+  "installCommand": "if [ ! -d flutter ]; then git clone --depth 1 --branch stable https://github.com/flutter/flutter.git flutter; fi && export PATH=\"$PATH:$(pwd)/flutter/bin\" && flutter config --enable-web && flutter precache --web",
+  "buildCommand": "command -v python3 >/dev/null 2>&1 && python3 tool/build_web_for_vercel.py || python tool/build_web_for_vercel.py",
   "outputDirectory": "build/web_vercel",
   "rewrites": [
     {

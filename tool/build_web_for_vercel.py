@@ -36,7 +36,16 @@ def resolve_flutter_exe() -> str:
     if local_flutter.exists():
         return str(local_flutter)
 
-    return "flutter"
+    for candidate in ("flutter.bat", "flutter") if os.name == "nt" else ("flutter",):
+        found = shutil.which(candidate)
+        if found:
+            return found
+
+    raise FileNotFoundError(
+        "Flutter executable not found. Set FLUTTER_EXE to your flutter "
+        f"(or {default_exe_name}) path, or clone Flutter into ./flutter "
+        "(see vercel.json installCommand)."
+    )
 
 
 def copy_project() -> Path:

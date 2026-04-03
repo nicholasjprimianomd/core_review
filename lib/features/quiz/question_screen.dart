@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../models/book_models.dart';
 import '../../models/progress_models.dart';
@@ -16,6 +17,7 @@ import '../exam/exam_summary_screen.dart';
 import '../progress/progress_repository.dart';
 import 'answer_reveal_panel.dart';
 import 'question_controller.dart';
+import 'question_screen_shortcuts.dart';
 
 class QuestionScreen extends StatefulWidget {
   const QuestionScreen({
@@ -35,6 +37,8 @@ class QuestionScreen extends StatefulWidget {
     this.onEndReview,
     this.onExamCompleted,
     this.onOpenFontSettings,
+    this.hideExamSideNavigator = false,
+    this.onHideExamSideNavigatorChanged,
     super.key,
   }) : assert(questions.length > 0, 'QuestionScreen requires at least 1 item.');
 
@@ -54,6 +58,8 @@ class QuestionScreen extends StatefulWidget {
   final VoidCallback? onEndReview;
   final Future<void> Function(ExamCompletionSnapshot snapshot)? onExamCompleted;
   final VoidCallback? onOpenFontSettings;
+  final bool hideExamSideNavigator;
+  final ValueChanged<bool>? onHideExamSideNavigatorChanged;
 
   @override
   State<QuestionScreen> createState() => _QuestionScreenState();
@@ -61,6 +67,8 @@ class QuestionScreen extends StatefulWidget {
 
 class _QuestionScreenState extends State<QuestionScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final FocusNode _shortcutFocus =
+      FocusNode(debugLabel: 'questionScreen.shortcuts');
   double? _assistantPanelWidth;
   Timer? _examTicker;
   late final DateTime _examStartedAt;
@@ -145,9 +153,231 @@ class _QuestionScreenState extends State<QuestionScreen> {
   @override
   void dispose() {
     _examTicker?.cancel();
+    _shortcutFocus.dispose();
     _assistantRepository.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  bool get _quizKeyboardShortcutsEnabled {
+    if (_controller.isSaving) {
+      return false;
+    }
+    final focus = FocusManager.instance.primaryFocus;
+    final ctx = focus?.context;
+    if (ctx == null) {
+      return true;
+    }
+    final editable = ctx.findAncestorWidgetOfExactType<EditableText>();
+    if (editable != null && !editable.readOnly) {
+      return false;
+    }
+    return true;
+  }
+
+  Map<ShortcutActivator, Intent> _quizShortcutsForQuestion(
+    BookQuestion question,
+  ) {
+    final map = quizQuestionBaseShortcuts();
+    mergeQuizChoiceLetterShortcuts(map, question.choices);
+    return map;
+  }
+
+  Map<Type, Action<Intent>> _quizShortcutActions(BookQuestion question) {
+    return <Type, Action<Intent>>{
+      GoPreviousQuestionIntent: CallbackAction<GoPreviousQuestionIntent>(
+        onInvoke: (_) {
+          if (_quizKeyboardShortcutsEnabled && _controller.canGoPrevious) {
+            _controller.goToPrevious();
+          }
+          return null;
+        },
+      ),
+      GoNextQuestionIntent: CallbackAction<GoNextQuestionIntent>(
+        onInvoke: (_) {
+          if (_quizKeyboardShortcutsEnabled && _controller.canGoNext) {
+            _controller.goToNext();
+          }
+          return null;
+        },
+      ),
+      JumpFirstQuestionIntent: CallbackAction<JumpFirstQuestionIntent>(
+        onInvoke: (_) {
+          if (_quizKeyboardShortcutsEnabled &&
+              _controller.currentIndex > 0) {
+            _controller.jumpToIndex(0);
+          }
+          return null;
+        },
+      ),
+      JumpLastQuestionIntent: CallbackAction<JumpLastQuestionIntent>(
+        onInvoke: (_) {
+          if (_quizKeyboardShortcutsEnabled &&
+              _controller.currentIndex < _controller.questionCount - 1) {
+            _controller.jumpToIndex(_controller.questionCount - 1);
+          }
+          return null;
+        },
+      ),
+      SubmitOrAdvanceQuestionIntent:
+          CallbackAction<SubmitOrAdvanceQuestionIntent>(
+        onInvoke: (_) {
+          _handleSubmitOrAdvanceShortcut();
+          return null;
+        },
+      ),
+      OpenQuestionListIntent: CallbackAction<OpenQuestionListIntent>(
+        onInvoke: (_) {
+          if (!_quizKeyboardShortcutsEnabled) {
+            return null;
+          }
+          final showWide = MediaQuery.sizeOf(context).width >= 1200 &&
+              !(widget.examSession != null && widget.hideExamSideNavigator);
+          if (!showWide) {
+            _openQuestionNavigator();
+          }
+          return null;
+        },
+      ),
+      CloseEndDrawerIntent: CallbackAction<CloseEndDrawerIntent>(
+        onInvoke: (_) {
+          if (!_quizKeyboardShortcutsEnabled) {
+            return null;
+          }
+          final scaffold = _scaffoldKey.currentState;
+          if (scaffold != null && scaffold.isEndDrawerOpen) {
+            scaffold.closeEndDrawer();
+          }
+          return null;
+        },
+      ),
+      ShowKeyboardShortcutsHelpIntent:
+          CallbackAction<ShowKeyboardShortcutsHelpIntent>(
+        onInvoke: (_) {
+          if (!_quizKeyboardShortcutsEnabled) {
+            return null;
+          }
+          showQuizKeyboardShortcutsDialog(context);
+          return null;
+        },
+      ),
+      CopyQuestionHighlightsIntent: CallbackAction<CopyQuestionHighlightsIntent>(
+        onInvoke: (_) {
+          unawaited(_copyAllQuestionHighlightsToClipboard());
+          return null;
+        },
+      ),
+      SelectChoiceDigitIntent: CallbackAction<SelectChoiceDigitIntent>(
+        onInvoke: (SelectChoiceDigitIntent intent) {
+          _handleSelectChoiceDigit(question, intent.digitOneToNine);
+          return null;
+        },
+      ),
+      SelectChoiceKeyIntent: CallbackAction<SelectChoiceKeyIntent>(
+        onInvoke: (SelectChoiceKeyIntent intent) {
+          _handleSelectChoiceKey(question, intent.choiceKey);
+          return null;
+        },
+      ),
+    };
+  }
+
+  void _handleSubmitOrAdvanceShortcut() {
+    if (!_quizKeyboardShortcutsEnabled) {
+      return;
+    }
+    if (_controller.isSaving) {
+      return;
+    }
+    if (widget.readOnlyAfterExam) {
+      if (_controller.shouldUseNextPartAction &&
+          _controller.canAdvanceToNextPart) {
+        unawaited(_controller.submitCurrentPartAndAdvance());
+      } else if (_controller.canGoNext) {
+        _controller.goToNext();
+      }
+      return;
+    }
+    if (_controller.shouldUseNextPartAction &&
+        _controller.canAdvanceToNextPart) {
+      unawaited(_controller.submitCurrentPartAndAdvance());
+      return;
+    }
+    if (_controller.canSubmit) {
+      unawaited(_controller.submitCurrentAnswer());
+      return;
+    }
+    if (_controller.currentQuestionProgress != null && _controller.canGoNext) {
+      _controller.goToNext();
+    }
+  }
+
+  void _handleSelectChoiceDigit(BookQuestion question, int digitOneToNine) {
+    if (!_quizKeyboardShortcutsEnabled ||
+        widget.readOnlyAfterExam ||
+        _controller.currentQuestionProgress != null) {
+      return;
+    }
+    final entries = question.choices.entries.toList(growable: false);
+    if (digitOneToNine < 1 || digitOneToNine > entries.length) {
+      return;
+    }
+    _controller.selectChoice(entries[digitOneToNine - 1].key);
+  }
+
+  void _handleSelectChoiceKey(BookQuestion question, String choiceKey) {
+    if (!_quizKeyboardShortcutsEnabled ||
+        widget.readOnlyAfterExam ||
+        _controller.currentQuestionProgress != null) {
+      return;
+    }
+    if (!question.choices.containsKey(choiceKey)) {
+      return;
+    }
+    _controller.selectChoice(choiceKey);
+  }
+
+  Future<void> _copyAllQuestionHighlightsToClipboard() async {
+    if (!_quizKeyboardShortcutsEnabled) {
+      return;
+    }
+    final q = _controller.currentQuestion;
+    final d = _currentStudyData;
+    final parts = <String>[];
+
+    final prompt = mergedHighlightedText(q.prompt, d.promptHighlights);
+    if (prompt.isNotEmpty) {
+      parts.add('Prompt: $prompt');
+    }
+    for (final e in q.choices.entries) {
+      final h = d.choiceHighlights[e.key] ?? const <TextHighlightSpan>[];
+      final t = mergedHighlightedText(e.value, h);
+      if (t.isNotEmpty) {
+        parts.add('Choice ${e.key}: $t');
+      }
+    }
+    final qp = _controller.currentQuestionProgress;
+    final explVisible = _controller.explanationsVisibleForCurrent;
+    if (qp != null && explVisible && q.explanation.isNotEmpty) {
+      final ex = mergedHighlightedText(q.explanation, d.explanationHighlights);
+      if (ex.isNotEmpty) {
+        parts.add('Explanation: $ex');
+      }
+    }
+    if (parts.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No highlights on this question')),
+        );
+      }
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: parts.join('\n\n')));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Highlights copied')),
+      );
+    }
   }
 
   Duration? get _examTimeRemaining {
@@ -269,7 +499,8 @@ class _QuestionScreenState extends State<QuestionScreen> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final showQuestionNavigator = screenWidth >= 1200;
+    final showWideNavigator = screenWidth >= 1200 &&
+        !(widget.examSession != null && widget.hideExamSideNavigator);
 
     return ListenableBuilder(
       listenable: _controller,
@@ -293,7 +524,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
           studyData: _studyData,
           currentIndex: _controller.currentIndex,
           onSelectQuestion: (index) {
-            if (!showQuestionNavigator) {
+            if (!showWideNavigator) {
               Navigator.of(context).maybePop();
             }
             _controller.jumpToIndex(index);
@@ -302,7 +533,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
 
         return Scaffold(
           key: _scaffoldKey,
-          endDrawer: showQuestionNavigator
+          endDrawer: showWideNavigator
               ? null
               : Drawer(
                   width: 360,
@@ -331,6 +562,23 @@ class _QuestionScreenState extends State<QuestionScreen> {
                   onPressed: _controller.isSaving ? null : () => _endExamSession(),
                   tooltip: 'End exam',
                   icon: const Icon(Icons.stop_circle_outlined),
+                ),
+              if (widget.examSession != null &&
+                  widget.onHideExamSideNavigatorChanged != null)
+                IconButton(
+                  onPressed: () {
+                    widget.onHideExamSideNavigatorChanged?.call(
+                      !widget.hideExamSideNavigator,
+                    );
+                  },
+                  tooltip: widget.hideExamSideNavigator
+                      ? 'Show question list panel'
+                      : 'Hide question list panel',
+                  icon: Icon(
+                    widget.hideExamSideNavigator
+                        ? Icons.view_sidebar_outlined
+                        : Icons.vertical_split_outlined,
+                  ),
                 ),
               if (widget.readOnlyAfterExam)
                 TextButton(
@@ -361,12 +609,17 @@ class _QuestionScreenState extends State<QuestionScreen> {
                   ),
                 ),
               ],
-              if (!showQuestionNavigator)
+              if (!showWideNavigator)
                 IconButton(
                   onPressed: _openQuestionNavigator,
                   tooltip: 'Question list',
                   icon: const Icon(Icons.toc_outlined),
                 ),
+              IconButton(
+                tooltip: 'Keyboard shortcuts (? or Ctrl+/)',
+                onPressed: () => showQuizKeyboardShortcutsDialog(context),
+                icon: const Icon(Icons.help_outline),
+              ),
               if (!widget.readOnlyAfterExam)
                 IconButton(
                   onPressed: _openAssistant,
@@ -401,274 +654,317 @@ class _QuestionScreenState extends State<QuestionScreen> {
               ),
             ],
           ),
-          body: SafeArea(
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
+          body: Shortcuts(
+            shortcuts: _quizShortcutsForQuestion(question),
+            child: Actions(
+              actions: _quizShortcutActions(question),
+              child: Focus(
+                focusNode: _shortcutFocus,
+                autofocus: true,
+                child: SafeArea(
+                  child: Row(
                     children: [
-                      LinearProgressIndicator(
-                        value: _controller.completionFraction,
-                      ),
                       Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  Chip(label: Text(question.bookTitle)),
-                                  if (question.topicTitle != null)
-                                    Chip(label: Text(question.topicTitle!)),
-                                  Chip(
-                                    label: Text(
-                                      '${question.chapterNumber}. ${question.chapterTitle}',
-                                    ),
-                                  ),
-                                  if (question.sectionTitle != null)
-                                    Chip(label: Text(question.sectionTitle!)),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Question ${question.displayNumber}',
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 8),
-                              HighlightableSelectableText(
-                                text: question.prompt,
-                                style: Theme.of(context).textTheme.bodyLarge,
-                                highlights: currentStudyData.promptHighlights,
-                                onHighlightsChanged: _updatePromptHighlights,
-                              ),
-                              if (question.hasImages) ...[
-                                const SizedBox(height: 20),
-                                BookImageGallery(
-                                  imageAssets: question.imageAssets,
-                                ),
-                              ],
-                              if (!widget.readOnlyAfterExam) ...[
-                                const SizedBox(height: 20),
-                                Wrap(
-                                  spacing: 12,
-                                  runSpacing: 12,
+                        child: Column(
+                          children: [
+                            LinearProgressIndicator(
+                              value: _controller.completionFraction,
+                            ),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    FilledButton.tonalIcon(
-                                      onPressed: _openAssistant,
-                                      icon: const Icon(
-                                        Icons.auto_awesome_outlined,
-                                      ),
-                                      label: const Text(
-                                        'Ask AI About This Question',
-                                      ),
-                                    ),
-                                    if (!showQuestionNavigator)
-                                      OutlinedButton.icon(
-                                        onPressed: _openQuestionNavigator,
-                                        icon: const Icon(Icons.toc_outlined),
-                                        label: const Text('Open Question List'),
-                                      ),
-                                  ],
-                                ),
-                              ],
-                              const SizedBox(height: 20),
-                              Text(
-                                'Choose your answer',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 12),
-                              for (final entry in question.choices.entries)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: _ChoiceTile(
-                                    optionLabel: entry.key,
-                                    optionText: entry.value,
-                                    textHighlights:
-                                        currentStudyData.choiceHighlights[entry.key] ??
-                                        const <TextHighlightSpan>[],
-                                    onTextHighlightsChanged: (ranges) =>
-                                        _updateChoiceHighlights(entry.key, ranges),
-                                    isSelected: selectedChoice == entry.key,
-                                    isCorrectAnswer: explanationsVisible &&
-                                        question.correctChoice == entry.key,
-                                    isIncorrectSelection: explanationsVisible &&
-                                        questionProgress != null &&
-                                        questionProgress.selectedChoice ==
-                                            entry.key &&
-                                        !questionProgress.isCorrect,
-                                    enabled: !widget.readOnlyAfterExam &&
-                                        questionProgress == null,
-                                    onTap: () =>
-                                        _controller.selectChoice(entry.key),
-                                  ),
-                                ),
-                              const SizedBox(height: 8),
-                              if (widget.readOnlyAfterExam &&
-                                  _controller.shouldUseNextPartAction)
-                                OutlinedButton.icon(
-                                  onPressed: _controller.canAdvanceToNextPart
-                                      ? _controller.submitCurrentPartAndAdvance
-                                      : null,
-                                  icon: const Icon(Icons.chevron_right),
-                                  label: const Text('Next part'),
-                                )
-                              else if (!widget.readOnlyAfterExam) ...[
-                                if (_controller.shouldUseNextPartAction)
-                                  FilledButton.icon(
-                                    onPressed: _controller.canAdvanceToNextPart
-                                        ? _controller.submitCurrentPartAndAdvance
-                                        : null,
-                                    icon: _controller.isSaving
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : const Icon(Icons.chevron_right),
-                                    label: const Text('Next Part'),
-                                  )
-                                else
-                                  FilledButton.icon(
-                                    onPressed: _controller.canSubmit
-                                        ? _controller.submitCurrentAnswer
-                                        : null,
-                                    icon: _controller.isSaving
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : Icon(
-                                            examDefer
-                                                ? Icons.check_circle_outline
-                                                : Icons.visibility,
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        Chip(label: Text(question.bookTitle)),
+                                        if (question.topicTitle != null)
+                                          Chip(label: Text(question.topicTitle!)),
+                                        Chip(
+                                          label: Text(
+                                            '${question.chapterNumber}. ${question.chapterTitle}',
                                           ),
-                                    label: Text(
-                                      examDefer ? 'Save answer' : 'Show Answer',
+                                        ),
+                                        if (question.sectionTitle != null)
+                                          Chip(label: Text(question.sectionTitle!)),
+                                      ],
                                     ),
-                                  ),
-                              ],
-                              if (!widget.readOnlyAfterExam &&
-                                  questionProgress != null &&
-                                  !hasRevealedCurrentAnswer) ...[
-                                const SizedBox(height: 16),
-                                Text(
-                                  examDefer
-                                      ? 'Answer saved. Explanations and scores stay hidden until you end the exam.'
-                                      : 'Answer saved. The shared explanation for this multipart set appears only on the final part.',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                              ],
-                              if (widget.readOnlyAfterExam &&
-                                  questionProgress == null) ...[
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No answer was recorded for this question in that exam.',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                    fontStyle: FontStyle.italic,
-                                    color: Theme.of(context).hintColor,
-                                  ),
-                                ),
-                              ],
-                              if (currentStudyData.hasNote) ...[
-                                const SizedBox(height: 16),
-                                if (widget.readOnlyAfterExam)
-                                  Card(
-                                    color: Colors.amber.withValues(alpha: 0.1),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(12),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Question ${question.displayNumber}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(fontWeight: FontWeight.w700),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    HighlightableSelectableText(
+                                      text: question.prompt,
+                                      style: Theme.of(context).textTheme.bodyLarge,
+                                      highlights:
+                                          currentStudyData.promptHighlights,
+                                      onHighlightsChanged:
+                                          _updatePromptHighlights,
+                                    ),
+                                    if (question.hasImages) ...[
+                                      const SizedBox(height: 20),
+                                      BookImageGallery(
+                                        imageAssets: question.imageAssets,
+                                      ),
+                                    ],
+                                    if (!widget.readOnlyAfterExam) ...[
+                                      const SizedBox(height: 20),
+                                      Wrap(
+                                        spacing: 12,
+                                        runSpacing: 12,
                                         children: [
-                                          Icon(
-                                            Icons.sticky_note_2,
-                                            color: Colors.amber,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              currentStudyData.note,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium,
+                                          FilledButton.tonalIcon(
+                                            onPressed: _openAssistant,
+                                            icon: const Icon(
+                                              Icons.auto_awesome_outlined,
+                                            ),
+                                            label: const Text(
+                                              'Ask AI About This Question',
                                             ),
                                           ),
+                                          if (!showWideNavigator)
+                                            OutlinedButton.icon(
+                                              onPressed: _openQuestionNavigator,
+                                              icon:
+                                                  const Icon(Icons.toc_outlined),
+                                              label: const Text(
+                                                'Open Question List',
+                                              ),
+                                            ),
                                         ],
                                       ),
+                                    ],
+                                    const SizedBox(height: 20),
+                                    Text(
+                                      'Choose your answer',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(fontWeight: FontWeight.w700),
                                     ),
-                                  )
-                                else
-                                  _NoteCard(
-                                    note: currentStudyData.note,
-                                    onEdit: () => _openNotes(question),
-                                  ),
-                              ],
-                              if (questionProgress != null &&
-                                  explanationsVisible) ...[
-                                const SizedBox(height: 16),
-                                AnswerRevealPanel(
-                                  question: question,
-                                  progress: questionProgress,
-                                  explanationHighlights:
-                                      currentStudyData.explanationHighlights,
-                                  onExplanationHighlightsChanged:
-                                      _updateExplanationHighlights,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      ColoredBox(
-                        color: Theme.of(context).scaffoldBackgroundColor,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: _controller.canGoPrevious
-                                      ? _controller.goToPrevious
-                                      : null,
-                                  icon: const Icon(Icons.chevron_left),
-                                  label: const Text('Previous'),
+                                    const SizedBox(height: 12),
+                                    for (final entry in question.choices.entries)
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 12),
+                                        child: _ChoiceTile(
+                                          optionLabel: entry.key,
+                                          optionText: entry.value,
+                                          textHighlights: currentStudyData
+                                                  .choiceHighlights[entry.key] ??
+                                              const <TextHighlightSpan>[],
+                                          onTextHighlightsChanged: (ranges) =>
+                                              _updateChoiceHighlights(
+                                            entry.key,
+                                            ranges,
+                                          ),
+                                          isSelected:
+                                              selectedChoice == entry.key,
+                                          isCorrectAnswer: explanationsVisible &&
+                                              question.correctChoice ==
+                                                  entry.key,
+                                          isIncorrectSelection:
+                                              explanationsVisible &&
+                                                  questionProgress != null &&
+                                                  questionProgress
+                                                          .selectedChoice ==
+                                                      entry.key &&
+                                                  !questionProgress.isCorrect,
+                                          enabled:
+                                              !widget.readOnlyAfterExam &&
+                                                  questionProgress == null,
+                                          onTap: () => _controller
+                                              .selectChoice(entry.key),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 8),
+                                    if (widget.readOnlyAfterExam &&
+                                        _controller.shouldUseNextPartAction)
+                                      OutlinedButton.icon(
+                                        onPressed: _controller
+                                                .canAdvanceToNextPart
+                                            ? _controller
+                                                .submitCurrentPartAndAdvance
+                                            : null,
+                                        icon: const Icon(Icons.chevron_right),
+                                        label: const Text('Next part'),
+                                      )
+                                    else if (!widget.readOnlyAfterExam) ...[
+                                      if (_controller.shouldUseNextPartAction)
+                                        FilledButton.icon(
+                                          onPressed: _controller
+                                                  .canAdvanceToNextPart
+                                              ? _controller
+                                                  .submitCurrentPartAndAdvance
+                                              : null,
+                                          icon: _controller.isSaving
+                                              ? const SizedBox(
+                                                  width: 16,
+                                                  height: 16,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                  ),
+                                                )
+                                              : const Icon(Icons.chevron_right),
+                                          label: const Text('Next Part'),
+                                        )
+                                      else
+                                        FilledButton.icon(
+                                          onPressed: _controller.canSubmit
+                                              ? _controller.submitCurrentAnswer
+                                              : null,
+                                          icon: _controller.isSaving
+                                              ? const SizedBox(
+                                                  width: 16,
+                                                  height: 16,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                  ),
+                                                )
+                                              : Icon(
+                                                  examDefer
+                                                      ? Icons
+                                                          .check_circle_outline
+                                                      : Icons.visibility,
+                                                ),
+                                          label: Text(
+                                            examDefer
+                                                ? 'Save answer'
+                                                : 'Show Answer',
+                                          ),
+                                        ),
+                                    ],
+                                    if (!widget.readOnlyAfterExam &&
+                                        questionProgress != null &&
+                                        !hasRevealedCurrentAnswer) ...[
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        examDefer
+                                            ? 'Answer saved. Explanations and scores stay hidden until you end the exam.'
+                                            : 'Answer saved. The shared explanation for this multipart set appears only on the final part.',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                      ),
+                                    ],
+                                    if (widget.readOnlyAfterExam &&
+                                        questionProgress == null) ...[
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No answer was recorded for this question in that exam.',
+                                        style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                            ?.copyWith(
+                                          fontStyle: FontStyle.italic,
+                                          color: Theme.of(context).hintColor,
+                                        ),
+                                      ),
+                                    ],
+                                    if (currentStudyData.hasNote) ...[
+                                      const SizedBox(height: 16),
+                                      if (widget.readOnlyAfterExam)
+                                        Card(
+                                          color: Colors.amber
+                                              .withValues(alpha: 0.1),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(12),
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Icon(
+                                                  Icons.sticky_note_2,
+                                                  color: Colors.amber,
+                                                  size: 20,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    currentStudyData.note,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodyMedium,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        )
+                                      else
+                                        _NoteCard(
+                                          note: currentStudyData.note,
+                                          onEdit: () => _openNotes(question),
+                                        ),
+                                    ],
+                                    if (questionProgress != null &&
+                                        explanationsVisible) ...[
+                                      const SizedBox(height: 16),
+                                      AnswerRevealPanel(
+                                        question: question,
+                                        progress: questionProgress,
+                                        explanationHighlights: currentStudyData
+                                            .explanationHighlights,
+                                        onExplanationHighlightsChanged:
+                                            _updateExplanationHighlights,
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: FilledButton.icon(
-                                  onPressed: _controller.canGoNext
-                                      ? _controller.goToNext
-                                      : null,
-                                  icon: const Icon(Icons.chevron_right),
-                                  label: const Text('Next'),
+                            ),
+                            const Divider(height: 1),
+                            ColoredBox(
+                              color:
+                                  Theme.of(context).scaffoldBackgroundColor,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: _controller.canGoPrevious
+                                            ? _controller.goToPrevious
+                                            : null,
+                                        icon: const Icon(Icons.chevron_left),
+                                        label: const Text('Previous'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: FilledButton.icon(
+                                        onPressed: _controller.canGoNext
+                                            ? _controller.goToNext
+                                            : null,
+                                        icon: const Icon(Icons.chevron_right),
+                                        label: const Text('Next'),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
+                      if (showWideNavigator) ...[
+                        const VerticalDivider(width: 1),
+                        SizedBox(width: 340, child: navigatorPanel),
+                      ],
                     ],
                   ),
                 ),
-                if (showQuestionNavigator) ...[
-                  const VerticalDivider(width: 1),
-                  SizedBox(width: 340, child: navigatorPanel),
-                ],
-              ],
+              ),
             ),
           ),
         );

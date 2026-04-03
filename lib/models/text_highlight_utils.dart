@@ -58,6 +58,35 @@ List<TextHighlightSpan> normalizeHighlightSpans(List<TextHighlightSpan> input) {
   return List.unmodifiable(out);
 }
 
+/// Concatenates text under each highlight span in order, with blank lines
+/// between non-merged disjoint spans.
+String mergedHighlightedText(
+  String source,
+  List<TextHighlightSpan> highlights,
+) {
+  if (source.isEmpty || highlights.isEmpty) {
+    return '';
+  }
+  final norm = normalizeHighlightSpans(highlights);
+  if (norm.isEmpty) {
+    return '';
+  }
+  final buffer = StringBuffer();
+  final len = source.length;
+  for (var i = 0; i < norm.length; i++) {
+    if (i > 0) {
+      buffer.writeln();
+    }
+    final h = norm[i];
+    final s = h.start.clamp(0, len);
+    final e = h.end.clamp(0, len);
+    if (e > s) {
+      buffer.write(source.substring(s, e));
+    }
+  }
+  return buffer.toString();
+}
+
 /// If [sel] overlaps any highlight, those spans are trimmed / split so the
 /// overlap is removed. If [sel] hits nothing highlighted, it is added as new.
 ///

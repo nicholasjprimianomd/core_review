@@ -45,4 +45,18 @@ class AppSettingsRepository {
     final clamped = textScale.clamp(minTextScale, maxTextScale);
     await _store.write('text_scale', clamped.toString());
   }
+
+  static const String _hideExamQuestionNavigatorKey = 'hide_exam_question_navigator';
+
+  Future<bool> loadHideExamQuestionNavigator() async {
+    final raw = await _store.read(_hideExamQuestionNavigatorKey);
+    if (raw == null || raw.isEmpty) {
+      return false;
+    }
+    return raw == '1' || raw.toLowerCase() == 'true';
+  }
+
+  Future<void> saveHideExamQuestionNavigator(bool value) async {
+    await _store.write(_hideExamQuestionNavigatorKey, value ? '1' : '0');
+  }
 }

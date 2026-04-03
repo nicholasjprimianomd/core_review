@@ -32,4 +32,19 @@ void main() {
       expect(b, const [TextHighlightSpan(start: 0, end: 4)]);
     });
   });
+
+  group('mergedHighlightedText', () {
+    test('joins disjoint spans with newlines', () {
+      const source = 'abcdefghij';
+      const spans = [
+        TextHighlightSpan(start: 0, end: 2),
+        TextHighlightSpan(start: 5, end: 8),
+      ];
+      expect(mergedHighlightedText(source, spans), 'ab\nfgh');
+    });
+
+    test('returns empty for no spans', () {
+      expect(mergedHighlightedText('hello', const []), '');
+    });
+  });
 }

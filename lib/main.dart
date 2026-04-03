@@ -79,11 +79,13 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
   BookContent? _content;
   ThemeMode _themeMode = ThemeMode.dark;
   double _textScale = AppSettingsRepository.defaultTextScale;
+  bool _hideExamQuestionNavigator = false;
   AuthUser? _currentUser;
 
   Future<void> _bootstrap() async {
     final themeMode = await _appSettingsRepository.loadThemeMode();
     final textScale = await _appSettingsRepository.loadTextScale();
+    final hideExamNav = await _appSettingsRepository.loadHideExamQuestionNavigator();
     final content = await _bookRepository.loadContent();
     AuthUser? currentUser;
     try {
@@ -121,6 +123,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
     setState(() {
       _themeMode = themeMode;
       _textScale = textScale;
+      _hideExamQuestionNavigator = hideExamNav;
       _content = content;
       _currentUser = currentUser;
     });
@@ -179,6 +182,16 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
       return;
     }
     _setProgress(updated);
+  }
+
+  Future<void> _setHideExamQuestionNavigator(bool value) async {
+    await _appSettingsRepository.saveHideExamQuestionNavigator(value);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _hideExamQuestionNavigator = value;
+    });
   }
 
   Future<void> _setTextScale(double value) async {
@@ -449,6 +462,8 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
             examSession: request.options,
             onExamCompleted: _recordExamCompletion,
             onOpenFontSettings: _openFontSettings,
+            hideExamSideNavigator: _hideExamQuestionNavigator,
+            onHideExamSideNavigatorChanged: _setHideExamQuestionNavigator,
           );
         },
       ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/text_highlight_utils.dart';
 
@@ -40,6 +41,10 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
     SelectionChangedCause? cause,
   ) {
     _debounce?.cancel();
+    if (cause == SelectionChangedCause.toolbar) {
+      _pendingSelection = null;
+      return;
+    }
     if (selection.isCollapsed) {
       _pendingSelection = null;
       return;
@@ -136,6 +141,12 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
         ? const Color(0xFF8B6914).withValues(alpha: 0.65)
         : const Color(0xFFFFF176).withValues(alpha: 0.85);
 
+    // Web: keep the native fill faint so it does not stack visually with
+    // persisted span backgrounds; desktop controls track scaled text better.
+    final selectionTint = theme.colorScheme.primary.withValues(
+      alpha: kIsWeb ? 0.12 : 0.22,
+    );
+
     return MediaQuery(
       data: mq.copyWith(textScaler: TextScaler.noScaling),
       child: SelectableText.rich(
@@ -145,6 +156,34 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
           baseStyle: explicitStyle,
           highlightColor: highlightColor,
         ),
+        selectionColor: selectionTint,
+        selectionControls:
+            kIsWeb ? desktopTextSelectionControls : materialTextSelectionControls,
+        magnifierConfiguration: kIsWeb ? TextMagnifierConfiguration.disabled : null,
+        contextMenuBuilder: (context, editableTextState) {
+          final items = List<ContextMenuButtonItem>.from(
+            editableTextState.contextMenuButtonItems,
+          );
+          if (widget.highlights.isNotEmpty) {
+            items.add(
+              ContextMenuButtonItem(
+                label: 'Copy highlights',
+                onPressed: () {
+                  ContextMenuController.removeAny();
+                  final t = mergedHighlightedText(widget.text, widget.highlights);
+                  unawaited(Clipboard.setData(ClipboardData(text: t)));
+                  if (editableTextState.mounted) {
+                    editableTextState.hideToolbar();
+                  }
+                },
+              ),
+            );
+          }
+          return AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: editableTextState.contextMenuAnchors,
+            buttonItems: items,
+          );
+        },
         onSelectionChanged: _onSelectionChanged,
       ),
     );

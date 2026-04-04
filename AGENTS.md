@@ -36,6 +36,20 @@ After changing `tool/extract_pdf_to_json.py` or re-running `tool/reextract_all_b
 
 Re-extract merges each book with **safe merge** by default (preserves prior choices/answers when the new run is weaker). Raw extractor output: `python tool/reextract_all_books.py --no-safe-merge`. See `tool/safe_merge_questions.py`. Run **`apply_content_validation_fixes.py`** after a bulk extract so `validate_content.py` can pass (placeholders + `validationRelaxed` for unbound keys).
 
+### Cursor Team Kit plugin
+
+The optional Cursor plugin **`cursor-team-kit`** (install: `/add-plugin cursor-team-kit`) is documented in the [cursor/plugins](https://github.com/cursor/plugins) ecosystem. It is a bundle of **Skills**, **Agents**, and **Rules**—not a separate IDE runtime.
+
+The plugin manifest (`.cursor-plugin/plugin.json`) declares three contribution paths:
+
+| Contribution | Location | What it is |
+|--------------|----------|------------|
+| **Skills** | `./skills/` | Each subfolder has a `SKILL.md` with YAML frontmatter (`name`, `description`). The body is a playbook: trigger, workflow steps, guardrails, expected output. |
+| **Agents** | `./agents/` | Markdown agent definitions (e.g. `ci-watcher`) with frontmatter such as `model`, `is_background`, plus workflow instructions (often shell/`gh` oriented). |
+| **Rules** | `./rules/` | `.mdc` files with guidance; some use `alwaysApply: true` so they are always injected into context. |
+
+Cursor merges **rules** into agent context (always-on or agent-requestable). **Skills** and **agents** are available so the model can pick a matching workflow for CI, PRs, merge conflicts, smoke tests, and similar tasks. The **pr-review-canvas** skill also ships `template.html`, `styles.css`, and `renderer.js` for generating an interactive HTML PR walkthrough.
+
 ### Caveats
 
 - `flutter test` should pass all tests; `flutter analyze` should report no issues for this repo state.

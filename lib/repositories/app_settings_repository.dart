@@ -46,6 +46,8 @@ class AppSettingsRepository {
     await _store.write('text_scale', clamped.toString());
   }
 
+  /// Persists hiding the wide right-hand question list on large viewports
+  /// (quiz + exam). Key name kept for backwards compatibility.
   static const String _hideExamQuestionNavigatorKey = 'hide_exam_question_navigator';
 
   Future<bool> loadHideExamQuestionNavigator() async {

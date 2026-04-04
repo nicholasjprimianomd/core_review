@@ -349,6 +349,8 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
             readOnlyAfterExam: true,
             onEndReview: () => Navigator.of(context).pop(),
             onOpenFontSettings: _openFontSettings,
+            hideExamSideNavigator: _hideExamQuestionNavigator,
+            onHideExamSideNavigatorChanged: _setHideExamQuestionNavigator,
           );
         },
       ),
@@ -511,6 +513,8 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
             onProgressChanged: _setProgress,
             onStudyDataChanged: _setStudyData,
             onOpenFontSettings: _openFontSettings,
+            hideExamSideNavigator: _hideExamQuestionNavigator,
+            onHideExamSideNavigatorChanged: _setHideExamQuestionNavigator,
           );
         },
       ),

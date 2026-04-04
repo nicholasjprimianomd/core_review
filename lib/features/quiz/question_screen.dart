@@ -69,6 +69,9 @@ class _QuestionScreenState extends State<QuestionScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final FocusNode _shortcutFocus =
       FocusNode(debugLabel: 'questionScreen.shortcuts');
+  /// Wide side panel hidden when true. Local state so toggling works on pushed
+  /// routes (parent setState does not rebuild this screen).
+  late bool _hideWideNavigator;
   double? _assistantPanelWidth;
   Timer? _examTicker;
   late final DateTime _examStartedAt;
@@ -132,6 +135,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
   @override
   void initState() {
     super.initState();
+    _hideWideNavigator = widget.hideExamSideNavigator;
     _examStartedAt = DateTime.now();
     final limit = widget.examSession?.timeLimit;
     if (limit != null) {
@@ -148,6 +152,24 @@ class _QuestionScreenState extends State<QuestionScreen> {
         }
       });
     }
+  }
+
+  @override
+  void didUpdateWidget(QuestionScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.hideExamSideNavigator != oldWidget.hideExamSideNavigator) {
+      _hideWideNavigator = widget.hideExamSideNavigator;
+    }
+  }
+
+  void _toggleHideWideNavigator() {
+    if (widget.onHideExamSideNavigatorChanged == null) {
+      return;
+    }
+    setState(() {
+      _hideWideNavigator = !_hideWideNavigator;
+    });
+    widget.onHideExamSideNavigatorChanged!(_hideWideNavigator);
   }
 
   @override
@@ -231,8 +253,8 @@ class _QuestionScreenState extends State<QuestionScreen> {
           if (!_quizKeyboardShortcutsEnabled) {
             return null;
           }
-          final showWide = MediaQuery.sizeOf(context).width >= 1200 &&
-              !(widget.examSession != null && widget.hideExamSideNavigator);
+          final showWide =
+              MediaQuery.sizeOf(context).width >= 1200 && !_hideWideNavigator;
           if (!showWide) {
             _openQuestionNavigator();
           }
@@ -487,6 +509,9 @@ class _QuestionScreenState extends State<QuestionScreen> {
             readOnlyAfterExam: true,
             onEndReview: () => Navigator.of(context).pop(),
             onOpenFontSettings: widget.onOpenFontSettings,
+            hideExamSideNavigator: _hideWideNavigator,
+            onHideExamSideNavigatorChanged:
+                widget.onHideExamSideNavigatorChanged,
           ),
         ),
       );
@@ -499,8 +524,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final showWideNavigator = screenWidth >= 1200 &&
-        !(widget.examSession != null && widget.hideExamSideNavigator);
+    final showWideNavigator = screenWidth >= 1200 && !_hideWideNavigator;
 
     return ListenableBuilder(
       listenable: _controller,
@@ -563,19 +587,15 @@ class _QuestionScreenState extends State<QuestionScreen> {
                   tooltip: 'End exam',
                   icon: const Icon(Icons.stop_circle_outlined),
                 ),
-              if (widget.examSession != null &&
+              if (screenWidth >= 1200 &&
                   widget.onHideExamSideNavigatorChanged != null)
                 IconButton(
-                  onPressed: () {
-                    widget.onHideExamSideNavigatorChanged?.call(
-                      !widget.hideExamSideNavigator,
-                    );
-                  },
-                  tooltip: widget.hideExamSideNavigator
+                  onPressed: _toggleHideWideNavigator,
+                  tooltip: _hideWideNavigator
                       ? 'Show question list panel'
                       : 'Hide question list panel',
                   icon: Icon(
-                    widget.hideExamSideNavigator
+                    _hideWideNavigator
                         ? Icons.view_sidebar_outlined
                         : Icons.vertical_split_outlined,
                   ),

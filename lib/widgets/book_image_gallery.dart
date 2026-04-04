@@ -1,6 +1,19 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../config/app_config.dart';
+
+/// Web release builds (e.g. Vercel) serve figures at `/book_images/` without bundling them.
+/// Web **debug** (`flutter run -d chrome`) does not expose that path; use the asset bundle instead.
+bool _useNetworkUrlForBookImage(String? remoteUrl) {
+  if (remoteUrl == null || remoteUrl.isEmpty) {
+    return false;
+  }
+  if (!kIsWeb) {
+    return true;
+  }
+  return !kDebugMode;
+}
 
 class BookImageGallery extends StatelessWidget {
   const BookImageGallery({required this.imageAssets, super.key});
@@ -65,9 +78,9 @@ class BookImageGallery extends StatelessWidget {
 
   Widget _buildImage(String imagePath) {
     final remoteUrl = AppConfig.resolveRemoteContentUrl(imagePath);
-    if (remoteUrl != null) {
-      return Image.network(
-        remoteUrl,
+    Widget fromAsset() {
+      return Image.asset(
+        imagePath,
         width: double.infinity,
         fit: BoxFit.contain,
         alignment: Alignment.center,
@@ -75,27 +88,24 @@ class BookImageGallery extends StatelessWidget {
           return const Padding(
             padding: EdgeInsets.all(24),
             child: Center(
-              child: Text('Unable to load this image.'),
+              child: Text('Unable to load this image asset.'),
             ),
           );
         },
       );
     }
 
-    return Image.asset(
-      imagePath,
-      width: double.infinity,
-      fit: BoxFit.contain,
-      alignment: Alignment.center,
-      errorBuilder: (context, error, stackTrace) {
-        return const Padding(
-          padding: EdgeInsets.all(24),
-          child: Center(
-            child: Text('Unable to load this image asset.'),
-          ),
-        );
-      },
-    );
+    if (_useNetworkUrlForBookImage(remoteUrl)) {
+      return Image.network(
+        remoteUrl!,
+        width: double.infinity,
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+        errorBuilder: (context, error, stackTrace) => fromAsset(),
+      );
+    }
+
+    return fromAsset();
   }
 }
 
@@ -138,39 +148,35 @@ class _FullscreenImageGalleryState extends State<_FullscreenImageGallery> {
         itemCount: widget.imageAssets.length,
         onPageChanged: (index) => setState(() => _currentIndex = index),
         itemBuilder: (context, index) {
-          final remoteUrl = AppConfig.resolveRemoteContentUrl(
-            widget.imageAssets[index],
-          );
+          final path = widget.imageAssets[index];
+          final remoteUrl = AppConfig.resolveRemoteContentUrl(path);
+          Widget fromAsset() {
+            return Image.asset(
+              path,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(
+                    child: Text('Unable to load this image asset.'),
+                  ),
+                );
+              },
+            );
+          }
+
+          final image = _useNetworkUrlForBookImage(remoteUrl)
+              ? Image.network(
+                  remoteUrl!,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => fromAsset(),
+                )
+              : fromAsset();
+
           return InteractiveViewer(
             minScale: 0.75,
             maxScale: 5,
-            child: Center(
-              child: remoteUrl != null
-                  ? Image.network(
-                      remoteUrl,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Center(
-                            child: Text('Unable to load this image.'),
-                          ),
-                        );
-                      },
-                    )
-                  : Image.asset(
-                      widget.imageAssets[index],
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Center(
-                            child: Text('Unable to load this image asset.'),
-                          ),
-                        );
-                      },
-                    ),
-            ),
+            child: Center(child: image),
           );
         },
       ),

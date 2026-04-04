@@ -24,10 +24,12 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
   final TextEditingController _customPromptController = TextEditingController();
 
   bool _isExplaining = false;
+  bool _isExplainingChoices = false;
   bool _isAskingCustom = false;
   bool _isSearchingRefBooks = false;
   String? _errorMessage;
   AssistantReply? _explainReply;
+  AssistantReply? _choicesReply;
   AssistantReply? _customReply;
   List<AssistantWebImage> _webImages = const <AssistantWebImage>[];
   ReferenceBooksSearchResult? _referenceResult;
@@ -37,6 +39,12 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
     _customPromptController.dispose();
     super.dispose();
   }
+
+  static const String _answerChoicesPrompt =
+      'Explain every answer choice (A, B, C, etc.) in the context of this question stem. '
+      'Tie each option to the clinical scenario and imaging focus. Frame everything for ABR Core Exam '
+      'study: high-yield imaging patterns, differentials, and common pitfalls. Do not fetch or suggest '
+      'web images or external image searches.';
 
   String _defaultExplainPrompt() {
     if (widget.allowAnswerReveal) {
@@ -82,6 +90,43 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
       if (mounted) {
         setState(() {
           _isExplaining = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _explainAllAnswerChoices() async {
+    setState(() {
+      _isExplainingChoices = true;
+      _errorMessage = null;
+      _choicesReply = null;
+    });
+
+    try {
+      final reply = await widget.assistantRepository.askQuestion(
+        question: widget.question,
+        userPrompt: _answerChoicesPrompt,
+        allowAnswerReveal: widget.allowAnswerReveal,
+        includeWebImages: false,
+        assistantFocus: 'answerChoices',
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _choicesReply = reply;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = error.toString().replaceFirst('Bad state: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExplainingChoices = false;
         });
       }
     }
@@ -219,8 +264,10 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
   @override
   Widget build(BuildContext context) {
     final viewInsets = MediaQuery.of(context).viewInsets;
-    final isBusy =
-        _isExplaining || _isAskingCustom || _isSearchingRefBooks;
+    final isBusy = _isExplaining ||
+        _isExplainingChoices ||
+        _isAskingCustom ||
+        _isSearchingRefBooks;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -261,6 +308,25 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                     )
                   : const Icon(Icons.lightbulb_outline),
               label: const Text('Explain question + images'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: Tooltip(
+              message:
+                  'Text-only: explains each option in context for Core Exam study. No web images.',
+              child: OutlinedButton.icon(
+                onPressed: isBusy ? null : _explainAllAnswerChoices,
+                icon: _isExplainingChoices
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.view_list_outlined),
+                label: const Text('Explain all answer choices'),
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -326,6 +392,28 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                       ),
                     ),
                   ),
+                if (_choicesReply != null &&
+                    _choicesReply!.answer.trim().isNotEmpty) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'All answer choices',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: SelectionArea(
+                        child: Text(_choicesReply!.answer),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 if (_customReply != null &&
                     _customReply!.answer.trim().isNotEmpty) ...[
                   Align(

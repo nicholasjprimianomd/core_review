@@ -37,6 +37,28 @@ Return a JSON object with exactly these keys:
 - "choiceImageQueries": array of { "choiceKey": string, "queries": string[] }
 `;
 
+const SYSTEM_PROMPT_ANSWER_CHOICES = `
+You are the Core Review study assistant for radiology board-review content.
+
+The user asked for a single response that explains EVERY answer choice in the context of the current question stem (clinical scenario and imaging focus). This is for ABR Core Exam preparation: high-yield concepts, typical imaging patterns, practical differentials, and common traps—without drifting into unrelated trivia.
+
+Follow these rules:
+- Use only the current question context and the user's request. Do not search, cite, or refer to other textbook questions, chapters, or sections.
+- Cover each choice key present in study context (e.g. A, B, C) in order. For each option, give a short, clearly labeled section (e.g. "A — …") explaining what that choice means radiologically, how it relates to the stem, and what features would support or argue against it.
+- If answer reveal is not allowed: do not state which option is correct, do not rank options, and do not imply a single best answer.
+- If answer reveal is allowed: after explaining each option, briefly state which is correct and why the others are less likely.
+- Do not suggest web searches, image searches, or external links. Do not promise or describe fetching images.
+- Return searchTerms as an empty array [] and choiceImageQueries as an empty array [].
+- Do not claim to have inspected any image unless image content was actually provided.
+- If the supplied context does not support a claim, say so plainly.
+- This is for study support, not patient care.
+
+Return a JSON object with exactly these keys:
+- "answer": string
+- "searchTerms": string[]
+- "choiceImageQueries": array of { "choiceKey": string, "queries": string[] }
+`;
+
 module.exports = async (req, res) => {
   applyCors(res);
 
@@ -63,6 +85,8 @@ module.exports = async (req, res) => {
   const studyContext = requestBody.studyContext || {};
   const includeAnswer = requestBody.includeAnswer !== false;
   const includeWebImages = requestBody.includeWebImages === true;
+  const assistantFocus =
+      requestBody.assistantFocus === 'answerChoices' ? 'answerChoices' : '';
   const requestedSearchTerms = normalizeSearchTerms(requestBody.searchTerms);
 
   if (!includeAnswer && !includeWebImages) {
@@ -85,6 +109,9 @@ module.exports = async (req, res) => {
     if (includeAnswer) {
       const prompt = buildUserPrompt({ userPrompt, studyContext });
       const model = resolveModel();
+      const systemText =
+          assistantFocus === 'answerChoices' ? SYSTEM_PROMPT_ANSWER_CHOICES : SYSTEM_PROMPT;
+      const maxOutputTokens = assistantFocus === 'answerChoices' ? 2200 : 800;
       const openAiResponse = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
@@ -94,7 +121,7 @@ module.exports = async (req, res) => {
         body: JSON.stringify({
           model,
           ...openAiReasoningPayload(model),
-          max_output_tokens: 800,
+          max_output_tokens: maxOutputTokens,
           text: {
             format: {
               type: 'json_schema',
@@ -136,7 +163,7 @@ module.exports = async (req, res) => {
           input: [
             {
               role: 'system',
-              content: [{ type: 'input_text', text: SYSTEM_PROMPT }],
+              content: [{ type: 'input_text', text: systemText }],
             },
             {
               role: 'user',

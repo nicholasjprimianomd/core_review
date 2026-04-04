@@ -183,12 +183,14 @@ class AssistantRepository {
     bool includeAnswer = true,
     bool includeWebImages = false,
     List<String> searchTerms = const <String>[],
+    String? assistantFocus,
   }) async {
     final trimmedPrompt = userPrompt.trim();
     final normalizedSearchTerms = searchTerms
         .map((term) => term.trim())
         .where((term) => term.isNotEmpty)
         .toList(growable: false);
+    final focus = assistantFocus?.trim() ?? '';
     final cacheKey = jsonEncode(<String, dynamic>{
       'questionId': question.id,
       'userPrompt': trimmedPrompt,
@@ -196,6 +198,7 @@ class AssistantRepository {
       'includeAnswer': includeAnswer,
       'includeWebImages': includeWebImages,
       'searchTerms': normalizedSearchTerms,
+      if (focus.isNotEmpty) 'assistantFocus': focus,
     });
     final cachedReply = _replyCache[cacheKey];
     if (cachedReply != null) {
@@ -215,6 +218,7 @@ class AssistantRepository {
             'includeAnswer': includeAnswer,
             'includeWebImages': includeWebImages,
             if (normalizedSearchTerms.isNotEmpty) 'searchTerms': normalizedSearchTerms,
+            if (focus.isNotEmpty) 'assistantFocus': focus,
             'studyContext': <String, dynamic>{
               'allowAnswerReveal': allowAnswerReveal,
               'questionNumber': question.displayNumber,
@@ -232,7 +236,11 @@ class AssistantRepository {
           }),
         )
         .timeout(
-          Duration(seconds: includeWebImages ? 120 : 75),
+          Duration(
+            seconds: includeWebImages
+                ? 120
+                : (focus == 'answerChoices' ? 120 : 75),
+          ),
         );
 
     final payload = _decodeResponse(response.body);

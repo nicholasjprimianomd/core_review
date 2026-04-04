@@ -30,6 +30,18 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
   Timer? _debounce;
   TextSelection? _pendingSelection;
 
+  /// On web, [SelectableText] can keep an internal selection across rebuilds; after we merge
+  /// the drag into [TextSpan] backgrounds the span tree changes but the selection rect may
+  /// not be recomputed, leaving a shifted blue "ghost" slice. Forcing a new element clears it.
+  int _selectableIdentity(String text, List<TextHighlightSpan> highlights) {
+    var h = 0;
+    for (final s in highlights) {
+      h = Object.hash(h, s.start);
+      h = Object.hash(h, s.end);
+    }
+    return Object.hash(text.hashCode, h);
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -148,43 +160,65 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
         ? Colors.transparent
         : theme.colorScheme.primary.withValues(alpha: 0.22);
 
+    final richSpan = _buildSpanTree(
+      text: widget.text,
+      highlights: widget.highlights,
+      baseStyle: explicitStyle,
+      highlightColor: highlightColor,
+    );
+    final strut = StrutStyle.fromTextStyle(
+      explicitStyle,
+      forceStrutHeight: true,
+    );
+
+    final selectable = SelectableText.rich(
+      key: ValueKey<int>(
+        _selectableIdentity(widget.text, widget.highlights),
+      ),
+      richSpan,
+      strutStyle: strut,
+      textHeightBehavior: const TextHeightBehavior(
+        applyHeightToFirstAscent: true,
+        applyHeightToLastDescent: true,
+      ),
+      selectionColor: selectionTint,
+      magnifierConfiguration: kIsWeb ? TextMagnifierConfiguration.disabled : null,
+      contextMenuBuilder: (context, editableTextState) {
+        final items = List<ContextMenuButtonItem>.from(
+          editableTextState.contextMenuButtonItems,
+        );
+        if (widget.highlights.isNotEmpty) {
+          items.add(
+            ContextMenuButtonItem(
+              label: 'Copy highlights',
+              onPressed: () {
+                ContextMenuController.removeAny();
+                final t = mergedHighlightedText(widget.text, widget.highlights);
+                unawaited(Clipboard.setData(ClipboardData(text: t)));
+                if (editableTextState.mounted) {
+                  editableTextState.hideToolbar();
+                }
+              },
+            ),
+          );
+        }
+        return AdaptiveTextSelectionToolbar.buttonItems(
+          anchors: editableTextState.contextMenuAnchors,
+          buttonItems: items,
+        );
+      },
+      onSelectionChanged: _onSelectionChanged,
+    );
+
     return MediaQuery(
       data: mq.copyWith(textScaler: TextScaler.noScaling),
-      child: SelectableText.rich(
-        _buildSpanTree(
-          text: widget.text,
-          highlights: widget.highlights,
-          baseStyle: explicitStyle,
-          highlightColor: highlightColor,
-        ),
-        selectionColor: selectionTint,
-        magnifierConfiguration: kIsWeb ? TextMagnifierConfiguration.disabled : null,
-        contextMenuBuilder: (context, editableTextState) {
-          final items = List<ContextMenuButtonItem>.from(
-            editableTextState.contextMenuButtonItems,
-          );
-          if (widget.highlights.isNotEmpty) {
-            items.add(
-              ContextMenuButtonItem(
-                label: 'Copy highlights',
-                onPressed: () {
-                  ContextMenuController.removeAny();
-                  final t = mergedHighlightedText(widget.text, widget.highlights);
-                  unawaited(Clipboard.setData(ClipboardData(text: t)));
-                  if (editableTextState.mounted) {
-                    editableTextState.hideToolbar();
-                  }
-                },
-              ),
-            );
-          }
-          return AdaptiveTextSelectionToolbar.buttonItems(
-            anchors: editableTextState.contextMenuAnchors,
-            buttonItems: items,
-          );
-        },
-        onSelectionChanged: _onSelectionChanged,
-      ),
+      child: kIsWeb
+          ? DefaultSelectionStyle.merge(
+              selectionColor: Colors.transparent,
+              mouseCursor: SystemMouseCursors.text,
+              child: selectable,
+            )
+          : selectable,
     );
   }
 }

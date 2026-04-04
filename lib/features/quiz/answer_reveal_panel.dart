@@ -8,6 +8,7 @@ import '../../widgets/formatted_explanation_select.dart';
 
 class AnswerRevealPanel extends StatelessWidget {
   const AnswerRevealPanel({
+    required this.content,
     required this.question,
     required this.progress,
     required this.explanationHighlights,
@@ -15,6 +16,7 @@ class AnswerRevealPanel extends StatelessWidget {
     super.key,
   });
 
+  final BookContent content;
   final BookQuestion question;
   final QuestionProgress progress;
   final List<TextHighlightSpan> explanationHighlights;
@@ -71,9 +73,9 @@ class AnswerRevealPanel extends StatelessWidget {
               highlights: explanationHighlights,
               onHighlightsChanged: onExplanationHighlightsChanged,
             ),
-            if (question.hasRevealImages) ...[
+            if (content.revealImageAssetsOrderedForStemGroup(question).isNotEmpty) ...[
               const SizedBox(height: 16),
-              if (question.shouldSplitRevealImageSections) ...[
+              if (content.shouldSplitRevealImageSectionsForStemGroup(question)) ...[
                 Text(
                   'Case images',
                   style: theme.textTheme.titleSmall?.copyWith(
@@ -81,7 +83,9 @@ class AnswerRevealPanel extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                BookImageGallery(imageAssets: question.stemImageAssetsDeduped),
+                BookImageGallery(
+                  imageAssets: content.stemGroupImageAssetsMerged(question),
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Explanation figures',
@@ -91,11 +95,13 @@ class AnswerRevealPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 BookImageGallery(
-                  imageAssets: question.explanationOnlyImageAssets,
+                  imageAssets:
+                      content.explanationOnlyImageAssetsForStemGroup(question),
                 ),
               ] else
                 BookImageGallery(
-                  imageAssets: question.revealImageAssetsOrdered,
+                  imageAssets:
+                      content.revealImageAssetsOrderedForStemGroup(question),
                 ),
             ],
             if (question.references.isNotEmpty) ...[

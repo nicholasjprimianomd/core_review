@@ -117,6 +117,94 @@ class BookContent {
       ..sort((left, right) => left.order.compareTo(right.order));
   }
 
+  /// Same multipart stem bucket as [multipartStemKey] (shared case / 7a–7b rows).
+  List<BookQuestion> stemGroupMembers(BookQuestion question) {
+    final key = multipartStemKey(question);
+    final members = questions
+        .where((q) => multipartStemKey(q) == key)
+        .toList(growable: false)
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    return members;
+  }
+
+  /// Union of [BookQuestion.imageAssets] across the stem group; order follows part order, deduped.
+  List<String> stemGroupImageAssetsMerged(BookQuestion question) {
+    final seen = <String>{};
+    final out = <String>[];
+    for (final q in stemGroupMembers(question)) {
+      for (final p in q.imageAssets) {
+        final t = p.trim();
+        if (t.isEmpty || !seen.add(t)) {
+          continue;
+        }
+        out.add(p);
+      }
+    }
+    return out;
+  }
+
+  /// Union of [BookQuestion.explanationImageAssets] across the stem group.
+  List<String> stemGroupExplanationImageAssetsMerged(BookQuestion question) {
+    final seen = <String>{};
+    final out = <String>[];
+    for (final q in stemGroupMembers(question)) {
+      for (final p in q.explanationImageAssets) {
+        final t = p.trim();
+        if (t.isEmpty || !seen.add(t)) {
+          continue;
+        }
+        out.add(p);
+      }
+    }
+    return out;
+  }
+
+  /// Stem-group images first, then explanation images (deduped), same idea as [BookQuestion.revealImageAssetsOrdered].
+  List<String> revealImageAssetsOrderedForStemGroup(BookQuestion question) {
+    final seen = <String>{};
+    final out = <String>[];
+    for (final p in stemGroupImageAssetsMerged(question)) {
+      final t = p.trim();
+      if (t.isEmpty || !seen.add(t)) {
+        continue;
+      }
+      out.add(p);
+    }
+    for (final p in stemGroupExplanationImageAssetsMerged(question)) {
+      final t = p.trim();
+      if (t.isEmpty || !seen.add(t)) {
+        continue;
+      }
+      out.add(p);
+    }
+    return out;
+  }
+
+  /// Explanation-only paths for this stem group (not duplicated in merged stem set).
+  List<String> explanationOnlyImageAssetsForStemGroup(BookQuestion question) {
+    final stemSet = <String>{
+      for (final p in stemGroupImageAssetsMerged(question))
+        if (p.trim().isNotEmpty) p.trim(),
+    };
+    final seen = <String>{};
+    final out = <String>[];
+    for (final p in stemGroupExplanationImageAssetsMerged(question)) {
+      final t = p.trim();
+      if (t.isEmpty || stemSet.contains(t) || !seen.add(t)) {
+        continue;
+      }
+      out.add(p);
+    }
+    return out;
+  }
+
+  bool shouldSplitRevealImageSectionsForStemGroup(BookQuestion question) {
+    final stem = stemGroupImageAssetsMerged(question);
+    final exp = stemGroupExplanationImageAssetsMerged(question);
+    final expOnly = explanationOnlyImageAssetsForStemGroup(question);
+    return stem.isNotEmpty && exp.isNotEmpty && expOnly.isNotEmpty;
+  }
+
   factory BookContent.fromJson({
     required List<dynamic> booksJson,
     required List<dynamic> topicsJson,

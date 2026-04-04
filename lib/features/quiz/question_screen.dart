@@ -729,10 +729,15 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                       onHighlightsChanged:
                                           _updatePromptHighlights,
                                     ),
-                                    if (question.hasImages) ...[
+                                    if (widget.content
+                                        .stemGroupImageAssetsMerged(question)
+                                        .isNotEmpty) ...[
                                       const SizedBox(height: 20),
                                       BookImageGallery(
-                                        imageAssets: question.imageAssets,
+                                        imageAssets: widget.content
+                                            .stemGroupImageAssetsMerged(
+                                          question,
+                                        ),
                                       ),
                                     ],
                                     if (!widget.readOnlyAfterExam) ...[
@@ -931,6 +936,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                         explanationsVisible) ...[
                                       const SizedBox(height: 16),
                                       AnswerRevealPanel(
+                                        content: widget.content,
                                         question: question,
                                         progress: questionProgress,
                                         explanationHighlights: currentStudyData

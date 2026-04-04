@@ -141,11 +141,12 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
         ? const Color(0xFF8B6914).withValues(alpha: 0.65)
         : const Color(0xFFFFF176).withValues(alpha: 0.85);
 
-    // Web: keep the native fill faint so it does not stack visually with
-    // persisted span backgrounds; desktop controls track scaled text better.
-    final selectionTint = theme.colorScheme.primary.withValues(
-      alpha: kIsWeb ? 0.12 : 0.22,
-    );
+    // Web: invisible fill avoids Flutter painting a second tinted glyph pass that
+    // often misaligns when fontSize is scaled; handles + persisted span colors
+    // remain. Browser native select is suppressed via index.html + main.dart.
+    final selectionTint = kIsWeb
+        ? Colors.transparent
+        : theme.colorScheme.primary.withValues(alpha: 0.22);
 
     return MediaQuery(
       data: mq.copyWith(textScaler: TextScaler.noScaling),
@@ -157,8 +158,6 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
           highlightColor: highlightColor,
         ),
         selectionColor: selectionTint,
-        selectionControls:
-            kIsWeb ? desktopTextSelectionControls : materialTextSelectionControls,
         magnifierConfiguration: kIsWeb ? TextMagnifierConfiguration.disabled : null,
         contextMenuBuilder: (context, editableTextState) {
           final items = List<ContextMenuButtonItem>.from(

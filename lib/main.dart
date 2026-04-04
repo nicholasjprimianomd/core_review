@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'config/app_config.dart';
 import 'features/analytics/analytics_screen.dart';
@@ -27,6 +29,12 @@ import 'repositories/http_cloud_progress_repository.dart';
 import 'repositories/study_data_repository.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) {
+    // Avoid native browser selection stacking on top of Flutter's (doubled /
+    // mis-scaled "ghost" text when selecting, especially with larger app text).
+    BrowserContextMenu.disableContextMenu();
+  }
   runApp(const CoreReviewApp());
 }
 

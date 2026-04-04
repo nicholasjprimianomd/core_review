@@ -31,6 +31,21 @@
 
   <title>core_review</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Web-only: block native user-select so the browser does not paint a second
+    selection layer on top of Flutter's (visible as smaller shifted "ghost" text
+    next to highlights, often when text size is increased). Selection is still
+    handled by Flutter / canvas. See flutter/flutter#151479 / #157899.
+  -->
+  <style>
+    html, body {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
+  </style>
 </head>
 <body>
   <script>

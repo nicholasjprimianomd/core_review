@@ -183,6 +183,7 @@ class AssistantRepository {
     bool includeAnswer = true,
     bool includeWebImages = false,
     List<String> searchTerms = const <String>[],
+    String? assistantTask,
   }) async {
     final trimmedPrompt = userPrompt.trim();
     final normalizedSearchTerms = searchTerms
@@ -196,6 +197,7 @@ class AssistantRepository {
       'includeAnswer': includeAnswer,
       'includeWebImages': includeWebImages,
       'searchTerms': normalizedSearchTerms,
+      'assistantTask': assistantTask ?? '',
     });
     final cachedReply = _replyCache[cacheKey];
     if (cachedReply != null) {
@@ -222,6 +224,8 @@ class AssistantRepository {
               'choices': question.choices,
               'hasImages': question.hasImages,
               'imageCount': question.imageAssets.length,
+              if (assistantTask != null && assistantTask.isNotEmpty)
+                'assistantTask': assistantTask,
               if (allowAnswerReveal) ...<String, dynamic>{
                 'correctChoice': question.correctChoice,
                 'correctChoiceText': question.correctChoiceText,
@@ -232,7 +236,11 @@ class AssistantRepository {
           }),
         )
         .timeout(
-          Duration(seconds: includeWebImages ? 120 : 75),
+          Duration(
+            seconds: includeWebImages
+                ? 120
+                : (assistantTask == 'explainAllChoices' ? 120 : 75),
+          ),
         );
 
     final payload = _decodeResponse(response.body);

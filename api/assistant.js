@@ -85,6 +85,9 @@ module.exports = async (req, res) => {
     if (includeAnswer) {
       const prompt = buildUserPrompt({ userPrompt, studyContext });
       const model = resolveModel();
+      const isExplainAllChoices =
+          `${studyContext?.assistantTask || ''}`.trim() === 'explainAllChoices';
+      const maxOutputTokens = isExplainAllChoices ? 2200 : 800;
       const openAiResponse = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
@@ -94,7 +97,7 @@ module.exports = async (req, res) => {
         body: JSON.stringify({
           model,
           ...openAiReasoningPayload(model),
-          max_output_tokens: 800,
+          max_output_tokens: maxOutputTokens,
           text: {
             format: {
               type: 'json_schema',
@@ -231,6 +234,18 @@ function parseBody(body) {
 }
 
 function buildUserPrompt({ userPrompt, studyContext }) {
+  const task = `${studyContext?.assistantTask || ''}`.trim();
+  const taskNote =
+      task === 'explainAllChoices'
+          ? [
+            '',
+            'Task note: The user is asking for every answer choice to be explained.',
+            'In the "answer" string, use clear labeled sections per choice (e.g. "A:", "B:") that a resident can scan quickly.',
+            'Keep searchTerms and choiceImageQueries complete per the system rules.',
+            '',
+          ].join('\n')
+          : '';
+
   return [
     'Use only the following current question context and user request.',
     'Do not refer to other textbook content.',
@@ -238,6 +253,7 @@ function buildUserPrompt({ userPrompt, studyContext }) {
     '',
     'User request:',
     userPrompt,
+    taskNote,
     '',
     'Study context JSON:',
     JSON.stringify(studyContext, null, 2),

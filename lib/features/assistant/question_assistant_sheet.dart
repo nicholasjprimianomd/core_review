@@ -24,10 +24,12 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
   final TextEditingController _customPromptController = TextEditingController();
 
   bool _isExplaining = false;
+  bool _isExplainingAllChoices = false;
   bool _isAskingCustom = false;
   bool _isSearchingRefBooks = false;
   String? _errorMessage;
   AssistantReply? _explainReply;
+  AssistantReply? _allChoicesReply;
   AssistantReply? _customReply;
   List<AssistantWebImage> _webImages = const <AssistantWebImage>[];
   ReferenceBooksSearchResult? _referenceResult;
@@ -47,6 +49,61 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
     return 'Explain this question in study mode without naming or ranking the answer choices. '
         'Focus on imaging findings, pathophysiology, and differential clues. Provide 2–4 short '
         'search phrases for representative radiology images.';
+  }
+
+  String _explainAllChoicesCorePrompt() {
+    if (widget.allowAnswerReveal) {
+      return 'You are helping a resident prepare for the American Board of Radiology (ABR) Core '
+          'Radiology Exam. Using ONLY the question stem, answer choices, and any revealed '
+          'explanation or references in the study context, explain EVERY listed answer option '
+          'in order (use the same option letters as in context). For each option: what it means '
+          'clinically and on imaging; how it relates to the stem; and why it is correct or '
+          'incorrect for this case, with Core-style discriminating features the boards favor. '
+          'End with a short summary of the main teaching point.';
+    }
+    return 'You are helping a resident prepare for the American Board of Radiology (ABR) Core '
+        'Radiology Exam. Using ONLY the question stem and answer choices in the study context, '
+        'discuss EVERY listed answer option in order (same letters as in context): the imaging '
+        'and disease concepts each option implies and how each could relate to the differential '
+        'suggested by the stem. Do NOT state which option is correct, do NOT rank the choices, '
+        'and do NOT imply which is most likely. End with brief, spoiler-free study tips.';
+  }
+
+  Future<void> _explainAllChoicesCore() async {
+    setState(() {
+      _isExplainingAllChoices = true;
+      _errorMessage = null;
+      _allChoicesReply = null;
+    });
+
+    try {
+      final reply = await widget.assistantRepository.askQuestion(
+        question: widget.question,
+        userPrompt: _explainAllChoicesCorePrompt(),
+        allowAnswerReveal: widget.allowAnswerReveal,
+        includeWebImages: false,
+        assistantTask: 'explainAllChoices',
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _allChoicesReply = reply;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = error.toString().replaceFirst('Bad state: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExplainingAllChoices = false;
+        });
+      }
+    }
   }
 
   Future<void> _explainWithImages() async {
@@ -219,8 +276,10 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
   @override
   Widget build(BuildContext context) {
     final viewInsets = MediaQuery.of(context).viewInsets;
-    final isBusy =
-        _isExplaining || _isAskingCustom || _isSearchingRefBooks;
+    final isBusy = _isExplaining ||
+        _isExplainingAllChoices ||
+        _isAskingCustom ||
+        _isSearchingRefBooks;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -261,6 +320,26 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                     )
                   : const Icon(Icons.lightbulb_outline),
               label: const Text('Explain question + images'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: Tooltip(
+              message:
+                  'Walks through every answer choice with ABR Core Exam-style reasoning. '
+                  'Uses the same context rules as the rest of the assistant (no spoilers in study mode).',
+              child: OutlinedButton.icon(
+                onPressed: isBusy ? null : _explainAllChoicesCore,
+                icon: _isExplainingAllChoices
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.checklist_outlined),
+                label: const Text('Explain every answer (Core exam)'),
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -326,6 +405,28 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                       ),
                     ),
                   ),
+                if (_allChoicesReply != null &&
+                    _allChoicesReply!.answer.trim().isNotEmpty) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Every answer (Core exam)',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: SelectionArea(
+                        child: Text(_allChoicesReply!.answer),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 if (_customReply != null &&
                     _customReply!.answer.trim().isNotEmpty) ...[
                   Align(

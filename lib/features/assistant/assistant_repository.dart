@@ -82,6 +82,7 @@ class ReferenceBookMatch {
     required this.page,
     required this.excerpt,
     required this.fullText,
+    required this.pdfUrl,
   });
 
   final String bookLabel;
@@ -92,6 +93,9 @@ class ReferenceBookMatch {
   /// Full text stored in the index for this PDF page (may be capped when the index was built).
   final String fullText;
 
+  /// Public URL for the source PDF (e.g. Supabase Storage), when present in the index.
+  final String pdfUrl;
+
   factory ReferenceBookMatch.fromJson(Map<String, dynamic> json) {
     return ReferenceBookMatch(
       bookLabel: json['bookLabel'] as String? ?? '',
@@ -99,6 +103,7 @@ class ReferenceBookMatch {
       page: (json['page'] as num?)?.toInt() ?? 0,
       excerpt: json['excerpt'] as String? ?? '',
       fullText: json['fullText'] as String? ?? '',
+      pdfUrl: json['pdfUrl'] as String? ?? '',
     );
   }
 }

@@ -90,6 +90,11 @@ module.exports = async (req, res) => {
   }
 
   const pages = Array.isArray(data.pages) ? data.pages : [];
+  const pdfUrlsByFileName =
+    data.pdfUrlsByFileName && typeof data.pdfUrlsByFileName === 'object'
+      ? data.pdfUrlsByFileName
+      : null;
+
   if (pages.length === 0) {
     res.status(200).json({
       matches: [],
@@ -152,19 +157,28 @@ module.exports = async (req, res) => {
     .sort((a, b) => b.score - a.score)
     .slice(0, 12);
 
-  const matches = scored.map(({ page, score }) => ({
-    bookLabel: page.bookLabel || '',
-    fileName: page.fileName || '',
-    page: page.page || 0,
-    excerpt: excerpt(
-      page.text || '',
-      tokens,
-      phrasesForScore,
-      420,
-    ),
-    fullText: `${page.text || ''}`.trim(),
-    score,
-  }));
+  const matches = scored.map(({ page, score }) => {
+    const fileName = page.fileName || '';
+    const pdfUrl =
+      pdfUrlsByFileName &&
+      Object.prototype.hasOwnProperty.call(pdfUrlsByFileName, fileName)
+        ? `${pdfUrlsByFileName[fileName]}`.trim()
+        : '';
+    return {
+      bookLabel: page.bookLabel || '',
+      fileName,
+      page: page.page || 0,
+      excerpt: excerpt(
+        page.text || '',
+        tokens,
+        phrasesForScore,
+        420,
+      ),
+      fullText: `${page.text || ''}`.trim(),
+      pdfUrl,
+      score,
+    };
+  });
 
   res.status(200).json({
     matches,

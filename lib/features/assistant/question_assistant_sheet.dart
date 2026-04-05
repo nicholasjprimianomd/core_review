@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../models/book_models.dart';
 import 'assistant_repository.dart';
+import 'reference_pdf_viewer.dart';
 
 class QuestionAssistantSheet extends StatefulWidget {
   const QuestionAssistantSheet({
@@ -263,6 +264,19 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
             ),
           ),
           actions: [
+            if (match.pdfUrl.trim().isNotEmpty) ...[
+              TextButton.icon(
+                onPressed: () async {
+                  await showReferencePdfViewer(
+                    ctx,
+                    pdfUrl: match.pdfUrl,
+                    page: match.page,
+                  );
+                },
+                icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                label: Text('PDF (p. ${match.page})'),
+              ),
+            ],
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
               child: const Text('Close'),
@@ -357,7 +371,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.menu_book_outlined),
-                label: const Text('Crack the Core / War Machine pages'),
+                label: const Text('Search reference textbooks'),
               ),
             ),
           ),
@@ -453,7 +467,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Crack the Core / War Machine',
+                      'Reference textbooks',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -503,6 +517,24 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                               const SizedBox(height: 8),
                               SelectionArea(
                                 child: _FormattedBookText(m.excerpt),
+                              ),
+                            ],
+                            if (m.pdfUrl.trim().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton.icon(
+                                  onPressed: () => showReferencePdfViewer(
+                                    context,
+                                    pdfUrl: m.pdfUrl,
+                                    page: m.page,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.picture_as_pdf_outlined,
+                                    size: 18,
+                                  ),
+                                  label: Text('View PDF (p. ${m.page})'),
+                                ),
                               ),
                             ],
                             if (m.fullText.isNotEmpty ||

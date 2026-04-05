@@ -3,8 +3,9 @@
 Build api/reference_books_index.json from Crack the Core / War Machine PDFs.
 
 Run on a machine that has the PDFs, then deploy (commit the JSON or upload with deploy).
-Example:
-  python tool/build_reference_book_index.py "C:/Users/nprim/Downloads/OneDrive_2026-03-24/Crack the Core PDF"
+Examples:
+  python tool/build_reference_book_index.py "path/to/Crack the Core PDF"
+  python tool/build_reference_book_index.py "path/to/Textbooks" --all-pdfs --pdf-manifest tool/reference_pdf_upload_manifest.json
 """
 
 from __future__ import annotations
@@ -14,6 +15,9 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
+
+STORAGE_PREFIX = "reference_pdfs"
 
 try:
     import fitz
@@ -41,14 +45,16 @@ def _normalize_pdf_text(text: str) -> str:
     return text.strip()
 
 
-def _should_include_pdf(name: str) -> bool:
+def _should_include_pdf(name: str, include_all_pdfs: bool) -> bool:
     lower = name.lower()
     if not lower.endswith(".pdf"):
         return False
+    if include_all_pdfs:
+        return True
     return any(k in lower for k in NAME_KEYWORDS)
 
 
-def _extract_pages(pdf_path: Path, book_label: str) -> list[dict]:
+def _extract_pages(pdf_path: Path, book_label: str, file_name: str) -> list[dict]:
     out: list[dict] = []
     doc = fitz.open(pdf_path)
     try:
@@ -66,7 +72,7 @@ def _extract_pages(pdf_path: Path, book_label: str) -> list[dict]:
             out.append(
                 {
                     "bookLabel": book_label,
-                    "fileName": pdf_path.name,
+                    "fileName": file_name,
                     "page": i + 1,
                     "text": text,
                 }
@@ -91,6 +97,27 @@ def main() -> None:
         default=DEFAULT_OUT,
         help=f"Output JSON (default: {DEFAULT_OUT})",
     )
+    parser.add_argument(
+        "--all-pdfs",
+        action="store_true",
+        help="Index every PDF under the source folder (not only Crack/War Machine name keywords).",
+    )
+    parser.add_argument(
+        "--pdf-manifest",
+        type=Path,
+        default=None,
+        help="Path to reference_pdf_upload_manifest.json from upload_reference_pdfs_to_supabase.py; "
+        "embeds pdfUrlsByFileName in the index.",
+    )
+    parser.add_argument(
+        "--public-bucket-root",
+        type=str,
+        default=None,
+        help="Public object root without trailing slash, e.g. "
+        "https://PROJECT.supabase.co/storage/v1/object/public/BUCKET — builds pdfUrlsByFileName "
+        f'as {STORAGE_PREFIX}/<relative.pdf> (same layout as upload_reference_pdfs_to_supabase.py). '
+        "Ignored when --pdf-manifest is set.",
+    )
     args = parser.parse_args()
     root = args.source_dir.expanduser().resolve()
     if not root.is_dir():
@@ -98,27 +125,51 @@ def main() -> None:
 
     pdfs: list[Path] = []
     for p in root.rglob("*.pdf"):
-        if p.is_file() and _should_include_pdf(p.name):
+        if p.is_file() and _should_include_pdf(p.name, args.all_pdfs):
             pdfs.append(p)
 
     if not pdfs:
-        raise SystemExit(
-            f"No matching PDFs under {root}. Expected names containing "
-            f"one of: {NAME_KEYWORDS}"
+        hint = (
+            f"Try --all-pdfs, or use file names containing one of: {NAME_KEYWORDS}"
         )
+        raise SystemExit(f"No matching PDFs under {root}. {hint}")
+
+    pdf_urls_by_file_name: dict[str, str] | None = None
+    if args.pdf_manifest is not None:
+        raw_manifest = json.loads(
+            args.pdf_manifest.expanduser().resolve().read_text(encoding="utf-8")
+        )
+        files = raw_manifest.get("files")
+        if not isinstance(files, dict):
+            raise SystemExit("--pdf-manifest must contain a JSON object 'files' map.")
+        pdf_urls_by_file_name = {str(k): str(v) for k, v in files.items()}
+    elif args.public_bucket_root is not None:
+        root_url = args.public_bucket_root.strip().rstrip("/")
+        pdf_urls_by_file_name = {}
+        for pdf in sorted(pdfs, key=lambda x: x.as_posix().lower()):
+            rel = pdf.relative_to(root).as_posix()
+            object_path = f"{STORAGE_PREFIX}/{rel}"
+            encoded = quote(object_path, safe="/")
+            pdf_urls_by_file_name[rel] = f"{root_url}/{encoded}"
 
     pages: list[dict] = []
     for pdf in sorted(pdfs, key=lambda x: x.as_posix().lower()):
-        label = pdf.stem.replace("_", " ")
-        pages.extend(_extract_pages(pdf, label))
+        rel = pdf.relative_to(root).as_posix()
+        label = rel
+        if label.lower().endswith(".pdf"):
+            label = label[:-4]
+        label = label.replace("_", " ").replace("/", " · ")
+        pages.extend(_extract_pages(pdf, label, rel))
 
     payload = {
-        "version": 1,
+        "version": 2 if pdf_urls_by_file_name else 1,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "sourceRoot": root.as_posix(),
         "pageCount": len(pages),
         "pages": pages,
     }
+    if pdf_urls_by_file_name:
+        payload["pdfUrlsByFileName"] = pdf_urls_by_file_name
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(f"Wrote {len(pages)} page records from {len(pdfs)} PDF(s) to {args.output}")

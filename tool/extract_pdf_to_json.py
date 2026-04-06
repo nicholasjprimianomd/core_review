@@ -1116,8 +1116,21 @@ def parse_book(
         book_spec.id,
         full_page_fallback=full_page_figure_fallback,
     )
+    promote_explanation_to_stem(questions)
 
     return questions, answers
+
+
+def promote_explanation_to_stem(questions: list[QuestionDraft]) -> None:
+    """Move explanation images to stem when the prompt references a figure but no stem images exist."""
+    for question in questions:
+        if (
+            not question.image_assets
+            and question.explanation_image_assets
+            and prompt_mentions_figure(question.prompt)
+        ):
+            question.image_assets = question.explanation_image_assets
+            question.explanation_image_assets = []
 
 
 def promote_stem_only_questions(questions: list[QuestionDraft]) -> None:

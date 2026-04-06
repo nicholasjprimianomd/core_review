@@ -73,36 +73,12 @@ class AnswerRevealPanel extends StatelessWidget {
               highlights: explanationHighlights,
               onHighlightsChanged: onExplanationHighlightsChanged,
             ),
-            if (content.revealImageAssetsOrderedForStemGroup(question).isNotEmpty) ...[
+            if (content.explanationOnlyImageAssetsForStemGroup(question).isNotEmpty) ...[
               const SizedBox(height: 16),
-              if (content.shouldSplitRevealImageSectionsForStemGroup(question)) ...[
-                Text(
-                  'Case images',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                BookImageGallery(
-                  imageAssets: content.stemGroupImageAssetsMerged(question),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Explanation figures',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                BookImageGallery(
-                  imageAssets:
-                      content.explanationOnlyImageAssetsForStemGroup(question),
-                ),
-              ] else
-                BookImageGallery(
-                  imageAssets:
-                      content.revealImageAssetsOrderedForStemGroup(question),
-                ),
+              BookImageGallery(
+                imageAssets:
+                    content.explanationOnlyImageAssetsForStemGroup(question),
+              ),
             ],
             if (question.references.isNotEmpty) ...[
               const SizedBox(height: 12),

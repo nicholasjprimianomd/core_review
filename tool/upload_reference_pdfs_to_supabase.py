@@ -470,7 +470,6 @@ def main() -> None:
         "version": 1,
         "bucket": BUCKET_NAME,
         "storagePrefix": STORAGE_PREFIX,
-        "sourceRoot": root.as_posix(),
         "fileCount": len(files_map),
         "files": files_map,
     }
@@ -479,6 +478,7 @@ def main() -> None:
     args.manifest_out.parent.mkdir(parents=True, exist_ok=True)
     args.manifest_out.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(f"Wrote manifest ({len(files_map)} files) to {args.manifest_out}")
+    print(f"Source folder (local only; pass this path to build_reference_book_index.py): {root}")
     print(
         "Next: python tool/build_reference_book_index.py "
         f'"{root}" --all-pdfs --pdf-manifest "{args.manifest_out}"'

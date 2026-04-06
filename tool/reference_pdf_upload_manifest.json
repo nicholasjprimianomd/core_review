@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "bucket": "core-review-content",
+  "storagePrefix": "reference_pdfs",
+  "fileCount": 13,
+  "files": {
+    "Breast Imaging A Core Review.pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/d264670cc854ebbadb5621aa35d3c1b2.pdf",
+    "Cardiac - A Core Review.pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/32e78f3aca50a3a5bf6c797fc5e96637.pdf",
+    "CTC 1 Annotated.pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/13a5837738ff9b6a5a01580ec58866fe.pdf",
+    "CTC 2 Annotated .pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/3fec281c62af7124506a264ece3cfd3e.pdf",
+    "Gastrointestinal - A Core Review.pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/200a940d3e104850ff64c7f762ee1872.pdf",
+    "Genitourinary - A Core Review.pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/92459fc895fbb7080f9ffd8ed17cd326.pdf",
+    "Musculoskeletal Imaging - A Core Review- (2015).pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/9e0e5acfb37e98eb9b33f246a21a7c7e.pdf",
+    "Neuroradiology - A Core Review.pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/0522a84bff9f045f3b72254d06c660a1.pdf",
+    "Nuclear Medicine - A Core Review.pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/636716bb69258a0f21eb34efd9753ec0.pdf",
+    "Pediatric Imaging - A Core Review.pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/81db5fb0c512d1ab11830ec2c62becfa.pdf",
+    "Ultrasound A Core Review.pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/09ca6ffad53631d0a9fc8e2eda33555b.pdf",
+    "Vascular and Interventional Radiology - Unknown.pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/9df37747913573fff8376ac1bef2a4cc.pdf",
+    "War Machine [Highest Quality] copy.pdf": "https://szerwpvldtnamhfpqmih.supabase.co/storage/v1/object/public/core-review-content/reference_pdfs/4777ce6373805eeec805a04e5adb2211.pdf"
+  }
+}

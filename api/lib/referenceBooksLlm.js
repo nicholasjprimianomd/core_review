@@ -181,4 +181,5 @@ async function deriveSearchPlanFromLlm({ apiKey, studyContext }) {
 module.exports = {
   deriveSearchPlanFromLlm,
   resolveModel,
+  buildStudyContextMessage,
 };

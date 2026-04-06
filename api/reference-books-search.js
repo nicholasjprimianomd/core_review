@@ -1,6 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const { deriveSearchPlanFromLlm } = require('./lib/referenceBooksLlm');
+const { rerankReferencePagesWithLlm } = require('./lib/referenceBooksRerank');
+
+const RECALL_POOL_SIZE = 56;
+const FINAL_MATCH_LIMIT = 12;
 
 const STOP = new Set([
   'the',
@@ -148,16 +152,98 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const scored = pages
-    .map((p) => ({
-      page: p,
-      score: scorePage(p, tokens, phrasesForScore),
-    }))
-    .filter((x) => x.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 12);
+  const seriesPages = pages.filter(isCtcWarMachinePage);
+  let seriesFilterNote = null;
+  if (seriesPages.length === 0) {
+    res.status(200).json({
+      matches: [],
+      searchMeta: {
+        topic: searchMeta.topic,
+        searchPhrases: searchMeta.searchPhrases,
+        usedLlm: searchMeta.usedLlm,
+        llmError: searchMeta.llmError,
+        fallbackNote: searchMeta.fallbackNote,
+        combinedQueryPreview: combinedText.slice(0, 800),
+        seriesFilterApplied: true,
+        seriesFilterPageTotal: 0,
+        candidateCount: 0,
+        rerankUsed: false,
+        rerankError: null,
+        rerankNote: null,
+      },
+      message:
+        'No indexed pages matched Crack the Core (CTC 1 / CTC 2) or War Machine file names. ' +
+        'Ensure those PDFs are included in the index (bookLabel/fileName should mention CTC 1, CTC 2, or War Machine).',
+    });
+    return;
+  }
 
-  const matches = scored.map(({ page, score }) => {
+  const scoredRows = seriesPages.map((p) => ({
+    page: p,
+    score: scorePage(p, tokens, phrasesForScore),
+  }));
+  scoredRows.sort(cmpRecallRows);
+  const recallPool = scoredRows.slice(0, RECALL_POOL_SIZE);
+
+  const candidates = recallPool.map((row, index) => ({
+    id: `cand:${index}`,
+    bookLabel: row.page.bookLabel || '',
+    page: row.page.page || 0,
+    fileName: row.page.fileName || '',
+    snippet: `${row.page.text || ''}`.slice(0, 650),
+  }));
+
+  let orderedIndices = recallPool.map((_, i) => i);
+  let rerankUsed = false;
+  let rerankError = null;
+  let rerankNote = null;
+
+  const rerankContext = buildRerankStudyContext({
+    hasStudy,
+    studyContext,
+    queryParam,
+  });
+
+  if (apiKey && recallPool.length > 0) {
+    try {
+      const rankedIds = await rerankReferencePagesWithLlm({
+        apiKey,
+        studyContext: rerankContext,
+        topic: searchMeta.topic,
+        searchPhrases: searchMeta.searchPhrases,
+        candidates,
+      });
+      const next = [];
+      const seen = new Set();
+      for (const rid of rankedIds) {
+        const idx = parseCandIndex(rid);
+        if (idx >= 0 && idx < recallPool.length && !seen.has(idx)) {
+          seen.add(idx);
+          next.push(idx);
+        }
+      }
+      for (let i = 0; i < recallPool.length; i += 1) {
+        if (!seen.has(i)) {
+          next.push(i);
+        }
+      }
+      orderedIndices = next;
+      rerankUsed = true;
+    } catch (err) {
+      rerankError =
+        err instanceof Error ? err.message : 'Reference rerank model failed.';
+      rerankNote = 'Semantic rerank failed; using keyword order within CTC / War Machine.';
+    }
+  } else if (!apiKey) {
+    rerankNote =
+      'OPENAI_API_KEY not set; results ordered by keyword match only (no semantic rerank).';
+  }
+
+  const topRows = orderedIndices
+    .slice(0, FINAL_MATCH_LIMIT)
+    .map((i) => recallPool[i]);
+
+  const matches = topRows.map(({ page, score }) => {
     const fileName = page.fileName || '';
     const pdfUrl =
       pdfUrlsByFileName &&
@@ -168,12 +254,7 @@ module.exports = async (req, res) => {
       bookLabel: page.bookLabel || '',
       fileName,
       page: page.page || 0,
-      excerpt: excerpt(
-        page.text || '',
-        tokens,
-        phrasesForScore,
-        420,
-      ),
+      excerpt: excerpt(page.text || '', tokens, phrasesForScore, 420),
       fullText: `${page.text || ''}`.trim(),
       pdfUrl,
       score,
@@ -189,9 +270,60 @@ module.exports = async (req, res) => {
       llmError: searchMeta.llmError,
       fallbackNote: searchMeta.fallbackNote,
       combinedQueryPreview: combinedText.slice(0, 800),
+      seriesFilterApplied: true,
+      seriesFilterPageTotal: seriesPages.length,
+      candidateCount: recallPool.length,
+      rerankUsed,
+      rerankError,
+      rerankNote,
     },
   });
 };
+
+function isCtcWarMachinePage(page) {
+  const s = `${page.bookLabel || ''} ${page.fileName || ''}`.toLowerCase();
+  if (!s.trim()) {
+    return false;
+  }
+  if (s.includes('war machine')) {
+    return true;
+  }
+  if (/\bctc\s*1\b/.test(s) || /\bctc1\b/.test(s) || /\bctc-1\b/.test(s)) {
+    return true;
+  }
+  if (/\bctc\s*2\b/.test(s) || /\bctc2\b/.test(s) || /\bctc-2\b/.test(s)) {
+    return true;
+  }
+  return false;
+}
+
+function cmpRecallRows(a, b) {
+  if (b.score !== a.score) {
+    return b.score - a.score;
+  }
+  const fa = `${a.page.fileName || ''}`;
+  const fb = `${b.page.fileName || ''}`;
+  if (fa !== fb) {
+    return fa.localeCompare(fb);
+  }
+  return (a.page.page || 0) - (b.page.page || 0);
+}
+
+function parseCandIndex(id) {
+  const m = /^cand:(\d+)$/.exec(`${id || ''}`.trim());
+  return m ? parseInt(m[1], 10) : -1;
+}
+
+function buildRerankStudyContext({ hasStudy, studyContext, queryParam }) {
+  if (hasStudy && studyContext) {
+    return studyContext;
+  }
+  return {
+    allowAnswerReveal: true,
+    prompt: queryParam || '',
+    choices: {},
+  };
+}
 
 function buildCombinedSearchText({
   queryParam,

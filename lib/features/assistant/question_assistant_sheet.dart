@@ -34,6 +34,9 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
   AssistantReply? _customReply;
   List<AssistantWebImage> _webImages = const <AssistantWebImage>[];
   ReferenceBooksSearchResult? _referenceResult;
+  bool _expandReferenceMatches = false;
+
+  static const int _referenceMatchTeaserCount = 3;
 
   @override
   void dispose() {
@@ -205,6 +208,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
       }
       setState(() {
         _referenceResult = result;
+        _expandReferenceMatches = false;
       });
     } catch (error) {
       if (!mounted) {
@@ -213,6 +217,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
       setState(() {
         _errorMessage = error.toString().replaceFirst('Bad state: ', '');
         _referenceResult = null;
+        _expandReferenceMatches = false;
       });
     } finally {
       if (mounted) {
@@ -285,6 +290,54 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
         );
       },
     );
+  }
+
+  List<Widget> _buildVisibleReferenceMatchCards(BuildContext context) {
+    final result = _referenceResult;
+    if (result == null || result.matches.isEmpty) {
+      return const <Widget>[];
+    }
+    final matches = result.matches;
+    final showAll =
+        _expandReferenceMatches || matches.length <= _referenceMatchTeaserCount;
+    final visible = showAll
+        ? matches
+        : matches.sublist(0, _referenceMatchTeaserCount);
+    final children = <Widget>[];
+    for (final m in visible) {
+      children.add(_ReferenceMatchCard(
+        match: m,
+        onOpenPdf: m.pdfUrl.trim().isEmpty
+            ? null
+            : () => showReferencePdfViewer(
+                  context,
+                  pdfUrl: m.pdfUrl,
+                  page: m.page,
+                ),
+        onOpenFullText: () => _showFullReferencePage(context, m),
+      ));
+      children.add(const SizedBox(height: 8));
+    }
+    if (matches.length > _referenceMatchTeaserCount) {
+      children.add(
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () {
+              setState(() {
+                _expandReferenceMatches = !_expandReferenceMatches;
+              });
+            },
+            child: Text(
+              _expandReferenceMatches
+                  ? 'Show top $_referenceMatchTeaserCount only'
+                  : 'More relevant pages (${matches.length - _referenceMatchTeaserCount} more)',
+            ),
+          ),
+        ),
+      );
+    }
+    return children;
   }
 
   @override
@@ -361,7 +414,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
             width: double.infinity,
             child: Tooltip(
               message:
-                  'Uses a short model pass to pick topic and search terms, then matches text in your deployed book index.',
+                  'CTC 1, CTC 2, and War Machine only. Uses topic + keyword recall, then a model pass to rank the best PDF pages when OPENAI_API_KEY is set on the server.',
               child: OutlinedButton.icon(
                 onPressed: isBusy ? null : _searchReferenceBooks,
                 icon: _isSearchingRefBooks
@@ -371,7 +424,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.menu_book_outlined),
-                label: const Text('Search reference textbooks'),
+                label: const Text('Find CTC / War Machine pages'),
               ),
             ),
           ),
@@ -467,10 +520,20 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Reference textbooks',
+                      'Crack the Core / War Machine',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Indexed pages from CTC 1, CTC 2, and War Machine only; open the PDF for the real page.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).hintColor,
+                          ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -491,76 +554,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
-                  for (final m in _referenceResult!.matches) ...[
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${m.bookLabel} · p. ${m.page}',
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            if (m.fileName.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                m.fileName,
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                  color: Theme.of(context).hintColor,
-                                ),
-                              ),
-                            ],
-                            if (m.excerpt.isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              SelectionArea(
-                                child: _FormattedBookText(m.excerpt),
-                              ),
-                            ],
-                            if (m.pdfUrl.trim().isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: TextButton.icon(
-                                  onPressed: () => showReferencePdfViewer(
-                                    context,
-                                    pdfUrl: m.pdfUrl,
-                                    page: m.page,
-                                  ),
-                                  icon: const Icon(
-                                    Icons.picture_as_pdf_outlined,
-                                    size: 18,
-                                  ),
-                                  label: Text('View PDF (p. ${m.page})'),
-                                ),
-                              ),
-                            ],
-                            if (m.fullText.isNotEmpty ||
-                                m.excerpt.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: TextButton.icon(
-                                  onPressed: () =>
-                                      _showFullReferencePage(context, m),
-                                  icon: const Icon(
-                                    Icons.article_outlined,
-                                    size: 18,
-                                  ),
-                                  label: const Text(
-                                    'View full indexed page',
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
+                  ..._buildVisibleReferenceMatchCards(context),
                   const SizedBox(height: 8),
                 ],
                 if (_explainReply != null) ...[
@@ -584,6 +578,95 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ReferenceMatchCard extends StatelessWidget {
+  const _ReferenceMatchCard({
+    required this.match,
+    this.onOpenPdf,
+    required this.onOpenFullText,
+  });
+
+  final ReferenceBookMatch match;
+  final VoidCallback? onOpenPdf;
+  final VoidCallback onOpenFullText;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasIndexedText =
+        match.fullText.isNotEmpty || match.excerpt.isNotEmpty;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '${match.bookLabel} · p. ${match.page}',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            if (match.fileName.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                match.fileName,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).hintColor,
+                    ),
+              ),
+            ],
+            if (onOpenPdf != null) ...[
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                onPressed: onOpenPdf,
+                icon: const Icon(Icons.picture_as_pdf_outlined, size: 20),
+                label: Text('Open PDF (page ${match.page})'),
+              ),
+            ] else if (hasIndexedText) ...[
+              const SizedBox(height: 8),
+              Text(
+                'PDF link unavailable for this hit (rebuild index with manifest URLs).',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).hintColor,
+                    ),
+              ),
+            ],
+            if (match.excerpt.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ExpansionTile(
+                title: Text(
+                  'Excerpt from search index',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                childrenPadding: const EdgeInsets.only(
+                  left: 12,
+                  right: 12,
+                  bottom: 12,
+                ),
+                children: [
+                  SelectionArea(
+                    child: _FormattedBookText(match.excerpt),
+                  ),
+                ],
+              ),
+            ],
+            if (hasIndexedText) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onOpenFullText,
+                  icon: const Icon(Icons.article_outlined, size: 18),
+                  label: const Text('View full indexed page text'),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -634,6 +717,18 @@ class _ReferenceSearchMetaCard extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            if (meta.seriesFilterApplied && meta.seriesFilterPageTotal > 0) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Corpus: CTC 1, CTC 2, War Machine only '
+                '(${meta.seriesFilterPageTotal} indexed pages). '
+                '${meta.candidateCount > 0 ? '${meta.candidateCount} candidates scored; ' : ''}'
+                '${meta.rerankUsed ? 'Semantic rerank applied.' : ''}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.hintColor,
+                ),
+              ),
+            ],
             if (meta.topic.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(meta.topic, style: theme.textTheme.bodyMedium),
@@ -668,6 +763,26 @@ class _ReferenceSearchMetaCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 meta.llmError!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
+            if (meta.rerankNote != null &&
+                meta.rerankNote!.trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                meta.rerankNote!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.secondary,
+                ),
+              ),
+            ],
+            if (meta.rerankError != null &&
+                meta.rerankError!.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                meta.rerankError!,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.error,
                 ),

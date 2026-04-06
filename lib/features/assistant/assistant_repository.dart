@@ -116,6 +116,12 @@ class ReferenceBooksSearchMeta {
     this.llmError,
     this.fallbackNote,
     this.combinedQueryPreview,
+    this.seriesFilterApplied = false,
+    this.seriesFilterPageTotal = 0,
+    this.candidateCount = 0,
+    this.rerankUsed = false,
+    this.rerankError,
+    this.rerankNote,
   });
 
   final String topic;
@@ -124,12 +130,21 @@ class ReferenceBooksSearchMeta {
   final String? llmError;
   final String? fallbackNote;
   final String? combinedQueryPreview;
+  final bool seriesFilterApplied;
+  final int seriesFilterPageTotal;
+  final int candidateCount;
+  final bool rerankUsed;
+  final String? rerankError;
+  final String? rerankNote;
 
   bool get hasDisplayableContent =>
       topic.trim().isNotEmpty ||
       searchPhrases.isNotEmpty ||
       (fallbackNote?.trim().isNotEmpty ?? false) ||
-      (llmError?.trim().isNotEmpty ?? false);
+      (llmError?.trim().isNotEmpty ?? false) ||
+      (rerankNote?.trim().isNotEmpty ?? false) ||
+      (rerankError?.trim().isNotEmpty ?? false) ||
+      seriesFilterApplied;
 
   factory ReferenceBooksSearchMeta.fromJson(Map<String, dynamic> json) {
     return ReferenceBooksSearchMeta(
@@ -141,6 +156,12 @@ class ReferenceBooksSearchMeta {
       llmError: json['llmError'] as String?,
       fallbackNote: json['fallbackNote'] as String?,
       combinedQueryPreview: json['combinedQueryPreview'] as String?,
+      seriesFilterApplied: json['seriesFilterApplied'] as bool? ?? false,
+      seriesFilterPageTotal: (json['seriesFilterPageTotal'] as num?)?.toInt() ?? 0,
+      candidateCount: (json['candidateCount'] as num?)?.toInt() ?? 0,
+      rerankUsed: json['rerankUsed'] as bool? ?? false,
+      rerankError: json['rerankError'] as String?,
+      rerankNote: json['rerankNote'] as String?,
     );
   }
 }
@@ -262,7 +283,8 @@ class AssistantRepository {
     return reply;
   }
 
-  /// Search pre-built PDF text index (Crack the Core / War Machine). Server uses an LLM to derive topic and search phrases when `OPENAI_API_KEY` is set.
+  /// Search CTC 1, CTC 2, and War Machine pages in the PDF text index. Server uses an LLM for
+  /// topic phrases and semantic rerank when `OPENAI_API_KEY` is set.
   Future<ReferenceBooksSearchResult> searchReferenceBooks({
     required BookQuestion question,
     required bool allowAnswerReveal,

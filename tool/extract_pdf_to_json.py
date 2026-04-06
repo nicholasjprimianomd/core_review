@@ -216,14 +216,19 @@ def rect_in_question_vertical_band(
     *,
     y_slack_pt: float = 8.0,
 ) -> bool:
-    """True if the figure's top lies between the previous and next question anchors."""
+    """True if the figure sits within the vertical band of the owning question anchor."""
     y_lo = anchors[anchor_index - 1][0] if anchor_index > 0 else 0.0
     y_hi = (
         anchors[anchor_index + 1][0]
         if anchor_index + 1 < len(anchors)
         else page_height
     )
-    return (rect.y0 >= y_lo - y_slack_pt) and (rect.y0 < y_hi)
+    if not ((rect.y0 >= y_lo - y_slack_pt) and (rect.y0 < y_hi)):
+        return False
+    img_height = rect.y1 - rect.y0
+    if anchor_index + 1 < len(anchors) and rect.y1 > y_hi + img_height * 0.5:
+        return False
+    return True
 
 
 def normalized_header_key(value: str) -> str:
@@ -805,6 +810,8 @@ def parse_book(
                 )
                 if owning_question_id is None:
                     continue
+                if anchor_idx is None and anchors:
+                    continue
                 if (
                     anchor_idx is not None
                     and anchors
@@ -1144,13 +1151,15 @@ def promote_stem_only_questions(questions: list[QuestionDraft]) -> None:
 
             for child in grouped[1:]:
                 child.prompt = clean_text(f"{stem_prompt} {child.prompt}")
-                # Only inherit stem figures when this part has no PDF-tagged images,
-                # so (b) is not flooded with figures extracted for (a), and vice versa.
-                if stem_images and not child.image_assets:
+                if stem_images and not child.image_assets and len(stem_images) <= 3:
                     child.image_assets = unique_preserving_order(
                         stem_images + child.image_assets
                     )
-                if stem_explanation_images and not child.explanation_image_assets:
+                if (
+                    stem_explanation_images
+                    and not child.explanation_image_assets
+                    and len(stem_explanation_images) <= 3
+                ):
                     child.explanation_image_assets = unique_preserving_order(
                         stem_explanation_images + child.explanation_image_assets
                     )
@@ -1185,6 +1194,7 @@ def fill_shared_explanations(questions: list[QuestionDraft]) -> None:
                 question.explanation_image_assets
                 for question in grouped
                 if question.explanation_image_assets
+                and len(question.explanation_image_assets) <= 2
             ),
             [],
         )
@@ -1454,8 +1464,15 @@ def _best_embedded_figure_asset(
     question_id: str,
     book_id: str,
     image_output_dir: Path,
+    y_lo: float = 0.0,
+    y_hi: float | None = None,
 ) -> str | None:
-    """Largest qualifying embedded image on the page, or None."""
+    """Largest qualifying embedded image within [y_lo, y_hi) on the page, or None.
+
+    When *y_hi* is None the band extends to the bottom of the page.
+    """
+    page_height = float(page.rect.height)
+    effective_y_hi = y_hi if y_hi is not None else page_height
     page_images = page.get_images(full=True)
     best_rect: fitz.Rect | None = None
     best_area = 0.0
@@ -1474,6 +1491,8 @@ def _best_embedded_figure_asset(
             ):
                 continue
             if rect.width * rect.height < _MIN_FIGURE_AREA_PT2:
+                continue
+            if rect.y0 < y_lo - 8.0 or rect.y0 >= effective_y_hi:
                 continue
             area = rect.width * rect.height
             if area > best_area:
@@ -1511,6 +1530,10 @@ def assign_fallback_page_images(
         questions,
         key=lambda question: (question.chapter.number, question.order),
     )
+
+    questions_by_page: dict[int, list[QuestionDraft]] = defaultdict(list)
+    for q in sorted_questions:
+        questions_by_page[q.start_page].append(q)
 
     for index, question in enumerate(sorted_questions):
         if question.image_assets or not prompt_mentions_figure(question.prompt):

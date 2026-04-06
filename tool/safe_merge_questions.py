@@ -151,3 +151,29 @@ def merge_book_extract_preserve_prior_order(
         else:
             out.append(merge_extracted_question(prior, ext))
     return out
+
+
+def replace_images_only(
+    prior_rows: list[dict[str, Any]], extracted_rows: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Keep every field from *prior_rows* except image lists, which come from *extracted_rows*.
+
+    Questions in *prior_rows* that have no matching id in *extracted_rows* keep their
+    existing image fields unchanged.
+    """
+    ext_by_id = {q["id"]: q for q in extracted_rows}
+    out: list[dict[str, Any]] = []
+    for prior in prior_rows:
+        row = copy.deepcopy(prior)
+        pid = prior.get("id")
+        if not isinstance(pid, str):
+            out.append(row)
+            continue
+        ext = ext_by_id.get(pid)
+        if ext is None:
+            out.append(row)
+            continue
+        row["imageAssets"] = _string_list(ext.get("imageAssets"))
+        row["explanationImageAssets"] = _string_list(ext.get("explanationImageAssets"))
+        out.append(row)
+    return out

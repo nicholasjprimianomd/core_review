@@ -5,6 +5,7 @@ import json
 import posixpath
 import re
 import shutil
+import unicodedata
 import zipfile
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -134,10 +135,33 @@ def slugify(value: str) -> str:
     return re.sub(r"-{2,}", "-", re.sub(r"[^a-z0-9]+", "-", value.lower())).strip("-")
 
 
+_PDF_GLYPH_FIXES: dict[str, str] = {
+    "\u0134": "tt",
+    "\u0135": "tt",
+    "\u0132": "IJ",
+    "\u0133": "ij",
+}
+
+
 def clean_text(value: str) -> str:
-    value = value.replace("\u2013", "-").replace("\u2014", "-").replace("\u2019", "'")
+    value = unicodedata.normalize("NFKC", value)
+    value = re.sub(
+        r"\bbe be [\u0134\u0135]er\b",
+        "be better",
+        value,
+        flags=re.IGNORECASE,
+    )
+    for bad, good in _PDF_GLYPH_FIXES.items():
+        value = value.replace(bad, good)
+    value = re.sub(r"\bbe be tter\b", "be better", value, flags=re.IGNORECASE)
+    value = (
+        value.replace("\u2010", "-")
+        .replace("\u2013", "-")
+        .replace("\u2014", "-")
+        .replace("\u2019", "'")
+    )
     value = value.replace("\xa0", " ").replace("\t", " ")
-    value = value.replace("’", "'").replace("–", "-")
+    value = value.replace("‘", "'").replace("“", '"').replace("”", '"')
     return re.sub(r"\s+", " ", value).strip()
 
 
@@ -203,6 +227,8 @@ def question_image_anchor_index_and_owner(
     if anchors:
         first_anchor_y, first_anchor_id = anchors[0]
         if rect.y0 + 2 < first_anchor_y:
+            if carry_question_id is not None:
+                return None, carry_question_id
             return 0, first_anchor_id
         return None, carry_question_id
     return None, carry_question_id
@@ -810,7 +836,7 @@ def parse_book(
                 )
                 if owning_question_id is None:
                     continue
-                if anchor_idx is None and anchors:
+                if anchor_idx is None and anchors and owning_question_id != carry:
                     continue
                 if (
                     anchor_idx is not None
@@ -1116,9 +1142,65 @@ def parse_book(
         book_spec.id,
         full_page_fallback=full_page_figure_fallback,
     )
+    reconcile_images_by_caption(questions)
     promote_explanation_to_stem(questions)
 
     return questions, answers
+
+
+_FIGURE_CAPTION_RE = re.compile(
+    r"FIGURE\s+(?P<qnum>\d+)[^\d]",
+    re.IGNORECASE,
+)
+
+
+def _extract_figure_question_numbers(text: str) -> list[int]:
+    """Return the question numbers referenced by FIGURE X-Y captions in *text*."""
+    return [int(m.group("qnum")) for m in _FIGURE_CAPTION_RE.finditer(text)]
+
+
+def reconcile_images_by_caption(questions: list[QuestionDraft]) -> None:
+    """Cross-validate image assignments against FIGURE captions in explanation text.
+
+    When Q-A's explanation references FIGURE N but the image was geometrically
+    assigned to a neighbouring question in the same chapter, swap the assets so
+    each question owns its own figure.
+    """
+    by_chapter_and_number: dict[tuple[str, int], QuestionDraft] = {}
+    for q in questions:
+        num, _ = split_question_number(q.question_number)
+        if num:
+            by_chapter_and_number[(q.chapter.id, num)] = q
+
+    for q in questions:
+        q_num, _ = split_question_number(q.question_number)
+        if not q_num or not q.explanation_image_assets:
+            continue
+
+        caption_nums = _extract_figure_question_numbers(q.explanation)
+        if not caption_nums:
+            continue
+
+        owns_matching_caption = any(n == q_num for n in caption_nums)
+        if owns_matching_caption:
+            continue
+
+        for caption_num in caption_nums:
+            other = by_chapter_and_number.get((q.chapter.id, caption_num))
+            if other is None:
+                continue
+            other_num, _ = split_question_number(other.question_number)
+            other_caption_nums = _extract_figure_question_numbers(other.explanation)
+            other_owns_its_own = any(n == other_num for n in other_caption_nums)
+            if other_owns_its_own and other.explanation_image_assets:
+                continue
+            other_wants_ours = any(n == q_num for n in other_caption_nums)
+            if other_wants_ours:
+                q.explanation_image_assets, other.explanation_image_assets = (
+                    other.explanation_image_assets,
+                    q.explanation_image_assets,
+                )
+                break
 
 
 def promote_explanation_to_stem(questions: list[QuestionDraft]) -> None:

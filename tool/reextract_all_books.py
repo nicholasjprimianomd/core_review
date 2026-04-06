@@ -25,6 +25,11 @@ def find_source_file(
     extra_paths: dict[str, Path],
     search_dirs: list[Path],
 ) -> Path | None:
+    base = Path(source_name)
+    search_names: list[str] = [source_name]
+    if base.suffix.lower() == ".epub":
+        search_names.append(base.with_suffix(".pdf").name)
+
     if source_name in extra_paths:
         p = extra_paths[source_name]
         if p.is_file():
@@ -32,13 +37,14 @@ def find_source_file(
     for d in search_dirs:
         if not d.is_dir():
             continue
-        direct = d / source_name
-        if direct.is_file():
-            return direct
-        lowered = source_name.lower()
-        for f in d.iterdir():
-            if f.is_file() and f.name.lower() == lowered:
-                return f
+        for name in search_names:
+            direct = d / name
+            if direct.is_file():
+                return direct
+            lowered = name.lower()
+            for f in d.iterdir():
+                if f.is_file() and f.name.lower() == lowered:
+                    return f
     return None
 
 
@@ -73,6 +79,13 @@ def main() -> None:
         "production; merge each new extract row into the matching prior id. Extra extract "
         "rows are ignored; missing ids keep the prior row.",
     )
+    parser.add_argument(
+        "--sources-dir",
+        action="append",
+        default=[],
+        metavar="DIR",
+        help="Directory to search for source files before default locations (repeat for multiple).",
+    )
     args = parser.parse_args()
     only_ids: set[str] | None = set(args.only) if args.only else None
 
@@ -82,7 +95,9 @@ def main() -> None:
     dest_images = repo / "assets" / "book_images"
     extract_script = repo / "tool" / "extract_pdf_to_json.py"
 
+    user_dirs = [Path(d).expanduser().resolve() for d in args.sources_dir]
     search_dirs = [
+        *user_dirs,
         Path(r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026"),
         Path(r"C:\Users\nprim\Downloads"),
         repo / "tool" / "sources",

@@ -120,6 +120,11 @@ class QuestionController extends ChangeNotifier {
       return;
     }
 
+    if (shouldUseNextPartAction) {
+      await submitCurrentPartAndAdvance();
+      return;
+    }
+
     await _saveCurrentAnswer(revealAnswer: !deferRevealUntilExamEnd);
   }
 

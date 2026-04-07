@@ -282,4 +282,74 @@ void main() {
     expect(controller.currentQuestionProgress?.isRevealed, isTrue);
     expect(controller.explanationsVisibleForCurrent, isTrue);
   });
+
+  test(
+    'QuestionController submitCurrentAnswer advances multipart to next part',
+    () async {
+    final repository = ProgressRepository(store: store);
+    final questions = const [
+      BookQuestion(
+        id: 'mp-1a',
+        bookId: 'book-1',
+        bookTitle: 'Core Review Test',
+        chapterId: 'chapter-1',
+        chapterNumber: 1,
+        chapterTitle: 'Basics of Imaging',
+        questionNumber: '1a',
+        order: 1,
+        sortOrder: 1,
+        prompt: 'Multipart part A?',
+        choices: {
+          'A': 'Option A',
+          'B': 'Option B',
+        },
+        correctChoice: 'A',
+        explanation: 'Shared explanation.',
+        references: [],
+        imageAssets: [],
+        stemGroup: 'stem-mp',
+      ),
+      BookQuestion(
+        id: 'mp-1b',
+        bookId: 'book-1',
+        bookTitle: 'Core Review Test',
+        chapterId: 'chapter-1',
+        chapterNumber: 1,
+        chapterTitle: 'Basics of Imaging',
+        questionNumber: '1b',
+        order: 2,
+        sortOrder: 2,
+        prompt: 'Multipart part B?',
+        choices: {
+          'A': 'Option A',
+          'B': 'Option B',
+        },
+        correctChoice: 'B',
+        explanation: 'Shared explanation.',
+        references: [],
+        imageAssets: [],
+        stemGroup: 'stem-mp',
+      ),
+    ];
+
+    final controller = QuestionController(
+      questions: questions,
+      progressRepository: repository,
+      initialProgress: StudyProgress.empty,
+      initialIndex: 0,
+    );
+
+    expect(controller.shouldUseNextPartAction, isTrue);
+
+    controller.selectChoice('A');
+    await controller.submitCurrentAnswer();
+
+    expect(controller.currentIndex, 1);
+    expect(controller.currentQuestion.id, 'mp-1b');
+
+    final loaded = await repository.loadProgress();
+    expect(loaded.answers['mp-1a']?.selectedChoice, 'A');
+    expect(loaded.answers['mp-1a']?.isRevealed, isFalse);
+    expect(loaded.lastVisitedQuestionId, 'mp-1b');
+  });
 }

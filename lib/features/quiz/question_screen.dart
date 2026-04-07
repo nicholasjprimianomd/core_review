@@ -67,6 +67,7 @@ class QuestionScreen extends StatefulWidget {
 
 class _QuestionScreenState extends State<QuestionScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final ScrollController _questionScrollController = ScrollController();
   final FocusNode _shortcutFocus =
       FocusNode(debugLabel: 'questionScreen.shortcuts');
   /// Wide side panel hidden when true. Local state so toggling works on pushed
@@ -175,10 +176,33 @@ class _QuestionScreenState extends State<QuestionScreen> {
   @override
   void dispose() {
     _examTicker?.cancel();
+    _questionScrollController.dispose();
     _shortcutFocus.dispose();
     _assistantRepository.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _scrollQuestionBodyByKeyboard(double delta) {
+    if (!_quizKeyboardShortcutsEnabled) {
+      return;
+    }
+    if (!_questionScrollController.hasClients) {
+      return;
+    }
+    final position = _questionScrollController.position;
+    final step = MediaQuery.sizeOf(context).height * 0.18;
+    final target = (position.pixels + delta * step).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    unawaited(
+      _questionScrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+      ),
+    );
   }
 
   bool get _quizKeyboardShortcutsEnabled {
@@ -238,6 +262,18 @@ class _QuestionScreenState extends State<QuestionScreen> {
               _controller.currentIndex < _controller.questionCount - 1) {
             _controller.jumpToIndex(_controller.questionCount - 1);
           }
+          return null;
+        },
+      ),
+      ScrollQuestionUpIntent: CallbackAction<ScrollQuestionUpIntent>(
+        onInvoke: (_) {
+          _scrollQuestionBodyByKeyboard(-1);
+          return null;
+        },
+      ),
+      ScrollQuestionDownIntent: CallbackAction<ScrollQuestionDownIntent>(
+        onInvoke: (_) {
+          _scrollQuestionBodyByKeyboard(1);
           return null;
         },
       ),
@@ -692,6 +728,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
                             ),
                             Expanded(
                               child: SingleChildScrollView(
+                                controller: _questionScrollController,
                                 padding: const EdgeInsets.all(16),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -968,13 +1005,29 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
-                                      child: FilledButton.icon(
-                                        onPressed: _controller.canGoNext
-                                            ? _controller.goToNext
-                                            : null,
-                                        icon: const Icon(Icons.chevron_right),
-                                        label: const Text('Next'),
-                                      ),
+                                      child: widget.examSession != null &&
+                                              !widget.readOnlyAfterExam &&
+                                              !_controller.canGoNext
+                                          ? FilledButton.icon(
+                                              onPressed: _controller.isSaving
+                                                  ? null
+                                                  : () => unawaited(
+                                                        _endExamSession(),
+                                                      ),
+                                              icon: const Icon(
+                                                Icons.stop_circle_outlined,
+                                              ),
+                                              label: const Text('End exam'),
+                                            )
+                                          : FilledButton.icon(
+                                              onPressed: _controller.canGoNext
+                                                  ? _controller.goToNext
+                                                  : null,
+                                              icon: const Icon(
+                                                Icons.chevron_right,
+                                              ),
+                                              label: const Text('Next'),
+                                            ),
                                     ),
                                   ],
                                 ),
@@ -1738,12 +1791,10 @@ class _ChoiceTileState extends State<_ChoiceTile> {
     if (_hoverVisualActive) {
       final hoverTint = theme.colorScheme.onSurface.withValues(alpha: 0.08);
       backgroundColor = backgroundColor != null
-          ? Color.alphaBlend(hoverTint, backgroundColor!)
+          ? Color.alphaBlend(hoverTint, backgroundColor)
           : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
-      if (borderColor == null) {
-        borderColor =
-            theme.colorScheme.outline.withValues(alpha: 0.45);
-      }
+      borderColor ??=
+          theme.colorScheme.outline.withValues(alpha: 0.45);
     }
 
     return MouseRegion(

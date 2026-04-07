@@ -22,6 +22,14 @@ class SubmitOrAdvanceQuestionIntent extends Intent {
   const SubmitOrAdvanceQuestionIntent();
 }
 
+class ScrollQuestionUpIntent extends Intent {
+  const ScrollQuestionUpIntent();
+}
+
+class ScrollQuestionDownIntent extends Intent {
+  const ScrollQuestionDownIntent();
+}
+
 class OpenQuestionListIntent extends Intent {
   const OpenQuestionListIntent();
 }
@@ -51,6 +59,8 @@ class SelectChoiceKeyIntent extends Intent {
 /// Base shortcuts (choice letters are merged in [mergeQuizChoiceLetterShortcuts]).
 Map<ShortcutActivator, Intent> quizQuestionBaseShortcuts() {
   return <ShortcutActivator, Intent>{
+    const SingleActivator(LogicalKeyboardKey.arrowUp): const ScrollQuestionUpIntent(),
+    const SingleActivator(LogicalKeyboardKey.arrowDown): const ScrollQuestionDownIntent(),
     const SingleActivator(LogicalKeyboardKey.arrowLeft): const GoPreviousQuestionIntent(),
     const SingleActivator(LogicalKeyboardKey.arrowRight): const GoNextQuestionIntent(),
     const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true):
@@ -136,6 +146,7 @@ void showQuizKeyboardShortcutsDialog(BuildContext context) {
         content: const SingleChildScrollView(
           child: Text(
             'Navigation\n'
+            '  Up / Down — Scroll question area\n'
             '  Left / Right — Previous / next question\n'
             '  Alt+Left / Alt+Right — Same (when arrow keys adjust text selection)\n'
             '  [ / ] — Previous / next question\n'

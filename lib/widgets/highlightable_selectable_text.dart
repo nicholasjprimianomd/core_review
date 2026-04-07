@@ -136,26 +136,16 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final mq = MediaQuery.of(context);
     final themeBody = theme.textTheme.bodyLarge ?? const TextStyle();
     final resolved = widget.style ?? themeBody;
-    final baseSize =
-        resolved.fontSize ?? themeBody.fontSize ?? 16.0;
-
-    // Web: SelectableText selection is painted in a layer that misaligns when
-    // MediaQuery.textScaler != 1.0 (duplicate, smaller, shifted selection).
-    // Bake scale into fontSize and use noScaling here so selection matches text.
-    final explicitStyle = resolved.copyWith(
-      fontSize: mq.textScaler.scale(baseSize),
-    );
 
     final highlightColor = theme.brightness == Brightness.dark
         ? const Color(0xFF8B6914).withValues(alpha: 0.65)
         : const Color(0xFFFFF176).withValues(alpha: 0.85);
 
-    // Web: invisible fill avoids Flutter painting a second tinted glyph pass that
-    // often misaligns when fontSize is scaled; handles + persisted span colors
-    // remain. Browser native select is suppressed via index.html + main.dart.
+    // Web: transparent fill hides the framework's selection-tint glyph pass
+    // which can misalign under non-1.0 textScaler. Browser native selection is
+    // blocked via user-select:none in index.html.
     final selectionTint = kIsWeb
         ? Colors.transparent
         : theme.colorScheme.primary.withValues(alpha: 0.22);
@@ -163,11 +153,11 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
     final richSpan = _buildSpanTree(
       text: widget.text,
       highlights: widget.highlights,
-      baseStyle: explicitStyle,
+      baseStyle: resolved,
       highlightColor: highlightColor,
     );
     final strut = StrutStyle.fromTextStyle(
-      explicitStyle,
+      resolved,
       forceStrutHeight: true,
     );
 
@@ -210,15 +200,12 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
       onSelectionChanged: _onSelectionChanged,
     );
 
-    return MediaQuery(
-      data: mq.copyWith(textScaler: TextScaler.noScaling),
-      child: kIsWeb
-          ? DefaultSelectionStyle.merge(
-              selectionColor: Colors.transparent,
-              mouseCursor: SystemMouseCursors.text,
-              child: selectable,
-            )
-          : selectable,
-    );
+    return kIsWeb
+        ? DefaultSelectionStyle.merge(
+            selectionColor: Colors.transparent,
+            mouseCursor: SystemMouseCursors.text,
+            child: selectable,
+          )
+        : selectable;
   }
 }

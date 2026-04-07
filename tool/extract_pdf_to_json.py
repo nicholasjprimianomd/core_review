@@ -286,7 +286,10 @@ def rect_in_question_vertical_band(
 
 
 def normalized_header_key(value: str) -> str:
-    return re.sub(r"[^A-Z]", "", value.upper())
+    stripped = value.strip()
+    if stripped and stripped[0].isdigit():
+        return ""
+    return re.sub(r"[^A-Z]", "", stripped.upper())
 
 
 def stem_group(question_number: str) -> str:

@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-07T12:51:10.429390+00:00",
+  "generatedAt": "2026-04-07T13:55:57.856888+00:00",
   "files": {
     "tool/extract_pdf_to_json.py": {
-      "sha256": "da7313cb115cafa5eda7835ecce9bcba3bbdcbe3d4387f836e7238941966c3eb"
+      "sha256": "1f5deaa772b3dc35a07dbbed7be18bb05c8f56875d1499ed8a96412d4c569de1"
     },
     "tool/safe_merge_questions.py": {
       "sha256": "29bc25899d87917d9b37ec60154d6b0388fdd91287c1f10e3ad0bed6b467e20b"

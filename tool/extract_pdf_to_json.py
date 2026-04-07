@@ -231,10 +231,16 @@ def question_image_anchor_index_and_owner(
     anchors: list[tuple[float, str]],
     rect: fitz.Rect,
     carry_question_id: str | None,
+    *,
+    prefer_carry: bool = False,
 ) -> tuple[int | None, str | None]:
     """
     Map an image rect to a question id and the anchor row index for that question
     (used to clip figures to the vertical band between adjacent questions).
+
+    *prefer_carry* controls what happens when the image is above the first anchor:
+      - True  (answer/explanation pages): assign to carry (image trails previous answer)
+      - False (question/stem pages):      assign to first anchor (image precedes its question)
     """
     applicable_index: int | None = None
     applicable_owner: str | None = None
@@ -249,7 +255,7 @@ def question_image_anchor_index_and_owner(
     if anchors:
         first_anchor_y, first_anchor_id = anchors[0]
         if rect.y0 + 2 < first_anchor_y:
-            if carry_question_id is not None:
+            if prefer_carry and carry_question_id is not None:
                 return None, carry_question_id
             return 0, first_anchor_id
         return None, carry_question_id
@@ -908,7 +914,7 @@ def parse_book(
                     destination = image_map
 
                 anchor_idx, owning_question_id = question_image_anchor_index_and_owner(
-                    anchors, rect, carry
+                    anchors, rect, carry, prefer_carry=True,
                 )
                 if owning_question_id is None:
                     continue
@@ -1276,13 +1282,28 @@ def reconcile_images_by_caption(questions: list[QuestionDraft]) -> None:
 
 
 def promote_explanation_to_stem(questions: list[QuestionDraft]) -> None:
-    """Move explanation images to stem when the prompt references a figure but no stem images exist."""
+    """Move explanation images to stem when the prompt references a figure but no stem images exist.
+
+    Multi-part questions whose stem group siblings already have images are skipped
+    because the display layer merges images across stem group members.
+    """
+    stem_group_has_images: dict[tuple[str, str], bool] = {}
+    stem_group_size: dict[tuple[str, str], int] = defaultdict(int)
+    for q in questions:
+        key = (q.chapter.id, q.stem_group)
+        stem_group_size[key] += 1
+        if q.image_assets:
+            stem_group_has_images[key] = True
+
     for question in questions:
         if (
             not question.image_assets
             and question.explanation_image_assets
             and prompt_mentions_figure(question.prompt)
         ):
+            key = (question.chapter.id, question.stem_group)
+            if stem_group_size[key] > 1 and stem_group_has_images.get(key, False):
+                continue
             question.image_assets = question.explanation_image_assets
             question.explanation_image_assets = []
 
@@ -1702,8 +1723,22 @@ def assign_fallback_page_images(
     for q in sorted_questions:
         questions_by_page[q.start_page].append(q)
 
+    stem_group_images: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for q in sorted_questions:
+        key = (q.chapter.id, q.stem_group)
+        for p in q.image_assets:
+            stem_group_images[key].add(p)
+
+    stem_group_members: dict[tuple[str, str], list[QuestionDraft]] = defaultdict(list)
+    for q in sorted_questions:
+        stem_group_members[(q.chapter.id, q.stem_group)].append(q)
+
     for index, question in enumerate(sorted_questions):
         if question.image_assets or not prompt_mentions_figure(question.prompt):
+            continue
+
+        group_key = (question.chapter.id, question.stem_group)
+        if len(stem_group_members[group_key]) > 1 and stem_group_images.get(group_key):
             continue
 
         candidate_pages = {question.start_page}
@@ -1721,8 +1756,17 @@ def assign_fallback_page_images(
         elif question.start_page < len(doc):
             candidate_pages.add(question.start_page + 1)
 
+        group_key = (question.chapter.id, question.stem_group)
+        existing_group_pages = set()
+        for existing_path in stem_group_images.get(group_key, set()):
+            page_match = re.search(r"_page_(\d+)_", existing_path)
+            if page_match:
+                existing_group_pages.add(int(page_match.group(1)))
+
         added = False
         for candidate_page in sorted(candidate_pages):
+            if candidate_page in existing_group_pages:
+                continue
             page = doc[candidate_page - 1]
             asset = _best_embedded_figure_asset(
                 page=page,
@@ -1733,6 +1777,7 @@ def assign_fallback_page_images(
             )
             if asset:
                 question.image_assets.append(asset)
+                stem_group_images[group_key].add(asset)
                 added = True
                 break
 

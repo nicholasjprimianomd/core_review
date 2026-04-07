@@ -142,8 +142,15 @@ _PDF_GLYPH_FIXES: dict[str, str] = {
     "\u0133": "ij",
 }
 
+# Insert a space between dict-mode spans only when the horizontal gap (pt) exceeds
+# this fraction of the previous span's font size (approx. word boundary).
+_SPAN_GAP_TO_FONT_RATIO = 0.16
+# Minimum gap (pt) to treat as a word space when sizes are tiny or missing.
+_SPAN_GAP_MIN_PT = 0.9
 
-def clean_text(value: str) -> str:
+
+def _normalize_pdf_text_chars(value: str) -> str:
+    """Unicode + PDF glyph fixes + dash/quote mapping, without whitespace collapse."""
     value = unicodedata.normalize("NFKC", value)
     value = re.sub(
         r"\bbe be [\u0134\u0135]er\b",
@@ -162,7 +169,22 @@ def clean_text(value: str) -> str:
     )
     value = value.replace("\xa0", " ").replace("\t", " ")
     value = value.replace("‘", "'").replace("“", '"').replace("”", '"')
+    return value
+
+
+def clean_text(value: str) -> str:
+    value = _normalize_pdf_text_chars(value)
     return re.sub(r"\s+", " ", value).strip()
+
+
+def clean_text_preserve_newlines(value: str) -> str:
+    """Like [clean_text] but keeps newline boundaries (collapses spaces per line only)."""
+    parts = value.split("\n")
+    cleaned: list[str] = []
+    for segment in parts:
+        inner = _normalize_pdf_text_chars(segment)
+        cleaned.append(re.sub(r"[ \t]+", " ", inner).strip())
+    return "\n".join(cleaned).strip()
 
 
 def collapse_lines(lines: list[str]) -> str:
@@ -402,6 +424,33 @@ def default_source_paths() -> list[Path]:
     ]
 
 
+def join_line_spans(line: dict) -> str:
+    """
+    Concatenate PyMuPDF dict-mode spans using horizontal gap (bbox) to infer word breaks.
+    Blind space-joining creates false gaps inside words (common at font-run boundaries / tt).
+    """
+    spans = [s for s in line.get("spans", []) if (s.get("text") or "").strip() != ""]
+    if not spans:
+        return ""
+    spans.sort(key=lambda s: float(s["bbox"][0]))
+    parts: list[str] = []
+    for i, span in enumerate(spans):
+        t = span.get("text") or ""
+        if i == 0:
+            parts.append(t)
+            continue
+        prev = spans[i - 1]
+        prev_x1 = float(prev["bbox"][2])
+        cur_x0 = float(span["bbox"][0])
+        gap = max(0.0, cur_x0 - prev_x1)
+        prev_size = float(prev.get("size") or span.get("size") or 10.0)
+        threshold = max(_SPAN_GAP_MIN_PT, _SPAN_GAP_TO_FONT_RATIO * prev_size)
+        if gap > threshold:
+            parts.append(" ")
+        parts.append(t)
+    return "".join(parts)
+
+
 def discover_pdf_paths(input_paths: list[Path]) -> list[Path]:
     discovered: list[Path] = []
 
@@ -438,7 +487,7 @@ def extract_page_lines(page: fitz.Page) -> list[LineInfo]:
             continue
 
         for line in block.get("lines", []):
-            text = clean_text(" ".join(span.get("text", "") for span in line.get("spans", [])))
+            text = clean_text(join_line_spans(line))
             if text:
                 page_lines.append(LineInfo(y=float(line["bbox"][1]), text=text))
 
@@ -582,6 +631,33 @@ def parse_question_content(raw_lines: list[str]) -> tuple[str, dict[str, str]]:
     return collapse_lines(prompt_lines), choices
 
 
+def join_explanation_lines(lines: list[str]) -> str:
+    """
+    Merge answer/explanation lines: soft line wraps join with a space; table rows and
+    new paragraphs join with newlines. Avoids [collapse_lines] turning tables into one blob.
+    """
+    chunks: list[str] = []
+    for line in lines:
+        t = clean_text(line)
+        if t:
+            chunks.append(t)
+    if not chunks:
+        return ""
+    merged_blocks: list[str] = [chunks[0]]
+    for cur in chunks[1:]:
+        prev = merged_blocks[-1]
+        if len(prev) >= 2 and prev.endswith("-") and not prev.endswith("--"):
+            merged_blocks[-1] = prev[:-1].rstrip() + cur
+            continue
+        ends_sentence = prev[-1] in ".?!"
+        starts_lower = bool(re.match(r"^[a-z]", cur))
+        if not ends_sentence and starts_lower:
+            merged_blocks[-1] = prev + " " + cur
+        else:
+            merged_blocks.append(cur)
+    return clean_text_preserve_newlines("\n".join(merged_blocks))
+
+
 def parse_answer_content(raw_lines: list[str]) -> tuple[str, list[str]]:
     explanation_lines: list[str] = []
     reference_lines: list[str] = []
@@ -606,7 +682,7 @@ def parse_answer_content(raw_lines: list[str]) -> tuple[str, list[str]]:
             explanation_lines.append(text)
 
     references = [collapse_lines(reference_lines)] if reference_lines else []
-    return collapse_lines(explanation_lines), references
+    return join_explanation_lines(explanation_lines), references
 
 
 def build_book_spec(pdf_path: Path, order: int) -> BookSpec:

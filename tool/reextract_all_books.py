@@ -106,7 +106,7 @@ def main() -> None:
     # Explicit overrides (optional). Keys must match books.json `sourceFileName` exactly.
     extra_paths: dict[str, Path] = {
         "Thoracic Imaging - A Core Review.pdf": Path(
-            r"C:\Users\nprim\Downloads\Thoracic Imaging - A Core Review.pdf"
+            r"C:\Users\nprim\Downloads\Textbooks-20260406T230727Z-3-001\Textbooks\Thoracic Imaging - A Core Review.pdf"
         ),
         "Cardiac - A Core Review.pdf": Path(
             r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Cardiac - A Core Review.pdf"

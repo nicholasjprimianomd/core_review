@@ -1682,7 +1682,7 @@ class _NoteEditDialogState extends State<_NoteEditDialog> {
   }
 }
 
-class _ChoiceTile extends StatelessWidget {
+class _ChoiceTile extends StatefulWidget {
   const _ChoiceTile({
     required this.optionLabel,
     required this.optionText,
@@ -1706,54 +1706,88 @@ class _ChoiceTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_ChoiceTile> createState() => _ChoiceTileState();
+}
+
+class _ChoiceTileState extends State<_ChoiceTile> {
+  bool _hovered = false;
+
+  bool get _hoverVisualActive =>
+      widget.enabled &&
+      _hovered &&
+      !widget.isCorrectAnswer &&
+      !widget.isIncorrectSelection;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     Color? borderColor;
     Color? backgroundColor;
 
-    if (isCorrectAnswer) {
+    if (widget.isCorrectAnswer) {
       borderColor = Colors.green;
       backgroundColor = Colors.green.withValues(alpha: 0.08);
-    } else if (isIncorrectSelection) {
+    } else if (widget.isIncorrectSelection) {
       borderColor = Colors.red;
       backgroundColor = Colors.red.withValues(alpha: 0.08);
-    } else if (isSelected) {
+    } else if (widget.isSelected) {
       borderColor = theme.colorScheme.primary;
       backgroundColor = theme.colorScheme.primary.withValues(alpha: 0.08);
     }
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      clipBehavior: Clip.antiAlias,
-      child: Ink(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: borderColor ?? theme.dividerColor,
-            width: borderColor == null ? 1 : 2,
+    if (_hoverVisualActive) {
+      final hoverTint = theme.colorScheme.onSurface.withValues(alpha: 0.08);
+      backgroundColor = backgroundColor != null
+          ? Color.alphaBlend(hoverTint, backgroundColor!)
+          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
+      if (borderColor == null) {
+        borderColor =
+            theme.colorScheme.outline.withValues(alpha: 0.45);
+      }
+    }
+
+    return MouseRegion(
+      onEnter: (_) {
+        if (widget.enabled &&
+            !widget.isCorrectAnswer &&
+            !widget.isIncorrectSelection) {
+          setState(() => _hovered = true);
+        }
+      },
+      onExit: (_) => setState(() => _hovered = false),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: borderColor ?? theme.dividerColor,
+              width: borderColor == null ? 1 : 2,
+            ),
           ),
-        ),
-        child: _ChoiceTapDetector(
-          enabled: enabled,
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(radius: 16, child: Text(optionLabel)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: HighlightableSelectableText(
-                    text: optionText,
-                    style: theme.textTheme.bodyLarge,
-                    highlights: textHighlights,
-                    onHighlightsChanged: onTextHighlightsChanged,
+          child: _ChoiceTapDetector(
+            enabled: widget.enabled,
+            onTap: widget.onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(radius: 16, child: Text(widget.optionLabel)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: HighlightableSelectableText(
+                      text: widget.optionText,
+                      style: theme.textTheme.bodyLarge,
+                      highlights: widget.textHighlights,
+                      onHighlightsChanged: widget.onTextHighlightsChanged,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -1789,7 +1823,7 @@ class _ChoiceTapDetectorState extends State<_ChoiceTapDetector> {
           ? SystemMouseCursors.click
           : SystemMouseCursors.basic,
       child: Listener(
-        behavior: HitTestBehavior.deferToChild,
+        behavior: HitTestBehavior.translucent,
         onPointerDown: (event) {
           if (!widget.enabled) {
             return;

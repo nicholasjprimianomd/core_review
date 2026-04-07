@@ -330,14 +330,27 @@ def is_plausible_next_question(
     return True
 
 
+_PAREN_ANNOTATION_RE = re.compile(
+    r"\(\s*(?:arrowheads?|arrows?|asterisks?|stars?|circle|dashed|open|closed)\b",
+    re.IGNORECASE,
+)
+
+_PHASE_IMAGES_RE = re.compile(
+    r"\bphase\s+images?\b",
+    re.IGNORECASE,
+)
+
+
 def prompt_mentions_figure(prompt: str) -> bool:
     return bool(
         IMAGE_REFERENCE_RE.search(prompt)
         or re.search(
-            r"\b(below|provided|arrow|same patient|shown above|shown below)\b",
+            r"\b(below|provided|arrows?|arrowheads?|same patient|shown above|shown below)\b",
             prompt,
             re.IGNORECASE,
         )
+        or _PAREN_ANNOTATION_RE.search(prompt)
+        or _PHASE_IMAGES_RE.search(prompt)
     )
 
 

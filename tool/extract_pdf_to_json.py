@@ -898,6 +898,11 @@ def parse_book(
             answers_section_start_y: float | None = None
             current_section = active_section(chapter, page_number)
             page_carry_question_id = current_active_question_id
+            page_answer_carry_id = (
+                current_answer.question_id
+                if current_answer is not None
+                else answer_region_default_id
+            )
             line_index = 0
 
             while line_index < len(page_lines):
@@ -1097,15 +1102,6 @@ def parse_book(
 
                 line_index += 1
 
-            answer_carry_end = (
-                current_answer.question_id
-                if current_answer is not None
-                else (
-                    page_answer_anchors[-1][1]
-                    if page_answer_anchors
-                    else answer_region_default_id
-                )
-            )
             flush_page_figures(
                 page,
                 page_number,
@@ -1114,7 +1110,7 @@ def parse_book(
                 page_question_anchors=page_question_anchors,
                 page_answer_anchors=page_answer_anchors,
                 stem_carry=page_carry_question_id,
-                answer_carry=answer_carry_end,
+                answer_carry=page_answer_carry_id,
             )
 
         finalize_question()

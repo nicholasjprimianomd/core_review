@@ -73,13 +73,7 @@ class AnswerRevealPanel extends StatelessWidget {
               highlights: explanationHighlights,
               onHighlightsChanged: onExplanationHighlightsChanged,
             ),
-            if (content.explanationOnlyImageAssetsForStemGroup(question).isNotEmpty) ...[
-              const SizedBox(height: 16),
-              BookImageGallery(
-                imageAssets:
-                    content.explanationOnlyImageAssetsForStemGroup(question),
-              ),
-            ],
+            ..._revealImageBlocks(theme, content, question),
             if (question.references.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
@@ -100,4 +94,39 @@ class AnswerRevealPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+List<Widget> _revealImageBlocks(
+  ThemeData theme,
+  BookContent content,
+  BookQuestion question,
+) {
+  final stem = content.stemGroupImageAssetsMerged(question);
+  final expOnly = content.explanationOnlyImageAssetsForStemGroup(question);
+  final split = content.shouldSplitRevealImageSectionsForStemGroup(question);
+  final headerStyle = theme.textTheme.titleSmall?.copyWith(
+    fontWeight: FontWeight.w700,
+  );
+  if (split) {
+    return [
+      const SizedBox(height: 16),
+      Text('Case images', style: headerStyle),
+      const SizedBox(height: 8),
+      BookImageGallery(imageAssets: stem),
+      const SizedBox(height: 16),
+      Text('Explanation figures', style: headerStyle),
+      const SizedBox(height: 8),
+      BookImageGallery(imageAssets: expOnly),
+    ];
+  }
+  return [
+    if (stem.isNotEmpty) ...[
+      const SizedBox(height: 16),
+      BookImageGallery(imageAssets: stem),
+    ],
+    if (expOnly.isNotEmpty) ...[
+      const SizedBox(height: 16),
+      BookImageGallery(imageAssets: expOnly),
+    ],
+  ];
 }

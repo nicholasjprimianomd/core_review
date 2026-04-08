@@ -25,6 +25,16 @@ def _fix_question(q: dict) -> None:
 
     choices = dict(q.get("choices") or {}) if isinstance(q.get("choices"), dict) else {}
 
+    # Match-style or unkeyed items: no correct letter but still need selectable rows in the UI.
+    if len(choices) < 2:
+        for letter in "ABCD":
+            if letter not in choices:
+                choices[letter] = (
+                    f"[Option {letter}] See the figures and stem in the source chapter."
+                )
+        q["choices"] = choices
+        choices = dict(q["choices"])
+
     relaxed = (
         not cc
         or len(cc) != 1

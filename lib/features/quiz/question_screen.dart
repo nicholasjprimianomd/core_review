@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -813,40 +814,69 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                           ?.copyWith(fontWeight: FontWeight.w700),
                                     ),
                                     const SizedBox(height: 12),
-                                    for (final entry in question.choices.entries)
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(bottom: 12),
-                                        child: _ChoiceTile(
-                                          optionLabel: entry.key,
-                                          optionText: entry.value,
-                                          textHighlights: currentStudyData
-                                                  .choiceHighlights[entry.key] ??
-                                              const <TextHighlightSpan>[],
-                                          onTextHighlightsChanged: (ranges) =>
-                                              _updateChoiceHighlights(
-                                            entry.key,
-                                            ranges,
-                                          ),
-                                          isSelected:
-                                              selectedChoice == entry.key,
-                                          isCorrectAnswer: explanationsVisible &&
-                                              question.correctChoice ==
-                                                  entry.key,
-                                          isIncorrectSelection:
-                                              explanationsVisible &&
-                                                  questionProgress != null &&
-                                                  questionProgress
-                                                          .selectedChoice ==
-                                                      entry.key &&
-                                                  !questionProgress.isCorrect,
-                                          enabled:
-                                              !widget.readOnlyAfterExam &&
-                                                  questionProgress == null,
-                                          onTap: () => _controller
-                                              .selectChoice(entry.key),
-                                        ),
+                                    if (question.choices.isEmpty) ...[
+                                      Builder(
+                                        builder: (context) {
+                                          debugPrint(
+                                            'QuestionScreen: missing choices for ${question.id}',
+                                          );
+                                          return Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 12,
+                                            ),
+                                            child: Text(
+                                              'Answer choices are missing for this '
+                                              'question (${question.id}).',
+                                              style: TextStyle(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .error,
+                                              ),
+                                            ),
+                                          );
+                                        },
                                       ),
+                                    ] else
+                                      for (final entry
+                                          in question.choices.entries)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12,
+                                          ),
+                                          child: _ChoiceTile(
+                                            optionLabel: entry.key,
+                                            optionText: entry.value,
+                                            textHighlights: currentStudyData
+                                                    .choiceHighlights[
+                                                        entry.key] ??
+                                                const <TextHighlightSpan>[],
+                                            onTextHighlightsChanged: (ranges) =>
+                                                _updateChoiceHighlights(
+                                              entry.key,
+                                              ranges,
+                                            ),
+                                            isSelected:
+                                                selectedChoice == entry.key,
+                                            isCorrectAnswer:
+                                                explanationsVisible &&
+                                                    question.correctChoice ==
+                                                        entry.key,
+                                            isIncorrectSelection:
+                                                explanationsVisible &&
+                                                    questionProgress !=
+                                                        null &&
+                                                    questionProgress
+                                                            .selectedChoice ==
+                                                        entry.key &&
+                                                    !questionProgress
+                                                        .isCorrect,
+                                            enabled:
+                                                !widget.readOnlyAfterExam &&
+                                                    questionProgress == null,
+                                            onTap: () => _controller
+                                                .selectChoice(entry.key),
+                                          ),
+                                        ),
                                     const SizedBox(height: 8),
                                     if (widget.readOnlyAfterExam &&
                                         _controller.shouldUseNextPartAction)

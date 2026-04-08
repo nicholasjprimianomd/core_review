@@ -32,6 +32,8 @@ def main() -> None:
         tool_dir / "reextract_all_books.py",
         tool_dir / "hybrid_fallback_answers.py",
         tool_dir / "apply_content_validation_fixes.py",
+        tool_dir / "recover_choices_from_explanation.py",
+        tool_dir / "check_min_choices.py",
         tool_dir / "recover_relaxed_answers.py",
         tool_dir / "validate_content.py",
         root / "assets" / "data" / "books.json",

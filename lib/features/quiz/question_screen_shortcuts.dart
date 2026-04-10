@@ -46,6 +46,10 @@ class CopyQuestionHighlightsIntent extends Intent {
   const CopyQuestionHighlightsIntent();
 }
 
+class UndoAnswerIntent extends Intent {
+  const UndoAnswerIntent();
+}
+
 class SelectChoiceDigitIntent extends Intent {
   const SelectChoiceDigitIntent(this.digitOneToNine);
   final int digitOneToNine;
@@ -83,6 +87,8 @@ Map<ShortcutActivator, Intent> quizQuestionBaseShortcuts() {
         const ShowKeyboardShortcutsHelpIntent(),
     const SingleActivator(LogicalKeyboardKey.keyH, control: true, shift: true):
         const CopyQuestionHighlightsIntent(),
+    const SingleActivator(LogicalKeyboardKey.keyZ, control: true):
+        const UndoAnswerIntent(),
     const SingleActivator(LogicalKeyboardKey.digit1): const SelectChoiceDigitIntent(1),
     const SingleActivator(LogicalKeyboardKey.digit2): const SelectChoiceDigitIntent(2),
     const SingleActivator(LogicalKeyboardKey.digit3): const SelectChoiceDigitIntent(3),
@@ -156,6 +162,7 @@ void showQuizKeyboardShortcutsDialog(BuildContext context) {
             '  1–9 — Select choice by position\n'
             '  A–Z — Select choice if that letter is an option key\n'
             '  Enter — Next part, submit answer, or go to next if already answered\n'
+            '  Ctrl+Z — Undo answer (change your selection)\n'
             '\n'
             'Exam list\n'
             '  Ctrl+G or Ctrl+Shift+L — Open question list (drawer when panel is hidden)\n'

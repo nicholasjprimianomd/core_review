@@ -101,6 +101,9 @@ class QuestionController extends ChangeNotifier {
 
   bool get isSaving => _isSaving;
 
+  bool get canUndoCurrentAnswer =>
+      !readOnlyAfterExam && !_isSaving && hasSubmittedCurrentAnswer;
+
   void selectChoice(String choice) {
     if (readOnlyAfterExam) {
       return;
@@ -109,6 +112,36 @@ class QuestionController extends ChangeNotifier {
       return;
     }
     _draftChoice = choice;
+    notifyListeners();
+  }
+
+  Future<void> undoCurrentAnswer() async {
+    if (!canUndoCurrentAnswer) {
+      return;
+    }
+    final question = currentQuestion;
+    final existing = _progress.answers[question.id];
+    if (existing == null) {
+      return;
+    }
+
+    _draftChoice = existing.selectedChoice;
+
+    final updatedAnswers =
+        Map<String, QuestionProgress>.from(_progress.answers)
+          ..remove(question.id);
+    _progress = _progress.copyWith(
+      answers: updatedAnswers,
+      lastVisitedQuestionId: question.id,
+      touch: true,
+    );
+    _publishProgress();
+    _isSaving = true;
+    notifyListeners();
+
+    await _progressRepository.saveProgress(_progress);
+
+    _isSaving = false;
     notifyListeners();
   }
 

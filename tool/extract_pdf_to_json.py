@@ -46,6 +46,10 @@ ANSWER_MATCHING_PAIR_LINE_RE = re.compile(
     r"^(?P<item>\d+)\s*[.:]\s*(?P<choice>[A-Z])\b",
     re.IGNORECASE,
 )
+ANSWER_MATCHING_SUBPART_RE = re.compile(
+    r"^(?P<item>\d+)\s*\.?\s*Answer\s+(?P<choice>[A-L])\s*\.\s*(?P<text>.*)$",
+    re.IGNORECASE,
+)
 CHAPTER_TOC_RE = re.compile(r"^(?P<number>\d+)\s+(?P<title>.+)$")
 GENERIC_CHAPTER_TOC_RE = re.compile(r"^Chapter\s+(?P<number>\d+)$", re.IGNORECASE)
 SECTION_NUMBER_RE = re.compile(r"^Section\s+(?P<number>\d+):\s*(?P<title>.+)$", re.IGNORECASE)
@@ -328,6 +332,11 @@ def normalized_header_key(value: str) -> str:
     if stripped and stripped[0].isdigit():
         return ""
     return re.sub(r"[^A-Z]", "", stripped.upper())
+
+
+def _is_section_header(text: str) -> bool:
+    key = normalized_header_key(text)
+    return key in {"QUESTIONS", "ANSWERS", "ANSWERSANDEXPLANATIONS", "ANSWER"}
 
 
 def stem_group(question_number: str) -> str:
@@ -1020,10 +1029,18 @@ def parse_book(
             if current_answer is None:
                 return
             explanation, references = parse_answer_content(current_answer.lines)
-            answers[current_answer.question_id] = current_answer.correct_choice
-            if explanation:
-                answer_lookup[current_answer.question_id] = explanation
-            answer_references[current_answer.question_id] = references
+            qid = current_answer.question_id
+            prev_cc = answers.get(qid)
+            if prev_cc is None:
+                answers[qid] = current_answer.correct_choice
+                if explanation:
+                    answer_lookup[qid] = explanation
+                answer_references[qid] = references
+            elif not prev_cc and current_answer.correct_choice:
+                answers[qid] = current_answer.correct_choice
+                if explanation:
+                    answer_lookup[qid] = explanation
+                answer_references[qid] = references
             current_answer = None
 
         for page_number in range(chapter.page, chapter.end_page + 1):
@@ -1084,75 +1101,6 @@ def parse_book(
                     line_index += 1
                     continue
 
-                matching_header = ANSWER_MATCHING_HEADER_RE.match(current_line)
-                if matching_header and mode == "answers":
-                    finalize_question()
-                    finalize_answer()
-                    match_qnum = matching_header.group("number").lower()
-                    answer_question_id = f"{book_spec.id}-{chapter.number}-{match_qnum}"
-                    page_answer_anchors.append((page_lines[line_index].y, page_lines[line_index].x, answer_question_id))
-                    if chapter_answer_ids and answer_question_id in chapter_answer_ids:
-                        answer_queue_index = chapter_answer_ids.index(answer_question_id) + 1
-                    rest = clean_text(matching_header.group("rest"))
-                    pairs: list[str] = []
-                    trailing_text = ""
-                    if rest:
-                        inline_pairs = re.findall(r"([A-Z])(\d+)", rest)
-                        if inline_pairs:
-                            pairs = [f"{letter}{num}" for letter, num in inline_pairs]
-                            after_pairs = re.sub(r"[A-Z]\d+\s*[;.,]*\s*", "", rest).strip()
-                            if after_pairs:
-                                trailing_text = after_pairs
-                    scan = line_index + 1
-                    if not pairs:
-                        while scan < len(page_lines):
-                            pair_m = ANSWER_MATCHING_PAIR_LINE_RE.match(
-                                page_lines[scan].text.strip()
-                            )
-                            if pair_m:
-                                pairs.append(
-                                    f"{pair_m.group('item')}:{pair_m.group('choice').upper()}"
-                                )
-                                scan += 1
-                            else:
-                                break
-                    answer_lines: list[str] = []
-                    if pairs:
-                        answer_lines.append(f"Matching answers: {'; '.join(pairs)}.")
-                    if trailing_text:
-                        answer_lines.append(trailing_text)
-                    current_answer = AnswerDraft(
-                        question_id=answer_question_id,
-                        correct_choice="",
-                        lines=answer_lines,
-                    )
-                    line_index = scan
-                    continue
-
-                inline_match_answer = ANSWER_INLINE_MATCHING_RE.match(current_line)
-                if inline_match_answer and mode == "answers":
-                    finalize_question()
-                    finalize_answer()
-                    im_qnum = inline_match_answer.group("number").lower()
-                    answer_question_id = f"{book_spec.id}-{chapter.number}-{im_qnum}"
-                    page_answer_anchors.append((page_lines[line_index].y, page_lines[line_index].x, answer_question_id))
-                    if chapter_answer_ids and answer_question_id in chapter_answer_ids:
-                        answer_queue_index = chapter_answer_ids.index(answer_question_id) + 1
-                    raw_pairs = inline_match_answer.group("pairs")
-                    im_pairs = re.findall(r"(\d+)([A-Z])", raw_pairs, re.IGNORECASE)
-                    pair_str = "; ".join(f"{n}:{c.upper()}" for n, c in im_pairs)
-                    im_lines: list[str] = [f"Matching answers: {pair_str}."] if im_pairs else []
-                    im_text = clean_text(inline_match_answer.group("text"))
-                    if im_text:
-                        im_lines.append(im_text)
-                    current_answer = AnswerDraft(
-                        question_id=answer_question_id,
-                        correct_choice="",
-                        lines=im_lines,
-                    )
-                    line_index += 1
-                    continue
-
                 answer_match = ANSWER_START_RE.match(current_line)
                 if answer_match:
                     finalize_question()
@@ -1176,6 +1124,105 @@ def parse_book(
                     answer_text = clean_text(answer_match.group("text"))
                     if answer_text:
                         current_answer.lines.append(answer_text)
+                    line_index += 1
+                    continue
+
+                matching_header = ANSWER_MATCHING_HEADER_RE.match(current_line)
+                if matching_header and mode == "answers":
+                    finalize_question()
+                    finalize_answer()
+                    match_qnum = matching_header.group("number").lower()
+                    answer_question_id = f"{book_spec.id}-{chapter.number}-{match_qnum}"
+                    page_answer_anchors.append((page_lines[line_index].y, page_lines[line_index].x, answer_question_id))
+                    if chapter_answer_ids and answer_question_id in chapter_answer_ids:
+                        answer_queue_index = chapter_answer_ids.index(answer_question_id) + 1
+                    rest = clean_text(matching_header.group("rest"))
+                    pairs: list[str] = []
+                    trailing_text = ""
+                    if rest:
+                        inline_pairs = re.findall(r"([A-Z])(\d+)", rest)
+                        if inline_pairs:
+                            pairs = [f"{letter}{num}" for letter, num in inline_pairs]
+                            after_pairs = re.sub(r"[A-Z]\d+\s*[;.,]*\s*", "", rest).strip()
+                            if after_pairs:
+                                trailing_text = after_pairs
+                    scan = line_index + 1
+                    sub_explanations: list[str] = []
+                    if not pairs:
+                        while scan < len(page_lines):
+                            pair_m = ANSWER_MATCHING_PAIR_LINE_RE.match(
+                                page_lines[scan].text.strip()
+                            )
+                            if pair_m:
+                                pairs.append(
+                                    f"{pair_m.group('item')}:{pair_m.group('choice').upper()}"
+                                )
+                                scan += 1
+                            else:
+                                break
+                    if not pairs:
+                        while scan < len(page_lines):
+                            line_text = page_lines[scan].text.strip()
+                            sub_m = ANSWER_MATCHING_SUBPART_RE.match(line_text)
+                            if sub_m:
+                                pairs.append(
+                                    f"{sub_m.group('item')}:{sub_m.group('choice').upper()}"
+                                )
+                                sub_text = clean_text(sub_m.group("text") or "")
+                                if sub_text:
+                                    sub_explanations.append(
+                                        f"{sub_m.group('choice').upper()}. {sub_text}"
+                                    )
+                                scan += 1
+                                while scan < len(page_lines):
+                                    nxt = page_lines[scan].text.strip()
+                                    if (
+                                        ANSWER_MATCHING_SUBPART_RE.match(nxt)
+                                        or ANSWER_START_RE.match(nxt)
+                                        or ANSWER_MATCHING_HEADER_RE.match(nxt)
+                                        or _is_section_header(nxt)
+                                    ):
+                                        break
+                                    sub_explanations.append(nxt)
+                                    scan += 1
+                            else:
+                                break
+                    answer_lines: list[str] = []
+                    if pairs:
+                        answer_lines.append(f"Matching answers: {'; '.join(pairs)}.")
+                    if trailing_text:
+                        answer_lines.append(trailing_text)
+                    if sub_explanations:
+                        answer_lines.extend(sub_explanations)
+                    current_answer = AnswerDraft(
+                        question_id=answer_question_id,
+                        correct_choice="",
+                        lines=answer_lines,
+                    )
+                    line_index = scan
+                    continue
+
+                inline_match_answer = ANSWER_INLINE_MATCHING_RE.match(current_line)
+                if inline_match_answer and mode == "answers":
+                    finalize_question()
+                    finalize_answer()
+                    im_qnum = inline_match_answer.group("number").lower()
+                    answer_question_id = f"{book_spec.id}-{chapter.number}-{im_qnum}"
+                    page_answer_anchors.append((page_lines[line_index].y, page_lines[line_index].x, answer_question_id))
+                    if chapter_answer_ids and answer_question_id in chapter_answer_ids:
+                        answer_queue_index = chapter_answer_ids.index(answer_question_id) + 1
+                    raw_pairs = inline_match_answer.group("pairs") or ""
+                    im_pairs = re.findall(r"(\d+)([A-Z])", raw_pairs, re.IGNORECASE)
+                    pair_str = "; ".join(f"{n}:{c.upper()}" for n, c in im_pairs)
+                    im_lines: list[str] = [f"Matching answers: {pair_str}."] if im_pairs else []
+                    im_text = clean_text(inline_match_answer.group("text"))
+                    if im_text:
+                        im_lines.append(im_text)
+                    current_answer = AnswerDraft(
+                        question_id=answer_question_id,
+                        correct_choice="",
+                        lines=im_lines,
+                    )
                     line_index += 1
                     continue
 

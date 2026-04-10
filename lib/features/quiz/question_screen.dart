@@ -325,6 +325,14 @@ class _QuestionScreenState extends State<QuestionScreen> {
           return null;
         },
       ),
+      UndoAnswerIntent: CallbackAction<UndoAnswerIntent>(
+        onInvoke: (_) {
+          if (_controller.canUndoCurrentAnswer) {
+            unawaited(_controller.undoCurrentAnswer());
+          }
+          return null;
+        },
+      ),
       SelectChoiceDigitIntent: CallbackAction<SelectChoiceDigitIntent>(
         onInvoke: (SelectChoiceDigitIntent intent) {
           _handleSelectChoiceDigit(question, intent.digitOneToNine);
@@ -934,6 +942,15 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                                 : 'Show Answer',
                                           ),
                                         ),
+                                    ],
+                                    if (_controller.canUndoCurrentAnswer) ...[
+                                      const SizedBox(height: 8),
+                                      TextButton.icon(
+                                        onPressed:
+                                            _controller.undoCurrentAnswer,
+                                        icon: const Icon(Icons.undo, size: 18),
+                                        label: const Text('Change Answer'),
+                                      ),
                                     ],
                                     if (!widget.readOnlyAfterExam &&
                                         questionProgress != null &&

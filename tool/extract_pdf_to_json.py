@@ -112,6 +112,7 @@ class BookSpec:
 class LineInfo:
     y: float
     text: str
+    x: float = 0.0
 
 
 @dataclass
@@ -240,8 +241,11 @@ _MIN_FIGURE_SIDE_PT = 90.0
 _MIN_FIGURE_AREA_PT2 = _MIN_FIGURE_SIDE_PT * _MIN_FIGURE_SIDE_PT
 
 
+_SAME_ROW_Y_TOLERANCE = 10.0
+
+
 def question_image_anchor_index_and_owner(
-    anchors: list[tuple[float, str]],
+    anchors: list[tuple[float, float, str]],
     rect: fitz.Rect,
     carry_question_id: str | None,
     *,
@@ -251,22 +255,38 @@ def question_image_anchor_index_and_owner(
     Map an image rect to a question id and the anchor row index for that question
     (used to clip figures to the vertical band between adjacent questions).
 
+    Anchors are ``(y, x, question_id)`` tuples.  When two anchors share the
+    same Y (side-by-side layout), the image's horizontal centre is compared
+    with each anchor's X to pick the closer column.
+
     *prefer_carry* controls what happens when the image is above the first anchor:
       - True  (answer/explanation pages): assign to carry (image trails previous answer)
       - False (question/stem pages):      assign to first anchor (image precedes its question)
     """
     applicable_index: int | None = None
     applicable_owner: str | None = None
-    for i, (anchor_y, anchor_question_id) in enumerate(anchors):
+    for i, (anchor_y, _anchor_x, anchor_question_id) in enumerate(anchors):
         if anchor_y <= rect.y0 + 2:
             applicable_index = i
             applicable_owner = anchor_question_id
         else:
             break
-    if applicable_owner is not None:
+
+    if applicable_index is not None and applicable_owner is not None:
+        same_row = [
+            j for j, (ay, _ax, _aid) in enumerate(anchors)
+            if abs(ay - anchors[applicable_index][0]) < _SAME_ROW_Y_TOLERANCE
+        ]
+        if len(same_row) > 1:
+            img_cx = (rect.x0 + rect.x1) / 2.0
+            best_j = min(same_row, key=lambda j: abs(anchors[j][1] - img_cx))
+            applicable_index = best_j
+            applicable_owner = anchors[best_j][2]
         return applicable_index, applicable_owner
+
     if anchors:
-        first_anchor_y, first_anchor_id = anchors[0]
+        first_anchor_y = anchors[0][0]
+        first_anchor_id = anchors[0][2]
         if rect.y0 + 2 < first_anchor_y:
             if prefer_carry and carry_question_id is not None:
                 return None, carry_question_id
@@ -277,23 +297,28 @@ def question_image_anchor_index_and_owner(
 
 def rect_in_question_vertical_band(
     rect: fitz.Rect,
-    anchors: list[tuple[float, str]],
+    anchors: list[tuple[float, float, str]],
     anchor_index: int,
     page_height: float,
     *,
     y_slack_pt: float = 8.0,
 ) -> bool:
-    """True if the figure sits within the vertical band of the owning question anchor."""
+    """True if the figure sits within the vertical band of the owning question anchor.
+
+    When the next anchor shares the same Y (side-by-side layout), the upper
+    bound extends to the first anchor at a truly different Y, or page_height.
+    """
     y_lo = anchors[anchor_index - 1][0] if anchor_index > 0 else 0.0
-    y_hi = (
-        anchors[anchor_index + 1][0]
-        if anchor_index + 1 < len(anchors)
-        else page_height
-    )
+    anchor_y = anchors[anchor_index][0]
+    y_hi = page_height
+    for j in range(anchor_index + 1, len(anchors)):
+        if abs(anchors[j][0] - anchor_y) > _SAME_ROW_Y_TOLERANCE:
+            y_hi = anchors[j][0]
+            break
     if not ((rect.y0 >= y_lo - y_slack_pt) and (rect.y0 < y_hi)):
         return False
     img_height = rect.y1 - rect.y0
-    if anchor_index + 1 < len(anchors) and rect.y1 > y_hi + img_height * 0.5:
+    if y_hi < page_height and rect.y1 > y_hi + img_height * 0.5:
         return False
     return True
 
@@ -524,9 +549,9 @@ def extract_page_lines(page: fitz.Page) -> list[LineInfo]:
         for line in block.get("lines", []):
             text = clean_text(join_line_spans(line))
             if text:
-                page_lines.append(LineInfo(y=float(line["bbox"][1]), text=text))
+                page_lines.append(LineInfo(y=float(line["bbox"][1]), text=text, x=float(line["bbox"][0])))
 
-    page_lines.sort(key=lambda entry: (entry.y, entry.text))
+    page_lines.sort(key=lambda entry: (entry.y, entry.x, entry.text))
     page_lines = preprocess_page_lines(page_lines)
     page_lines = expand_fused_choice_lines(page_lines)
     page_lines = merge_dangling_reference_answers(page_lines)
@@ -900,8 +925,8 @@ def parse_book(
         *,
         split_y: float | None,
         mode_end: str | None,
-        page_question_anchors: list[tuple[float, str]],
-        page_answer_anchors: list[tuple[float, str]],
+        page_question_anchors: list[tuple[float, float, str]],
+        page_answer_anchors: list[tuple[float, float, str]],
         stem_carry: str | None,
         answer_carry: str | None,
     ) -> None:
@@ -1004,8 +1029,8 @@ def parse_book(
         for page_number in range(chapter.page, chapter.end_page + 1):
             page = doc[page_number - 1]
             page_lines = extract_page_lines(page)
-            page_question_anchors: list[tuple[float, str]] = []
-            page_answer_anchors: list[tuple[float, str]] = []
+            page_question_anchors: list[tuple[float, float, str]] = []
+            page_answer_anchors: list[tuple[float, float, str]] = []
             answers_section_start_y: float | None = None
             current_section = active_section(chapter, page_number)
             page_carry_question_id = current_active_question_id
@@ -1065,7 +1090,7 @@ def parse_book(
                     finalize_answer()
                     match_qnum = matching_header.group("number").lower()
                     answer_question_id = f"{book_spec.id}-{chapter.number}-{match_qnum}"
-                    page_answer_anchors.append((page_lines[line_index].y, answer_question_id))
+                    page_answer_anchors.append((page_lines[line_index].y, page_lines[line_index].x, answer_question_id))
                     if chapter_answer_ids and answer_question_id in chapter_answer_ids:
                         answer_queue_index = chapter_answer_ids.index(answer_question_id) + 1
                     rest = clean_text(matching_header.group("rest"))
@@ -1110,7 +1135,7 @@ def parse_book(
                     finalize_answer()
                     im_qnum = inline_match_answer.group("number").lower()
                     answer_question_id = f"{book_spec.id}-{chapter.number}-{im_qnum}"
-                    page_answer_anchors.append((page_lines[line_index].y, answer_question_id))
+                    page_answer_anchors.append((page_lines[line_index].y, page_lines[line_index].x, answer_question_id))
                     if chapter_answer_ids and answer_question_id in chapter_answer_ids:
                         answer_queue_index = chapter_answer_ids.index(answer_question_id) + 1
                     raw_pairs = inline_match_answer.group("pairs")
@@ -1135,7 +1160,7 @@ def parse_book(
                     answer_question_id = (
                         f"{book_spec.id}-{chapter.number}-{answer_match.group('number').lower()}"
                     )
-                    page_answer_anchors.append((page_lines[line_index].y, answer_question_id))
+                    page_answer_anchors.append((page_lines[line_index].y, page_lines[line_index].x, answer_question_id))
                     current_answer = AnswerDraft(
                         question_id=answer_question_id,
                         correct_choice=answer_match.group("choice").upper(),
@@ -1165,7 +1190,7 @@ def parse_book(
                     finalize_answer()
                     answer_question_id = chapter_answer_ids[answer_queue_index]
                     answer_queue_index += 1
-                    page_answer_anchors.append((page_lines[line_index].y, answer_question_id))
+                    page_answer_anchors.append((page_lines[line_index].y, page_lines[line_index].x, answer_question_id))
                     current_answer = AnswerDraft(
                         question_id=answer_question_id,
                         correct_choice=answer_unnumbered_match.group("choice").upper(),
@@ -1188,7 +1213,7 @@ def parse_book(
                     finalize_answer()
                     answer_question_id = chapter_answer_ids[answer_queue_index]
                     answer_queue_index += 1
-                    page_answer_anchors.append((page_lines[line_index].y, answer_question_id))
+                    page_answer_anchors.append((page_lines[line_index].y, page_lines[line_index].x, answer_question_id))
                     current_answer = AnswerDraft(
                         question_id=answer_question_id,
                         correct_choice=answer_page_ref_match.group("choice").upper(),
@@ -1269,7 +1294,7 @@ def parse_book(
                         question_text = clean_text(question_match.group("text")) if question_match else ""
                         if question_text:
                             current_question.raw_lines.append(question_text)
-                        page_question_anchors.append((page_lines[line_index].y, question_id))
+                        page_question_anchors.append((page_lines[line_index].y, page_lines[line_index].x, question_id))
                         current_active_question_id = question_id
                         last_question_number = question_number
                         line_index += 1
@@ -1293,7 +1318,7 @@ def parse_book(
                             finalize_answer()
                             answer_question_id = bare_qid
                             page_answer_anchors.append(
-                                (page_lines[line_index].y, answer_question_id)
+                                (page_lines[line_index].y, page_lines[line_index].x, answer_question_id)
                             )
                             if answer_question_id in chapter_answer_ids:
                                 answer_queue_index = (

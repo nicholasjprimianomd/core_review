@@ -112,7 +112,7 @@ def main() -> None:
             r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Cardiac - A Core Review.pdf"
         ),
         "Gastrointestinal - A Core Review.pdf": Path(
-            r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Gastrointestinal - A Core Review.pdf"
+            r"C:\Users\nprim\Downloads\Textbooks-20260406T230727Z-3-001\Textbooks\Gastrointestinal - A Core Review.pdf"
         ),
         "Genitourinary - A Core Review.pdf": Path(
             r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Genitourinary - A Core Review.pdf"

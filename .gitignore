@@ -56,3 +56,4 @@ api/_build_supabase_config.js
 
 # Local Core Review source epubs (add here and run reextract_all_books.py)
 tool/sources/*.epub
+.vercel

@@ -18,21 +18,34 @@ import fitz
 QUESTION_START_RE = re.compile(r"^(?P<number>\d+[a-z]?)\s*\.?\s+(?P<text>.+)$")
 QUESTION_NUMBER_ONLY_RE = re.compile(r"^(?P<number>\d+[a-z]?)\s*\.?$")
 ANSWER_START_RE = re.compile(
-    r"^(?P<number>\d{1,2}[a-z]?)\s*\.?\s+Answer(?::|\s+)\s*(?P<choice>[A-H])\s*\.\s*(?P<text>.*)$",
+    r"^(?P<number>\d{1,2}[a-z]?)\s*\.?\s+Answer(?::|\s+)\s*(?P<choice>[A-L])\s*\.\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
 # Many Core Review chapters use "Answer A. ..." without a leading question number; pair with chapter order.
 ANSWER_UNNUMBERED_RE = re.compile(
-    r"^Answer\s+(?P<choice>[A-H])\s*\.\s*(?P<text>.*)$",
+    r"^Answer\s+(?P<choice>[A-L])\s*\.\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
 # Citation page numbers can glue to the next line (e.g. "344 Answer D.") — treat like unnumbered.
 ANSWER_PAGE_REF_PREFIX_RE = re.compile(
-    r"^(?P<pref>\d{3,})\s+Answer\s+(?P<choice>[A-H])\s*\.\s*(?P<text>.*)$",
+    r"^(?P<pref>\d{3,})\s+Answer\s+(?P<choice>[A-L])\s*\.\s*(?P<text>.*)$",
+    re.IGNORECASE,
+)
+# Hybrid "Answer 1C; 2A; 3E; 4B." matching-inside-answer-keyword format.
+ANSWER_INLINE_MATCHING_RE = re.compile(
+    r"^(?P<number>\d{1,2}[a-z]?)\s*\.?\s+Answer\s+(?P<pairs>(?:\d+[A-Z]\s*[;,]\s*)+\d+[A-Z])\s*\.\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
 CHOICE_START_RE = re.compile(r"^(?P<choice>[A-H])\.\s*(?P<text>.*)$")
 REFERENCE_START_RE = re.compile(r"^References?:\s*(?P<text>.*)$", re.IGNORECASE)
+ANSWER_MATCHING_HEADER_RE = re.compile(
+    r"^(?P<number>\d{1,2}[a-z]?)\s+Answers?\s*:\s*(?P<rest>.*)$",
+    re.IGNORECASE,
+)
+ANSWER_MATCHING_PAIR_LINE_RE = re.compile(
+    r"^(?P<item>\d+)\s*[.:]\s*(?P<choice>[A-Z])\b",
+    re.IGNORECASE,
+)
 CHAPTER_TOC_RE = re.compile(r"^(?P<number>\d+)\s+(?P<title>.+)$")
 GENERIC_CHAPTER_TOC_RE = re.compile(r"^Chapter\s+(?P<number>\d+)$", re.IGNORECASE)
 SECTION_NUMBER_RE = re.compile(r"^Section\s+(?P<number>\d+):\s*(?P<title>.+)$", re.IGNORECASE)
@@ -1046,6 +1059,75 @@ def parse_book(
                     line_index += 1
                     continue
 
+                matching_header = ANSWER_MATCHING_HEADER_RE.match(current_line)
+                if matching_header and mode == "answers":
+                    finalize_question()
+                    finalize_answer()
+                    match_qnum = matching_header.group("number").lower()
+                    answer_question_id = f"{book_spec.id}-{chapter.number}-{match_qnum}"
+                    page_answer_anchors.append((page_lines[line_index].y, answer_question_id))
+                    if chapter_answer_ids and answer_question_id in chapter_answer_ids:
+                        answer_queue_index = chapter_answer_ids.index(answer_question_id) + 1
+                    rest = clean_text(matching_header.group("rest"))
+                    pairs: list[str] = []
+                    trailing_text = ""
+                    if rest:
+                        inline_pairs = re.findall(r"([A-Z])(\d+)", rest)
+                        if inline_pairs:
+                            pairs = [f"{letter}{num}" for letter, num in inline_pairs]
+                            after_pairs = re.sub(r"[A-Z]\d+\s*[;.,]*\s*", "", rest).strip()
+                            if after_pairs:
+                                trailing_text = after_pairs
+                    scan = line_index + 1
+                    if not pairs:
+                        while scan < len(page_lines):
+                            pair_m = ANSWER_MATCHING_PAIR_LINE_RE.match(
+                                page_lines[scan].text.strip()
+                            )
+                            if pair_m:
+                                pairs.append(
+                                    f"{pair_m.group('item')}:{pair_m.group('choice').upper()}"
+                                )
+                                scan += 1
+                            else:
+                                break
+                    answer_lines: list[str] = []
+                    if pairs:
+                        answer_lines.append(f"Matching answers: {'; '.join(pairs)}.")
+                    if trailing_text:
+                        answer_lines.append(trailing_text)
+                    current_answer = AnswerDraft(
+                        question_id=answer_question_id,
+                        correct_choice="",
+                        lines=answer_lines,
+                    )
+                    line_index = scan
+                    continue
+
+                inline_match_answer = ANSWER_INLINE_MATCHING_RE.match(current_line)
+                if inline_match_answer and mode == "answers":
+                    finalize_question()
+                    finalize_answer()
+                    im_qnum = inline_match_answer.group("number").lower()
+                    answer_question_id = f"{book_spec.id}-{chapter.number}-{im_qnum}"
+                    page_answer_anchors.append((page_lines[line_index].y, answer_question_id))
+                    if chapter_answer_ids and answer_question_id in chapter_answer_ids:
+                        answer_queue_index = chapter_answer_ids.index(answer_question_id) + 1
+                    raw_pairs = inline_match_answer.group("pairs")
+                    im_pairs = re.findall(r"(\d+)([A-Z])", raw_pairs, re.IGNORECASE)
+                    pair_str = "; ".join(f"{n}:{c.upper()}" for n, c in im_pairs)
+                    im_lines: list[str] = [f"Matching answers: {pair_str}."] if im_pairs else []
+                    im_text = clean_text(inline_match_answer.group("text"))
+                    if im_text:
+                        im_lines.append(im_text)
+                    current_answer = AnswerDraft(
+                        question_id=answer_question_id,
+                        correct_choice="",
+                        lines=im_lines,
+                    )
+                    line_index += 1
+                    continue
+
                 answer_match = ANSWER_START_RE.match(current_line)
                 if answer_match:
                     finalize_question()
@@ -1192,6 +1274,38 @@ def parse_book(
                         last_question_number = question_number
                         line_index += 1
                         continue
+
+                if mode == "answers" and chapter_answer_ids:
+                    bare_num_match = QUESTION_START_RE.match(current_line)
+                    if bare_num_match:
+                        bare_qid = (
+                            f"{book_spec.id}-{chapter.number}-"
+                            f"{bare_num_match.group('number').lower()}"
+                        )
+                        if (
+                            bare_qid in chapter_answer_ids
+                            and bare_qid != (
+                                current_answer.question_id
+                                if current_answer is not None
+                                else None
+                            )
+                        ):
+                            finalize_answer()
+                            answer_question_id = bare_qid
+                            page_answer_anchors.append(
+                                (page_lines[line_index].y, answer_question_id)
+                            )
+                            if answer_question_id in chapter_answer_ids:
+                                answer_queue_index = (
+                                    chapter_answer_ids.index(answer_question_id) + 1
+                                )
+                            current_answer = AnswerDraft(
+                                question_id=answer_question_id,
+                                correct_choice="",
+                                lines=[clean_text(bare_num_match.group("text"))],
+                            )
+                            line_index += 1
+                            continue
 
                 if current_answer is not None:
                     current_answer.lines.append(current_line)

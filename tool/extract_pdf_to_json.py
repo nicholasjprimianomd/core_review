@@ -18,7 +18,7 @@ import fitz
 QUESTION_START_RE = re.compile(r"^(?P<number>\d+[a-z]?)\s*\.?\s+(?P<text>.+)$")
 QUESTION_NUMBER_ONLY_RE = re.compile(r"^(?P<number>\d+[a-z]?)\s*\.?$")
 ANSWER_START_RE = re.compile(
-    r"^(?P<number>\d{1,2}[a-z]?)\s*\.?\s+Answer(?::|\s+)\s*(?P<choice>[A-L])\s*\.\s*(?P<text>.*)$",
+    r"^(?P<number>\d{1,3}[a-z]?)\s*\.?\s+Answer(?::|\s+)\s*(?P<choice>[A-L])\s*\.\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
 # Many Core Review chapters use "Answer A. ..." without a leading question number; pair with chapter order.
@@ -33,13 +33,13 @@ ANSWER_PAGE_REF_PREFIX_RE = re.compile(
 )
 # Hybrid "Answer 1C; 2A; 3E; 4B." matching-inside-answer-keyword format.
 ANSWER_INLINE_MATCHING_RE = re.compile(
-    r"^(?P<number>\d{1,2}[a-z]?)\s*\.?\s+Answer\s+(?P<pairs>(?:\d+[A-Z]\s*[;,]\s*)+\d+[A-Z])\s*\.\s*(?P<text>.*)$",
+    r"^(?P<number>\d{1,3}[a-z]?)\s*\.?\s+Answer\s+(?P<pairs>(?:\d+[A-Z]\s*[;,]\s*)+\d+[A-Z])\s*\.\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
 CHOICE_START_RE = re.compile(r"^(?P<choice>[A-H])\.\s*(?P<text>.*)$")
 REFERENCE_START_RE = re.compile(r"^References?:\s*(?P<text>.*)$", re.IGNORECASE)
 ANSWER_MATCHING_HEADER_RE = re.compile(
-    r"^(?P<number>\d{1,2}[a-z]?)\s+Answers?\s*:\s*(?P<rest>.*)$",
+    r"^(?P<number>\d{1,3}[a-z]?)\s+Answers?\s*:\s*(?P<rest>.*)$",
     re.IGNORECASE,
 )
 ANSWER_MATCHING_PAIR_LINE_RE = re.compile(
@@ -48,6 +48,11 @@ ANSWER_MATCHING_PAIR_LINE_RE = re.compile(
 )
 ANSWER_MATCHING_SUBPART_RE = re.compile(
     r"^(?P<item>\d+)\s*\.?\s*Answer\s+(?P<choice>[A-L])\s*\.\s*(?P<text>.*)$",
+    re.IGNORECASE,
+)
+# "Patient 1: A. Pneumobilia" or "Patient 1: C" format in matching answers
+ANSWER_PATIENT_PAIR_RE = re.compile(
+    r"^Patient\s+(?P<item>\d+)\s*:\s*(?P<choice>[A-Z])\b\.?\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
 CHAPTER_TOC_RE = re.compile(r"^(?P<number>\d+)\s+(?P<title>.+)$")
@@ -1187,6 +1192,53 @@ def parse_book(
                                     scan += 1
                             else:
                                 break
+                    if not pairs:
+                        while scan < len(page_lines):
+                            line_text = page_lines[scan].text.strip()
+                            patient_m = ANSWER_PATIENT_PAIR_RE.match(line_text)
+                            if patient_m:
+                                pairs.append(
+                                    f"Patient {patient_m.group('item')}:{patient_m.group('choice').upper()}"
+                                )
+                                pt_text = clean_text(patient_m.group("text") or "")
+                                if pt_text:
+                                    sub_explanations.append(
+                                        f"Patient {patient_m.group('item')}: {patient_m.group('choice').upper()}. {pt_text}"
+                                    )
+                                scan += 1
+                                while scan < len(page_lines):
+                                    nxt = page_lines[scan].text.strip()
+                                    if (
+                                        ANSWER_PATIENT_PAIR_RE.match(nxt)
+                                        or ANSWER_START_RE.match(nxt)
+                                        or ANSWER_MATCHING_HEADER_RE.match(nxt)
+                                        or _is_section_header(nxt)
+                                    ):
+                                        break
+                                    sub_explanations.append(nxt)
+                                    scan += 1
+                            else:
+                                break
+                    if not pairs:
+                        choice_pair_m = re.compile(
+                            r"^(?P<choice>[A-Z])\.\s*(?P<item>\d+)\b\.?\s*(?P<text>.*)",
+                            re.IGNORECASE,
+                        )
+                        while scan < len(page_lines):
+                            line_text = page_lines[scan].text.strip()
+                            cp_m = choice_pair_m.match(line_text)
+                            if cp_m:
+                                pairs.append(
+                                    f"{cp_m.group('choice').upper()}:{cp_m.group('item')}"
+                                )
+                                cp_text = clean_text(cp_m.group("text") or "")
+                                if cp_text:
+                                    sub_explanations.append(
+                                        f"{cp_m.group('choice').upper()}. {cp_text}"
+                                    )
+                                scan += 1
+                            else:
+                                break
                     answer_lines: list[str] = []
                     if pairs:
                         answer_lines.append(f"Matching answers: {'; '.join(pairs)}.")
@@ -1414,6 +1466,8 @@ def parse_book(
     promote_stem_only_questions(questions)
     fill_shared_explanations(questions)
     merge_duplicate_questions(questions)
+    propagate_shared_choices(questions)
+    recover_missing_choice_from_explanation(questions)
     assign_epub_inline_images(questions, pdf_path, image_output_dir, book_spec.id)
     assign_fallback_page_images(
         questions,
@@ -1426,6 +1480,58 @@ def parse_book(
     promote_explanation_to_stem(questions)
 
     return questions, answers
+
+
+def recover_missing_choice_from_explanation(questions: list[QuestionDraft]) -> None:
+    """When correctChoice is set but absent from choices, try to fill it from explanation."""
+    _expl_choice_re = re.compile(
+        r"(?:^|\n)\s*(?:In answer|Answer)\s+([A-H])\b[,.\s:-]*\s*",
+        re.IGNORECASE,
+    )
+    for q in questions:
+        if not q.correct_choice or not q.choices:
+            continue
+        if q.correct_choice in q.choices:
+            continue
+        matches = list(_expl_choice_re.finditer(q.explanation))
+        for i, m in enumerate(matches):
+            letter = m.group(1).upper()
+            if letter != q.correct_choice:
+                continue
+            start = m.end()
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(q.explanation)
+            body = q.explanation[start:end].strip()
+            first_sentence = re.split(r"(?<=[.!?])\s", body, maxsplit=1)[0] if body else ""
+            if first_sentence:
+                q.choices[letter] = re.sub(r"\s+", " ", first_sentence).strip()
+            break
+
+
+def propagate_shared_choices(questions: list[QuestionDraft]) -> None:
+    """For matching-style questions where choices are defined in a parent question,
+    propagate the full choice set to child questions that have an incomplete set."""
+    by_chapter: dict[str, list[QuestionDraft]] = defaultdict(list)
+    for q in questions:
+        by_chapter[q.chapter.id].append(q)
+
+    for chapter_id, chapter_qs in by_chapter.items():
+        chapter_qs.sort(key=lambda q: q.order)
+        choice_sets: list[dict[str, str]] = []
+        for q in chapter_qs:
+            if len(q.choices) >= 5:
+                choice_sets.append(q.choices)
+
+        for q in chapter_qs:
+            if not q.correct_choice:
+                continue
+            if q.choices and q.correct_choice in q.choices:
+                continue
+            for cs in choice_sets:
+                if q.correct_choice in cs and all(
+                    k in cs for k in q.choices
+                ):
+                    q.choices = dict(cs)
+                    break
 
 
 _FIGURE_CAPTION_RE = re.compile(
@@ -1539,8 +1645,13 @@ def promote_stem_only_questions(questions: list[QuestionDraft]) -> None:
             stem_references = list(question.references)
             stem_explanation = question.explanation
 
+            stem_choices = dict(question.choices)
             for child in grouped[1:]:
                 child.prompt = clean_text(f"{stem_prompt} {child.prompt}")
+                if stem_choices and (
+                    not child.choices or len(stem_choices) > len(child.choices)
+                ):
+                    child.choices = dict(stem_choices)
                 if stem_images and not child.image_assets and len(stem_images) <= 3:
                     child.image_assets = unique_preserving_order(
                         stem_images + child.image_assets

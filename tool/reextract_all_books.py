@@ -103,42 +103,27 @@ def main() -> None:
         repo / "tool" / "sources",
     ]
 
-    # Explicit overrides (optional). Keys must match books.json `sourceFileName` exactly.
+    _TB = Path(r"C:\Users\nprim\Downloads\Textbooks-20260406T230727Z-3-001\Textbooks")
+    _OD = Path(r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026")
     extra_paths: dict[str, Path] = {
-        "Thoracic Imaging - A Core Review.pdf": Path(
-            r"C:\Users\nprim\Downloads\Textbooks-20260406T230727Z-3-001\Textbooks\Thoracic Imaging - A Core Review.pdf"
-        ),
-        "Cardiac - A Core Review.pdf": Path(
-            r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Cardiac - A Core Review.pdf"
-        ),
-        "Gastrointestinal - A Core Review.pdf": Path(
-            r"C:\Users\nprim\Downloads\Textbooks-20260406T230727Z-3-001\Textbooks\Gastrointestinal - A Core Review.pdf"
-        ),
-        "Genitourinary - A Core Review.pdf": Path(
-            r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Genitourinary - A Core Review.pdf"
-        ),
-        "Musculoskeletal Imaging - A Core Review- (2015).pdf": Path(
-            r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Musculoskeletal Imaging - A Core Review- (2015).pdf"
-        ),
-        "Neuroradiology - A Core Review.pdf": Path(
-            r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Neuroradiology - A Core Review.pdf"
-        ),
-        "Nuclear Medicine - A Core Review.pdf": Path(
-            r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Nuclear Medicine - A Core Review.pdf"
-        ),
-        "Pediatric Imaging - A Core Review.pdf": Path(
-            r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Pediatric Imaging - A Core Review.pdf"
-        ),
-        "Vascular and Interventional Radiology - Unknown.pdf": Path(
-            r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Vascular and Interventional Radiology - Unknown.pdf"
-        ),
-        "Breast Imaging A Core Review.epub": Path(
-            r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Breast Imaging A Core Review.epub"
-        ),
-        "Ultrasound A Core Review.epub": Path(
-            r"C:\Users\nprim\Downloads\OneDrive_1_3-13-2026\Ultrasound A Core Review.epub"
-        ),
+        "Thoracic Imaging - A Core Review.pdf": _TB / "Thoracic Imaging - A Core Review.pdf",
+        "Cardiac - A Core Review.pdf": _TB / "Cardiac - A Core Review.pdf",
+        "Gastrointestinal - A Core Review.pdf": _TB / "Gastrointestinal - A Core Review.pdf",
+        "Genitourinary - A Core Review.pdf": _TB / "Genitourinary - A Core Review.pdf",
+        "Musculoskeletal Imaging - A Core Review- (2015).pdf": _TB / "Musculoskeletal Imaging - A Core Review- (2015).pdf",
+        "Neuroradiology - A Core Review.pdf": _TB / "Neuroradiology - A Core Review.pdf",
+        "Nuclear Medicine - A Core Review.pdf": _TB / "Nuclear Medicine - A Core Review.pdf",
+        "Pediatric Imaging - A Core Review.pdf": _TB / "Pediatric Imaging - A Core Review.pdf",
+        "Vascular and Interventional Radiology - Unknown.pdf": _TB / "Vascular and Interventional Radiology - Unknown.pdf",
+        "Breast Imaging A Core Review.epub": _TB / "Breast Imaging A Core Review.pdf",
+        "Ultrasound A Core Review.epub": _TB / "Ultrasound A Core Review.pdf",
     }
+    # Fall back to OneDrive if Textbooks folder doesn't have a file
+    for key, path in list(extra_paths.items()):
+        if not path.exists():
+            alt = _OD / key
+            if alt.exists():
+                extra_paths[key] = alt
 
     books: list[dict] = json.loads(books_path.read_text(encoding="utf-8"))
     books_sorted = sorted(books, key=lambda b: b["order"])

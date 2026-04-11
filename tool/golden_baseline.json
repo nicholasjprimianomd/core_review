@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-03-23T15:02:15.974848+00:00",
+  "generatedAt": "2026-04-11T02:24:42.793326+00:00",
   "source": "assets/data/questions.json",
   "questions": {
     "breast-imaging-1-1": {
@@ -11,7 +11,7 @@
         "C",
         "D"
       ],
-      "minExplanationLen": 1031
+      "minExplanationLen": 51
     },
     "breast-imaging-1-10": {
       "correctChoice": "C",
@@ -21,7 +21,7 @@
         "C",
         "D"
       ],
-      "minExplanationLen": 202
+      "minExplanationLen": 201
     },
     "breast-imaging-1-11": {
       "correctChoice": "C",
@@ -113,7 +113,7 @@
         "C",
         "D"
       ],
-      "minExplanationLen": 803
+      "minExplanationLen": 802
     },
     "genitourinary-1-11": {
       "correctChoice": "B",
@@ -173,7 +173,7 @@
         "C",
         "D"
       ],
-      "minExplanationLen": 1427
+      "minExplanationLen": 1426
     },
     "neuroradiology-1-11a": {
       "correctChoice": "A",
@@ -195,7 +195,7 @@
         "E",
         "F"
       ],
-      "minExplanationLen": 652
+      "minExplanationLen": 651
     },
     "nuclear-medicine-1-2": {
       "correctChoice": "C",
@@ -207,7 +207,7 @@
         "E",
         "F"
       ],
-      "minExplanationLen": 785
+      "minExplanationLen": 784
     },
     "nuclear-medicine-1-3": {
       "correctChoice": "E",
@@ -337,7 +337,7 @@
         "B",
         "C"
       ],
-      "minExplanationLen": 433
+      "minExplanationLen": 434
     }
   }
 }

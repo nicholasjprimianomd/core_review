@@ -30,17 +30,27 @@ _ANSWER_IS_RE = re.compile(
 )
 # "Answer B." OCR style (no colon)
 _ANSWER_LETTER_DOT_RE = re.compile(
-    r"(?<![A-Za-z])Answer\s+([A-H])\s*\.",
+    r"(?<![A-Za-z])Answers?\s+([A-H])\s*\.",
+    re.IGNORECASE,
+)
+# "Answer C Choice C ..." pattern (e.g. "Answer C Choice C, Assessment for ...")
+_ANSWER_LETTER_CHOICE_RE = re.compile(
+    r"(?<![A-Za-z])Answers?\s+([A-H])\s+Choice\s+[A-H]",
     re.IGNORECASE,
 )
 # "Answer C ..." (do not add a lookahead past the letter — "Answer C Choice" is valid OCR)
 _ANSWER_LETTER_PLAIN_RE = re.compile(
-    r"(?<![A-Za-z])Answer\s+([A-H])\b",
+    r"(?<![A-Za-z])Answers?\s+([A-H])\b",
     re.IGNORECASE,
 )
 _CORRECT_IS_RE = re.compile(
     r"The\s+correct\s+(?:answer|choice)\s+is\s+([A-H])\b",
     re.IGNORECASE,
+)
+# "Answers\nA. Superior mesenteric..." block pattern (label-only lines after "Answers")
+_ANSWERS_BLOCK_RE = re.compile(
+    r"^Answers\s*\n([A-H])\.\s",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 
@@ -94,6 +104,7 @@ def _recover_answer_line(explanation: str) -> str | None:
     for rx in (
         _ANSWER_COLON_RE,
         _ANSWER_IS_RE,
+        _ANSWER_LETTER_CHOICE_RE,
         _ANSWER_LETTER_DOT_RE,
         _ANSWER_LETTER_PLAIN_RE,
         _CORRECT_IS_RE,
@@ -122,6 +133,42 @@ def _recover_first_sentence_match(choices: dict[str, str], explanation: str) -> 
     return None
 
 
+def _recover_explanation_choice_match(choices: dict[str, str], explanation: str) -> str | None:
+    """Try to match the beginning of the explanation to one of the choice values."""
+    if not choices or not explanation:
+        return None
+    expl_stripped = explanation.strip()
+    expl_words = expl_stripped.split()
+    if len(expl_words) < 2:
+        return None
+    expl_lower = expl_stripped.lower()
+    expl_first = re.split(r"[,.:;!?]", expl_lower, maxsplit=1)[0].strip()
+    best_letter: str | None = None
+    best_length = 0
+    for letter, text in choices.items():
+        if len(letter) != 1 or letter not in _VALID:
+            continue
+        tl = text.strip().lower()
+        if not tl or len(tl) < 3:
+            continue
+        if tl.startswith("[option"):
+            continue
+        if expl_lower.startswith(tl[:40]) and len(tl) > best_length:
+            best_letter = letter
+            best_length = len(tl)
+        elif len(expl_first) >= 5 and expl_first in tl and len(expl_first) > best_length:
+            best_letter = letter
+            best_length = len(expl_first)
+        elif len(tl) > 10:
+            tl_words = tl.split()
+            if len(tl_words) >= 2:
+                suffix = " ".join(tl_words[-min(3, len(tl_words)):])
+                if expl_lower.startswith(suffix) and len(suffix) > best_length:
+                    best_letter = letter
+                    best_length = len(suffix)
+    return best_letter
+
+
 def recover_letter(qid: str, row: dict) -> str | None:
     expl = str(row.get("explanation", "") or "")
     choices = row.get("choices") or {}
@@ -137,6 +184,10 @@ def recover_letter(qid: str, row: dict) -> str | None:
         return letter
 
     letter = _recover_first_sentence_match(choices, expl)
+    if letter:
+        return letter
+
+    letter = _recover_explanation_choice_match(choices, expl)
     if letter:
         return letter
 

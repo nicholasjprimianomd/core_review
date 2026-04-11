@@ -19,18 +19,37 @@ import re
 import sys
 from pathlib import Path
 
-IMAGE_WORDS_RE = re.compile(
-    r"\b(image|figure|arrow|arrowhead|shown|pictured|provided|below|above"
-    r"|ct\s+scan|mri|ultrasound|mammogram|radiograph|x-ray"
-    r"|phase images?)\b",
+IMAGE_REFERENCE_RE = re.compile(
+    r"\[image\]"
+    r"|shown\s+(?:above|below|here)\b"
+    r"|shown\s+is\b"
+    r"|images?.*shown\b"
+    r"|based on\s+(?:the|these|following|diagnostic|ultrasound|mammogram|mr|mri|ct).*images?"
+    r"|the following images?\b"
+    r"|images?\s+available\b"
+    r"|pictured here\b",
     re.IGNORECASE,
 )
+_LOOSE_IMAGE_RE = re.compile(
+    r"\b(below|provided|arrows?|arrowheads?|same patient|shown above|shown below)\b",
+    re.IGNORECASE,
+)
+_PAREN_ANNOTATION_RE = re.compile(
+    r"\(\s*(?:arrowheads?|arrows?|asterisks?|stars?|circle|dashed|open|closed)\b",
+    re.IGNORECASE,
+)
+_PHASE_IMAGES_RE = re.compile(r"\bphase\s+images?\b", re.IGNORECASE)
 FIGURE_REF_RE = re.compile(r"FIGURE\s+\d+", re.IGNORECASE)
 MATCHING_EXPLANATION_RE = re.compile(r"Matching answers:", re.IGNORECASE)
 
 
 def prompt_mentions_image(prompt: str) -> bool:
-    return bool(IMAGE_WORDS_RE.search(prompt))
+    return bool(
+        IMAGE_REFERENCE_RE.search(prompt)
+        or _LOOSE_IMAGE_RE.search(prompt)
+        or _PAREN_ANNOTATION_RE.search(prompt)
+        or _PHASE_IMAGES_RE.search(prompt)
+    )
 
 
 def explanation_mentions_figure(expl: str) -> bool:

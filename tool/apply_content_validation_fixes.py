@@ -15,6 +15,10 @@ def _fix_question(q: dict) -> None:
     ch = q.get("choices")
     choices: dict = dict(ch) if isinstance(ch, dict) else {}
 
+    if cc and (len(cc) != 1 or cc not in _VALID_LETTER):
+        q["correctChoice"] = ""
+        cc = ""
+
     if len(choices) < 2 and len(cc) == 1 and cc in _VALID_LETTER:
         for letter in "ABCD":
             if letter not in choices:

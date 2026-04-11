@@ -18,12 +18,12 @@ import fitz
 QUESTION_START_RE = re.compile(r"^(?P<number>\d+[a-z]?)\s*\.?\s+(?P<text>.+)$")
 QUESTION_NUMBER_ONLY_RE = re.compile(r"^(?P<number>\d+[a-z]?)\s*\.?$")
 ANSWER_START_RE = re.compile(
-    r"^(?P<number>\d{1,3}[a-z]?)\s*\.?\s+Answer(?::|\s+)\s*(?P<choice>[A-L])\s*\.\s*(?P<text>.*)$",
+    r"^(?P<number>\d{1,3}[a-z]?)\s*\.?\s+Answers?(?::|\s+)\s*(?P<choice>[A-L])\s*\.?\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
 # Many Core Review chapters use "Answer A. ..." without a leading question number; pair with chapter order.
 ANSWER_UNNUMBERED_RE = re.compile(
-    r"^Answer\s+(?P<choice>[A-L])\s*\.\s*(?P<text>.*)$",
+    r"^Answers?\s+(?P<choice>[A-L])\s*\.?\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
 # Citation page numbers can glue to the next line (e.g. "344 Answer D.") — treat like unnumbered.
@@ -1468,6 +1468,8 @@ def parse_book(
     merge_duplicate_questions(questions)
     propagate_shared_choices(questions)
     recover_missing_choice_from_explanation(questions)
+    recover_correctchoice_from_explanation(questions)
+    repair_missing_choice_from_prompt(questions)
     assign_epub_inline_images(questions, pdf_path, image_output_dir, book_spec.id)
     assign_fallback_page_images(
         questions,
@@ -1485,7 +1487,7 @@ def parse_book(
 def recover_missing_choice_from_explanation(questions: list[QuestionDraft]) -> None:
     """When correctChoice is set but absent from choices, try to fill it from explanation."""
     _expl_choice_re = re.compile(
-        r"(?:^|\n)\s*(?:In answer|Answer)\s+([A-H])\b[,.\s:-]*\s*",
+        r"(?:^|\n)\s*(?:In answer|Answers?)\s+([A-H])\b[,.\s:-]*\s*",
         re.IGNORECASE,
     )
     for q in questions:
@@ -1505,6 +1507,89 @@ def recover_missing_choice_from_explanation(questions: list[QuestionDraft]) -> N
             if first_sentence:
                 q.choices[letter] = re.sub(r"\s+", " ", first_sentence).strip()
             break
+
+
+_ANSWER_LETTER_RE = re.compile(
+    r"^Answers?\s+([A-H])\b",
+    re.IGNORECASE,
+)
+_ANSWER_LETTER_CHOICE_RE = re.compile(
+    r"^Answers?\s+([A-H])\s+Choice\s+[A-H]",
+    re.IGNORECASE,
+)
+_CORRECT_ANSWER_IS_RE = re.compile(
+    r"The\s+correct\s+(?:answer|choice)\s+is\s+([A-H])\b",
+    re.IGNORECASE,
+)
+
+
+def recover_correctchoice_from_explanation(questions: list[QuestionDraft]) -> None:
+    """Fill correctChoice when empty but recoverable from explanation text.
+
+    Handles patterns like:
+      - 'Answers D. ...'  or  'Answer D. ...'
+      - 'Answer C Choice C, ...'
+      - 'The correct answer is B'
+      - Explanation first-sentence match to a choice value
+    """
+    for q in questions:
+        if q.correct_choice:
+            continue
+        if not q.explanation:
+            continue
+
+        expl = q.explanation.strip()
+
+        m = _ANSWER_LETTER_CHOICE_RE.match(expl) or _ANSWER_LETTER_RE.match(expl)
+        if m:
+            letter = m.group(1).upper()
+            if not q.choices or letter in q.choices:
+                q.correct_choice = letter
+                continue
+
+        m = _CORRECT_ANSWER_IS_RE.search(expl)
+        if m:
+            letter = m.group(1).upper()
+            if not q.choices or letter in q.choices:
+                q.correct_choice = letter
+                continue
+
+        if q.choices and len(q.choices) >= 2:
+            first_sentence = re.split(r"(?<=[.!?])\s", expl, maxsplit=1)[0].strip()
+            if len(first_sentence) >= 3:
+                fl = first_sentence.lower()
+                for letter, text in q.choices.items():
+                    tl = text.strip().lower()
+                    if tl and len(tl) >= 3 and (fl == tl or fl.startswith(tl[:25])):
+                        q.correct_choice = letter
+                        break
+
+
+def repair_missing_choice_from_prompt(questions: list[QuestionDraft]) -> None:
+    """When correctChoice is set and valid but the letter is missing from choices,
+    try to extract the choice text from the end of the prompt (merged during parsing)
+    or from the start of the explanation."""
+    for q in questions:
+        if not q.correct_choice or q.correct_choice not in "ABCDEFGH":
+            continue
+        if not q.choices or q.correct_choice in q.choices:
+            continue
+
+        expl = (q.explanation or "").strip()
+        first_expl_sentence = re.split(r"(?<=[.!?])\s", expl, maxsplit=1)[0].strip() if expl else ""
+        if first_expl_sentence and len(first_expl_sentence) >= 5:
+            q.choices[q.correct_choice] = first_expl_sentence
+            continue
+
+        prompt = (q.prompt or "").strip()
+        if not prompt:
+            continue
+        last_sentence_parts = re.split(r"(?<=[.?!])\s+", prompt)
+        if len(last_sentence_parts) >= 2:
+            candidate = last_sentence_parts[-1].strip()
+            if len(candidate) >= 5:
+                q.choices[q.correct_choice] = candidate
+                q.prompt = " ".join(last_sentence_parts[:-1])
 
 
 def propagate_shared_choices(questions: list[QuestionDraft]) -> None:

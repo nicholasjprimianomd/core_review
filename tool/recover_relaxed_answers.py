@@ -232,6 +232,9 @@ def main() -> None:
     for row in rows:
         if row.get("validationRelaxed") is not True:
             continue
+        if row.get("questionType") == "matching" and row.get("matchingItems"):
+            # Matching questions have no single correctChoice; skip recovery.
+            continue
         qid = str(row["id"])
         letter = recover_letter(qid, row)
         if not letter:

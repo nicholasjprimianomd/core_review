@@ -4,12 +4,17 @@ class QuestionProgress {
     required this.isCorrect,
     required this.answeredAt,
     this.revealedAt,
+    this.itemSelections,
   });
 
   final String selectedChoice;
   final bool isCorrect;
   final DateTime answeredAt;
   final DateTime? revealedAt;
+
+  /// Per-item selections for matching questions, keyed by item label.
+  /// Null for single-choice questions, so legacy progress rows keep decoding.
+  final Map<String, String>? itemSelections;
 
   bool get isRevealed => revealedAt != null;
 
@@ -19,12 +24,14 @@ class QuestionProgress {
     DateTime? answeredAt,
     DateTime? revealedAt,
     bool clearRevealedAt = false,
+    Map<String, String>? itemSelections,
   }) {
     return QuestionProgress(
       selectedChoice: selectedChoice ?? this.selectedChoice,
       isCorrect: isCorrect ?? this.isCorrect,
       answeredAt: answeredAt ?? this.answeredAt,
       revealedAt: clearRevealedAt ? null : revealedAt ?? this.revealedAt,
+      itemSelections: itemSelections ?? this.itemSelections,
     );
   }
 
@@ -34,6 +41,8 @@ class QuestionProgress {
       'isCorrect': isCorrect,
       'answeredAt': answeredAt.toIso8601String(),
       'revealedAt': revealedAt?.toIso8601String(),
+      if (itemSelections != null && itemSelections!.isNotEmpty)
+        'itemSelections': Map<String, String>.from(itemSelections!),
     };
   }
 
@@ -49,6 +58,7 @@ class QuestionProgress {
                 ? null
                 : DateTime.parse(json['revealedAt'] as String))
           : answeredAt,
+      itemSelections: _parseItemSelections(json['itemSelections']),
     );
   }
 
@@ -60,7 +70,11 @@ class QuestionProgress {
     final json = Map<String, dynamic>.from(value);
     try {
       final selected = json['selectedChoice'];
-      if (selected is! String || selected.isEmpty) {
+      if (selected is! String) {
+        return null;
+      }
+      final itemSelections = _parseItemSelections(json['itemSelections']);
+      if (selected.isEmpty && (itemSelections == null || itemSelections.isEmpty)) {
         return null;
       }
       final answeredRaw = json['answeredAt'];
@@ -88,10 +102,26 @@ class QuestionProgress {
         isCorrect: isCorrect,
         answeredAt: answeredAt,
         revealedAt: revealedAt,
+        itemSelections: itemSelections,
       );
     } catch (_) {
       return null;
     }
+  }
+
+  static Map<String, String>? _parseItemSelections(Object? raw) {
+    if (raw is! Map) {
+      return null;
+    }
+    final result = <String, String>{};
+    for (final entry in raw.entries) {
+      final key = entry.key;
+      final value = entry.value;
+      if (key is String && value is String && value.isNotEmpty) {
+        result[key] = value;
+      }
+    }
+    return result.isEmpty ? null : result;
   }
 
   static bool _parseDynamicBool(Object? v) {

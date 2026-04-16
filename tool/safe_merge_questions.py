@@ -81,8 +81,21 @@ def merge_extracted_question(
 
     letter = str(out.get("correctChoice", "") or "").strip()
 
-    # Choices: never replace a full option set with an empty one
-    if ext_n < 2 <= prior_n:
+    # Matching questions have no single correct letter; the fresh extract's
+    # choice bank is cleaner (stripped of Patient/Item caption bleed), so
+    # always prefer the extract when available.
+    ext_is_matching = (
+        extracted.get("questionType") == "matching"
+        and isinstance(extracted.get("matchingItems"), list)
+        and any(
+            isinstance(it, dict) and str(it.get("correctChoice", "")).strip()
+            for it in extracted["matchingItems"]
+        )
+    )
+
+    if ext_is_matching and ext_n >= 2:
+        out["choices"] = copy.deepcopy(ext_ch)
+    elif ext_n < 2 <= prior_n:
         out["choices"] = copy.deepcopy(prior_ch)
     elif prior_n < 2 <= ext_n:
         out["choices"] = copy.deepcopy(ext_ch)
@@ -116,7 +129,37 @@ def merge_extracted_question(
         if merged_exp:
             out["explanationImageAssets"] = merged_exp
 
-    if prior.get("validationRelaxed") is True:
+    # Prefer the fresh extract's matching structure; fall back to prior so we
+    # never lose previously captured per-item answers when the new run misses.
+    ext_items = extracted.get("matchingItems") if isinstance(extracted.get("matchingItems"), list) else []
+    prior_items = prior.get("matchingItems") if isinstance(prior.get("matchingItems"), list) else []
+    if ext_items:
+        out["matchingItems"] = copy.deepcopy(ext_items)
+        out["questionType"] = "matching"
+    elif prior_items:
+        out["matchingItems"] = copy.deepcopy(prior_items)
+        out["questionType"] = "matching"
+    else:
+        out.pop("matchingItems", None)
+        ext_type = str(extracted.get("questionType", "") or "")
+        prior_type = str(prior.get("questionType", "") or "")
+        final_type = ext_type or prior_type or "single"
+        if final_type and final_type != "single":
+            out["questionType"] = final_type
+        else:
+            out.pop("questionType", None)
+
+    now_is_matching = (
+        out.get("questionType") == "matching"
+        and isinstance(out.get("matchingItems"), list)
+        and any(
+            isinstance(it, dict) and str(it.get("correctChoice", "")).strip()
+            for it in out["matchingItems"]
+        )
+    )
+    if now_is_matching:
+        out.pop("validationRelaxed", None)
+    elif prior.get("validationRelaxed") is True:
         out["validationRelaxed"] = True
 
     return out

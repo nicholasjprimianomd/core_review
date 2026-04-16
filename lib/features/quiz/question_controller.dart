@@ -38,6 +38,8 @@ class QuestionController extends ChangeNotifier {
   StudyProgress _progress;
   int _currentIndex;
   String? _draftChoice;
+  final Map<String, Map<String, String>> _draftItemSelections =
+      <String, Map<String, String>>{};
   bool _isSaving = false;
   bool _deferredRevealsCompleted = false;
 
@@ -70,10 +72,49 @@ class QuestionController extends ChangeNotifier {
 
   bool get hasSubmittedCurrentAnswer => currentQuestionProgress != null;
 
-  bool get canSubmit =>
-      !hasSubmittedCurrentAnswer &&
-      !_isSaving &&
-      (_draftChoice?.isNotEmpty ?? false);
+  /// Current per-item selections for the active matching question.
+  /// Returns the submitted selections when revealed, otherwise the in-progress
+  /// draft (possibly empty). The keys are [MatchingItem.label]s.
+  Map<String, String> get currentMatchingSelections {
+    final question = currentQuestion;
+    if (!question.isMatching) {
+      return const <String, String>{};
+    }
+    final submitted = currentQuestionProgress?.itemSelections;
+    if (submitted != null && submitted.isNotEmpty) {
+      return Map<String, String>.unmodifiable(submitted);
+    }
+    return Map<String, String>.unmodifiable(
+      _draftItemSelections[question.id] ?? const <String, String>{},
+    );
+  }
+
+  bool _matchingDraftComplete(BookQuestion question) {
+    if (!question.isMatching) {
+      return false;
+    }
+    final draft = _draftItemSelections[question.id];
+    if (draft == null || draft.length < question.matchingItems.length) {
+      return false;
+    }
+    for (final item in question.matchingItems) {
+      final value = draft[item.label];
+      if (value == null || value.isEmpty) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool get canSubmit {
+    if (hasSubmittedCurrentAnswer || _isSaving) {
+      return false;
+    }
+    if (currentQuestion.isMatching) {
+      return _matchingDraftComplete(currentQuestion);
+    }
+    return _draftChoice?.isNotEmpty ?? false;
+  }
 
   bool get isCurrentQuestionMultipart =>
       _multipartGroupFor(currentQuestion).length > 1;
@@ -90,9 +131,16 @@ class QuestionController extends ChangeNotifier {
     if (readOnlyAfterExam) {
       return !_isSaving && _nextMultipartPartIndexFor(currentQuestion) != null;
     }
-    return !_isSaving &&
-        _nextMultipartPartIndexFor(currentQuestion) != null &&
-        (hasSubmittedCurrentAnswer || (_draftChoice?.isNotEmpty ?? false));
+    if (_isSaving || _nextMultipartPartIndexFor(currentQuestion) == null) {
+      return false;
+    }
+    if (hasSubmittedCurrentAnswer) {
+      return true;
+    }
+    if (currentQuestion.isMatching) {
+      return _matchingDraftComplete(currentQuestion);
+    }
+    return _draftChoice?.isNotEmpty ?? false;
   }
 
   bool get canGoPrevious => _currentIndex > 0;
@@ -115,6 +163,32 @@ class QuestionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Set the choice letter selected for a single matching-question item.
+  void selectMatchingChoice(String itemLabel, String choiceKey) {
+    if (readOnlyAfterExam) {
+      return;
+    }
+    if (hasSubmittedCurrentAnswer) {
+      return;
+    }
+    final question = currentQuestion;
+    if (!question.isMatching) {
+      return;
+    }
+    if (!question.choices.containsKey(choiceKey)) {
+      return;
+    }
+    if (!question.matchingItems.any((item) => item.label == itemLabel)) {
+      return;
+    }
+    final draft = Map<String, String>.from(
+      _draftItemSelections[question.id] ?? const <String, String>{},
+    );
+    draft[itemLabel] = choiceKey;
+    _draftItemSelections[question.id] = draft;
+    notifyListeners();
+  }
+
   Future<void> undoCurrentAnswer() async {
     if (!canUndoCurrentAnswer) {
       return;
@@ -125,7 +199,16 @@ class QuestionController extends ChangeNotifier {
       return;
     }
 
-    _draftChoice = existing.selectedChoice;
+    if (question.isMatching) {
+      final selections = existing.itemSelections;
+      if (selections != null && selections.isNotEmpty) {
+        _draftItemSelections[question.id] = Map<String, String>.from(selections);
+      } else {
+        _draftItemSelections.remove(question.id);
+      }
+    } else {
+      _draftChoice = existing.selectedChoice;
+    }
 
     final updatedAnswers =
         Map<String, QuestionProgress>.from(_progress.answers)
@@ -282,16 +365,36 @@ class QuestionController extends ChangeNotifier {
     int? nextIndexAfterSave,
   }) async {
     final question = currentQuestion;
-    final choice = _draftChoice!;
     final answeredAt = DateTime.now();
     final revealedAt = revealAnswer ? answeredAt : null;
-    final updatedAnswers = Map<String, QuestionProgress>.from(_progress.answers)
-      ..[question.id] = QuestionProgress(
+
+    final QuestionProgress questionProgress;
+    if (question.isMatching) {
+      final draft = Map<String, String>.from(
+        _draftItemSelections[question.id] ?? const <String, String>{},
+      );
+      final allCorrect = question.matchingItems.every(
+        (item) => draft[item.label] == item.correctChoice,
+      );
+      questionProgress = QuestionProgress(
+        selectedChoice: '',
+        isCorrect: allCorrect,
+        answeredAt: answeredAt,
+        revealedAt: revealedAt,
+        itemSelections: draft,
+      );
+    } else {
+      final choice = _draftChoice!;
+      questionProgress = QuestionProgress(
         selectedChoice: choice,
         isCorrect: choice == question.correctChoice,
         answeredAt: answeredAt,
         revealedAt: revealedAt,
       );
+    }
+
+    final updatedAnswers = Map<String, QuestionProgress>.from(_progress.answers)
+      ..[question.id] = questionProgress;
 
     if (revealAnswer) {
       _markStemGroupAsRevealed(

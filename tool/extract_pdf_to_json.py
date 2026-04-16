@@ -125,6 +125,13 @@ class LineInfo:
 
 
 @dataclass
+class MatchingItemDraft:
+    label: str
+    correct_choice: str
+    image_asset: str = ""
+
+
+@dataclass
 class QuestionDraft:
     id: str
     book_id: str
@@ -145,6 +152,7 @@ class QuestionDraft:
     references: list[str] = field(default_factory=list)
     image_assets: list[str] = field(default_factory=list)
     explanation_image_assets: list[str] = field(default_factory=list)
+    matching_items: list[MatchingItemDraft] = field(default_factory=list)
 
 
 @dataclass
@@ -932,6 +940,10 @@ def parse_book(
     answer_references: dict[str, list[str]] = {}
     image_map: dict[str, list[str]] = defaultdict(list)
     explanation_image_map: dict[str, list[str]] = defaultdict(list)
+    # Structured matching-pair output keyed by question id.
+    # Values are ordered lists of (item_label, correct_choice) tuples parsed
+    # from the answer section when the book uses "Matching answers" shapes.
+    matching_map: dict[str, list[tuple[str, str]]] = {}
 
     def flush_page_figures(
         page: fitz.Page,
@@ -948,6 +960,12 @@ def parse_book(
         page_images = page.get_images(full=True)
         page_height = float(page.rect.height)
         y_slack = 8.0
+
+        # Collect (y, x, owner, destination_map, asset_path) per figure so that
+        # each question's images are appended in reading order rather than xref
+        # order. Multi-image questions (e.g. labeled A/B/C/D panels) previously
+        # rendered out-of-order because PDF xref ids don't follow layout flow.
+        pending: list[tuple[float, float, str, dict[str, list[str]], str]] = []
 
         for image_index, image_info in enumerate(page_images, start=1):
             xref = image_info[0]
@@ -1005,8 +1023,24 @@ def parse_book(
                 pixmap.save(output_path)
                 asset_path = f"assets/book_images/{filename}"
 
-                if asset_path not in destination[owning_question_id]:
-                    destination[owning_question_id].append(asset_path)
+                pending.append(
+                    (float(rect.y0), float(rect.x0), owning_question_id, destination, asset_path)
+                )
+
+        # Quantize y to a row bucket so same-row images sort by x, not by
+        # micro floating-point y jitter (e.g. 86.9399 vs 86.9400 on a side-by-
+        # side pair). 12pt rows comfortably hold a text line without merging.
+        _ROW_BUCKET_PT = 12.0
+        pending.sort(
+            key=lambda entry: (
+                entry[2],
+                round(entry[0] / _ROW_BUCKET_PT),
+                entry[1],
+            )
+        )
+        for _y, _x, owning_question_id, destination, asset_path in pending:
+            if asset_path not in destination[owning_question_id]:
+                destination[owning_question_id].append(asset_path)
 
     for chapter in book_spec.chapters:
         current_question: QuestionDraft | None = None
@@ -1143,11 +1177,15 @@ def parse_book(
                         answer_queue_index = chapter_answer_ids.index(answer_question_id) + 1
                     rest = clean_text(matching_header.group("rest"))
                     pairs: list[str] = []
+                    structured_pairs: list[tuple[str, str]] = []
                     trailing_text = ""
                     if rest:
                         inline_pairs = re.findall(r"([A-Z])(\d+)", rest)
                         if inline_pairs:
                             pairs = [f"{letter}{num}" for letter, num in inline_pairs]
+                            structured_pairs = [
+                                (num, letter.upper()) for letter, num in inline_pairs
+                            ]
                             after_pairs = re.sub(r"[A-Z]\d+\s*[;.,]*\s*", "", rest).strip()
                             if after_pairs:
                                 trailing_text = after_pairs
@@ -1159,9 +1197,10 @@ def parse_book(
                                 page_lines[scan].text.strip()
                             )
                             if pair_m:
-                                pairs.append(
-                                    f"{pair_m.group('item')}:{pair_m.group('choice').upper()}"
-                                )
+                                item = pair_m.group("item")
+                                choice = pair_m.group("choice").upper()
+                                pairs.append(f"{item}:{choice}")
+                                structured_pairs.append((item, choice))
                                 scan += 1
                             else:
                                 break
@@ -1170,13 +1209,14 @@ def parse_book(
                             line_text = page_lines[scan].text.strip()
                             sub_m = ANSWER_MATCHING_SUBPART_RE.match(line_text)
                             if sub_m:
-                                pairs.append(
-                                    f"{sub_m.group('item')}:{sub_m.group('choice').upper()}"
-                                )
+                                item = sub_m.group("item")
+                                choice = sub_m.group("choice").upper()
+                                pairs.append(f"{item}:{choice}")
+                                structured_pairs.append((item, choice))
                                 sub_text = clean_text(sub_m.group("text") or "")
                                 if sub_text:
                                     sub_explanations.append(
-                                        f"{sub_m.group('choice').upper()}. {sub_text}"
+                                        f"{choice}. {sub_text}"
                                     )
                                 scan += 1
                                 while scan < len(page_lines):
@@ -1197,13 +1237,14 @@ def parse_book(
                             line_text = page_lines[scan].text.strip()
                             patient_m = ANSWER_PATIENT_PAIR_RE.match(line_text)
                             if patient_m:
-                                pairs.append(
-                                    f"Patient {patient_m.group('item')}:{patient_m.group('choice').upper()}"
-                                )
+                                item = patient_m.group("item")
+                                choice = patient_m.group("choice").upper()
+                                pairs.append(f"Patient {item}:{choice}")
+                                structured_pairs.append((f"Patient {item}", choice))
                                 pt_text = clean_text(patient_m.group("text") or "")
                                 if pt_text:
                                     sub_explanations.append(
-                                        f"Patient {patient_m.group('item')}: {patient_m.group('choice').upper()}. {pt_text}"
+                                        f"Patient {item}: {choice}. {pt_text}"
                                     )
                                 scan += 1
                                 while scan < len(page_lines):
@@ -1228,13 +1269,14 @@ def parse_book(
                             line_text = page_lines[scan].text.strip()
                             cp_m = choice_pair_m.match(line_text)
                             if cp_m:
-                                pairs.append(
-                                    f"{cp_m.group('choice').upper()}:{cp_m.group('item')}"
-                                )
+                                choice = cp_m.group("choice").upper()
+                                item = cp_m.group("item")
+                                pairs.append(f"{choice}:{item}")
+                                structured_pairs.append((item, choice))
                                 cp_text = clean_text(cp_m.group("text") or "")
                                 if cp_text:
                                     sub_explanations.append(
-                                        f"{cp_m.group('choice').upper()}. {cp_text}"
+                                        f"{choice}. {cp_text}"
                                     )
                                 scan += 1
                             else:
@@ -1251,6 +1293,8 @@ def parse_book(
                         correct_choice="",
                         lines=answer_lines,
                     )
+                    if structured_pairs:
+                        matching_map[answer_question_id] = structured_pairs
                     line_index = scan
                     continue
 
@@ -1275,6 +1319,10 @@ def parse_book(
                         correct_choice="",
                         lines=im_lines,
                     )
+                    if im_pairs:
+                        matching_map[answer_question_id] = [
+                            (n, c.upper()) for n, c in im_pairs
+                        ]
                     line_index += 1
                     continue
 
@@ -1462,6 +1510,12 @@ def parse_book(
         question.explanation_image_assets = explanation_image_map.get(
             question.id, []
         )
+        structured = matching_map.get(question.id)
+        if structured:
+            question.matching_items = [
+                MatchingItemDraft(label=label, correct_choice=choice)
+                for label, choice in structured
+            ]
 
     promote_stem_only_questions(questions)
     fill_shared_explanations(questions)
@@ -1480,6 +1534,9 @@ def parse_book(
     )
     reconcile_images_by_caption(questions)
     promote_explanation_to_stem(questions)
+    infer_matching_items_from_explanation(questions)
+    attach_matching_item_images(questions)
+    strip_matching_choice_pollution(questions)
 
     return questions, answers
 
@@ -1674,6 +1731,111 @@ def reconcile_images_by_caption(questions: list[QuestionDraft]) -> None:
                 break
 
 
+_PATIENT_CAPTION_RE = re.compile(
+    r"\b(?:Patient|Patients|Item|Items|Case|Cases)\s*\d+\s*[:.\-]",
+    re.IGNORECASE,
+)
+_NUMBERED_CAPTION_RE = re.compile(r"(?<!\w)\b\d+\s*[:.]")
+
+
+def strip_matching_choice_pollution(questions: list[QuestionDraft]) -> None:
+    """Trim caption-bleed like "Ring down artifact Patient 1: Image of..." from choices.
+
+    The PDF often lays out the answer bank (A/B/C/D) directly above the list of
+    items to match (Patient 1: ..., Patient 2: ...). The column parser glues the
+    first item description onto the last choice. For matching questions, strip
+    any trailing text starting at a Patient/Item/Case marker so choices stay
+    clean and the matching UI can render them as a simple answer bank.
+    """
+    for question in questions:
+        if not question.matching_items or not question.choices:
+            continue
+        for key, value in list(question.choices.items()):
+            if not isinstance(value, str):
+                continue
+            patient_match = _PATIENT_CAPTION_RE.search(value)
+            if patient_match and patient_match.start() > 0:
+                trimmed = value[: patient_match.start()].strip().rstrip(",;:.-")
+                if trimmed:
+                    question.choices[key] = trimmed
+
+
+def attach_matching_item_images(questions: list[QuestionDraft]) -> None:
+    """Pair each matching item with its stem image when counts line up 1:1."""
+    for question in questions:
+        if not question.matching_items:
+            continue
+        stem = [p for p in question.image_assets if isinstance(p, str) and p.strip()]
+        if len(stem) == len(question.matching_items):
+            for item, asset in zip(question.matching_items, stem):
+                item.image_asset = asset
+
+
+_MATCHING_PROMPT_RE = re.compile(
+    r"\b(?:match(?:ing)?|extended matching)\b",
+    re.IGNORECASE,
+)
+_MATCHING_EXPL_PAIR_RE = re.compile(
+    r"(\d+)\s*[-:.]\s*([A-H])\b",
+    re.IGNORECASE,
+)
+_MATCHING_EXPL_PATIENT_RE = re.compile(
+    r"Patient\s+(\d+)\s*[:.\-]\s*([A-H])\b",
+    re.IGNORECASE,
+)
+
+
+def infer_matching_items_from_explanation(questions: list[QuestionDraft]) -> None:
+    """Fallback matching detection: scrape "Answer 1-B, 2-A, 3-D." style pairs.
+
+    Runs only when the prompt clearly says 'match' and no structured pairs
+    were captured from the answer parser. Conservative: needs at least two
+    pairs and each letter must exist in the choice bank.
+    """
+    for question in questions:
+        if question.matching_items:
+            continue
+        prompt = question.prompt or ""
+        if not _MATCHING_PROMPT_RE.search(prompt):
+            continue
+        expl = question.explanation or ""
+        if not expl:
+            continue
+
+        pairs: list[tuple[str, str]] = []
+        seen: set[str] = set()
+        for m in _MATCHING_EXPL_PATIENT_RE.finditer(expl):
+            item = f"Patient {m.group(1)}"
+            choice = m.group(2).upper()
+            if item in seen:
+                continue
+            seen.add(item)
+            pairs.append((item, choice))
+
+        if not pairs:
+            for m in _MATCHING_EXPL_PAIR_RE.finditer(expl):
+                item = m.group(1)
+                choice = m.group(2).upper()
+                if item in seen:
+                    continue
+                seen.add(item)
+                pairs.append((item, choice))
+                if len(pairs) >= 12:
+                    break
+
+        if len(pairs) < 2:
+            continue
+
+        choices = question.choices or {}
+        if not all(choice in choices for _, choice in pairs):
+            continue
+
+        question.matching_items = [
+            MatchingItemDraft(label=label, correct_choice=choice)
+            for label, choice in pairs
+        ]
+
+
 def promote_explanation_to_stem(questions: list[QuestionDraft]) -> None:
     """Move explanation images to stem when the prompt references a figure but no stem images exist.
 
@@ -1835,6 +1997,9 @@ def merge_duplicate_questions(questions: list[QuestionDraft]) -> None:
                 base.explanation_image_assets,
                 other.explanation_image_assets,
             )
+
+            if not base.matching_items and other.matching_items:
+                base.matching_items = list(other.matching_items)
 
             if base.section is None and other.section is not None:
                 base.section = other.section
@@ -2329,6 +2494,15 @@ def build_questions_json(
                 "imageAssets": question.image_assets,
                 "explanationImageAssets": question.explanation_image_assets,
                 "stemGroup": question.stem_group,
+                "questionType": "matching" if question.matching_items else "single",
+                "matchingItems": [
+                    {
+                        "label": item.label,
+                        "correctChoice": item.correct_choice,
+                        "imageAsset": item.image_asset,
+                    }
+                    for item in question.matching_items
+                ],
             }
         )
 
@@ -2346,6 +2520,9 @@ def build_validation_report(questions: list[dict[str, object]]) -> dict[str, obj
         image_assets = question.get("imageAssets", [])
         explanation_image_assets = question.get("explanationImageAssets", [])
         prompt = str(question.get("prompt", ""))
+        question_type = str(question.get("questionType", "single") or "single")
+        matching_items = question.get("matchingItems") or []
+        is_matching = question_type == "matching" and bool(matching_items)
 
         if explanation_image_assets is not None and not isinstance(
             explanation_image_assets, list
@@ -2367,7 +2544,7 @@ def build_validation_report(questions: list[dict[str, object]]) -> dict[str, obj
                 }
             )
 
-        if not correct_choice:
+        if not correct_choice and not is_matching:
             issues.append(
                 {
                     "type": "missing_answer",
@@ -2375,6 +2552,20 @@ def build_validation_report(questions: list[dict[str, object]]) -> dict[str, obj
                     "message": "Question is missing a correct answer letter.",
                 }
             )
+
+        if is_matching:
+            for item in matching_items:
+                if not isinstance(item, dict):
+                    continue
+                if not str(item.get("correctChoice", "")).strip():
+                    issues.append(
+                        {
+                            "type": "matching_item_missing_answer",
+                            "questionId": question_id,
+                            "message": "Matching item is missing a correct choice.",
+                        }
+                    )
+                    break
 
         if not explanation:
             issues.append(

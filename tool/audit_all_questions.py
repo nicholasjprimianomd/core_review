@@ -85,7 +85,11 @@ def main() -> None:
         prompt = (q.get("prompt") or "").strip()
         stem_imgs = q.get("imageAssets") or []
         expl_imgs = q.get("explanationImageAssets") or []
-        is_matching = bool(MATCHING_EXPLANATION_RE.search(expl))
+        matching_items = q.get("matchingItems") or []
+        is_matching = (
+            q.get("questionType") == "matching"
+            and bool(matching_items)
+        ) or bool(MATCHING_EXPLANATION_RE.search(expl))
 
         if not cc and len(choices) >= 2 and not is_matching:
             issues["missing_correct_choice"].append({"id": qid, "label": label, "choices": list(choices.keys())})

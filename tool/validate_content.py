@@ -39,6 +39,9 @@ def build_report(
         image_assets = question.get("imageAssets", [])
         explanation_image_assets = question.get("explanationImageAssets", [])
         prompt = str(question.get("prompt", ""))
+        question_type = str(question.get("questionType", "single") or "single")
+        matching_items = question.get("matchingItems") or []
+        is_matching = question_type == "matching" and bool(matching_items)
 
         if not isinstance(explanation_image_assets, list):
             issues.append(
@@ -85,7 +88,7 @@ def build_report(
                 }
             )
 
-        if not str(question.get("correctChoice", "")).strip():
+        if not str(question.get("correctChoice", "")).strip() and not is_matching:
             issues.append(
                 {
                     "type": "missing_answer",
@@ -93,6 +96,20 @@ def build_report(
                     "message": "Question is missing a correct answer letter.",
                 }
             )
+
+        if is_matching:
+            for item in matching_items:
+                if not isinstance(item, dict):
+                    continue
+                if not str(item.get("correctChoice", "")).strip():
+                    issues.append(
+                        {
+                            "type": "matching_item_missing_answer",
+                            "questionId": question_id,
+                            "message": "Matching item is missing a correct choice.",
+                        }
+                    )
+                    break
 
         if not explanation:
             issues.append(

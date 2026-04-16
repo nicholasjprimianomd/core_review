@@ -380,6 +380,49 @@ class BookSection {
   }
 }
 
+List<MatchingItem> _parseMatchingItems(Object? raw) {
+  if (raw is! List) {
+    return const <MatchingItem>[];
+  }
+  final items = <MatchingItem>[];
+  for (final entry in raw) {
+    if (entry is Map) {
+      items.add(MatchingItem.fromJson(Map<String, dynamic>.from(entry)));
+    }
+  }
+  return List<MatchingItem>.unmodifiable(items);
+}
+
+class MatchingItem {
+  const MatchingItem({
+    required this.label,
+    required this.correctChoice,
+    this.imageAsset = '',
+  });
+
+  final String label;
+  final String correctChoice;
+  final String imageAsset;
+
+  bool get hasImage => imageAsset.isNotEmpty;
+
+  factory MatchingItem.fromJson(Map<String, dynamic> json) {
+    return MatchingItem(
+      label: (json['label'] as String?) ?? '',
+      correctChoice: (json['correctChoice'] as String?) ?? '',
+      imageAsset: (json['imageAsset'] as String?) ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'label': label,
+      'correctChoice': correctChoice,
+      'imageAsset': imageAsset,
+    };
+  }
+}
+
 class BookQuestion {
   const BookQuestion({
     required this.id,
@@ -403,6 +446,8 @@ class BookQuestion {
     this.topicTitle,
     this.sectionId,
     this.sectionTitle,
+    this.questionType = 'single',
+    this.matchingItems = const <MatchingItem>[],
   });
 
   final String id;
@@ -426,6 +471,8 @@ class BookQuestion {
   final List<String> imageAssets;
   final List<String> explanationImageAssets;
   final String stemGroup;
+  final String questionType;
+  final List<MatchingItem> matchingItems;
 
   String get displayNumber => questionNumber;
 
@@ -434,6 +481,12 @@ class BookQuestion {
   bool get hasImages => imageAssets.isNotEmpty;
 
   bool get hasExplanationImages => explanationImageAssets.isNotEmpty;
+
+  /// True when the question is a matching question with usable per-item pairs.
+  bool get isMatching =>
+      questionType == 'matching' &&
+      matchingItems.isNotEmpty &&
+      matchingItems.every((item) => item.correctChoice.isNotEmpty);
 
   /// Stem [imageAssets] first, then [explanationImageAssets] not already listed (deduped).
   List<String> get revealImageAssetsOrdered {
@@ -527,6 +580,8 @@ class BookQuestion {
           (json['explanationImageAssets'] as List<dynamic>? ?? const [])
               .cast<String>(),
       stemGroup: json['stemGroup'] as String,
+      questionType: (json['questionType'] as String?) ?? 'single',
+      matchingItems: _parseMatchingItems(json['matchingItems']),
     );
   }
 }

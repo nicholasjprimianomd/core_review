@@ -10,10 +10,24 @@ from pathlib import Path
 _VALID_LETTER = frozenset("ABCDEFGH")
 
 
+def _is_matching(q: dict) -> bool:
+    qt = str(q.get("questionType", "") or "").strip()
+    items = q.get("matchingItems")
+    if qt != "matching":
+        return False
+    if not isinstance(items, list) or not items:
+        return False
+    for item in items:
+        if isinstance(item, dict) and str(item.get("correctChoice", "")).strip():
+            return True
+    return False
+
+
 def _fix_question(q: dict) -> None:
     cc = str(q.get("correctChoice", "") or "").strip()
     ch = q.get("choices")
     choices: dict = dict(ch) if isinstance(ch, dict) else {}
+    is_matching = _is_matching(q)
 
     if cc and (len(cc) != 1 or cc not in _VALID_LETTER):
         q["correctChoice"] = ""
@@ -39,16 +53,23 @@ def _fix_question(q: dict) -> None:
         q["choices"] = choices
         choices = dict(q["choices"])
 
-    relaxed = (
-        not cc
-        or len(cc) != 1
-        or cc not in _VALID_LETTER
-        or len(choices) < 2
-    )
+    if is_matching:
+        relaxed = False
+    else:
+        relaxed = (
+            not cc
+            or len(cc) != 1
+            or cc not in _VALID_LETTER
+            or len(choices) < 2
+        )
 
     expl = str(q.get("explanation", "") or "").strip()
     if not expl:
-        if relaxed:
+        if is_matching:
+            q["explanation"] = (
+                "Matching question; see the matching item answers rendered in the reveal panel."
+            )
+        elif relaxed:
             q["explanation"] = (
                 "Study context only; the answer key or options were not fully "
                 "extracted from the source PDF."

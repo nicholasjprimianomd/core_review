@@ -384,6 +384,10 @@ class _QuestionScreenState extends State<QuestionScreen> {
         _controller.currentQuestionProgress != null) {
       return;
     }
+    if (question.isMatching) {
+      // Matching questions need a per-item selector; skip digit shortcut.
+      return;
+    }
     final entries = question.choices.entries.toList(growable: false);
     if (digitOneToNine < 1 || digitOneToNine > entries.length) {
       return;
@@ -395,6 +399,9 @@ class _QuestionScreenState extends State<QuestionScreen> {
     if (!_quizKeyboardShortcutsEnabled ||
         widget.readOnlyAfterExam ||
         _controller.currentQuestionProgress != null) {
+      return;
+    }
+    if (question.isMatching) {
       return;
     }
     if (!question.choices.containsKey(choiceKey)) {
@@ -825,7 +832,9 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                     ],
                                     const SizedBox(height: 20),
                                     Text(
-                                      'Choose your answer',
+                                      question.isMatching
+                                          ? 'Match each item to an answer'
+                                          : 'Choose your answer',
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleMedium
@@ -854,6 +863,37 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                           );
                                         },
                                       ),
+                                    ] else if (question.isMatching) ...[
+                                      _MatchingAnswerBank(
+                                        choices: question.choices,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      for (final item
+                                          in question.matchingItems)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: 12,
+                                          ),
+                                          child: _MatchingItemRow(
+                                            question: question,
+                                            item: item,
+                                            selectedChoice: _controller
+                                                .currentMatchingSelections[
+                                                    item.label] ??
+                                                '',
+                                            revealed: explanationsVisible,
+                                            progress: questionProgress,
+                                            enabled:
+                                                !widget.readOnlyAfterExam &&
+                                                    questionProgress == null,
+                                            onSelect: (key) =>
+                                                _controller
+                                                    .selectMatchingChoice(
+                                                      item.label,
+                                                      key,
+                                                    ),
+                                          ),
+                                        ),
                                     ] else
                                       for (final entry
                                           in question.choices.entries)
@@ -1920,6 +1960,257 @@ class _ChoiceTapDetector extends StatefulWidget {
 
   @override
   State<_ChoiceTapDetector> createState() => _ChoiceTapDetectorState();
+}
+
+class _MatchingAnswerBank extends StatelessWidget {
+  const _MatchingAnswerBank({required this.choices});
+
+  final Map<String, String> choices;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Answer choices',
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final entry in choices.entries)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: RichText(
+                text: TextSpan(
+                  style: theme.textTheme.bodyMedium,
+                  children: [
+                    TextSpan(
+                      text: '${entry.key}. ',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    TextSpan(text: entry.value),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MatchingItemRow extends StatelessWidget {
+  const _MatchingItemRow({
+    required this.question,
+    required this.item,
+    required this.selectedChoice,
+    required this.revealed,
+    required this.progress,
+    required this.enabled,
+    required this.onSelect,
+  });
+
+  final BookQuestion question;
+  final MatchingItem item;
+  final String selectedChoice;
+  final bool revealed;
+  final QuestionProgress? progress;
+  final bool enabled;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final submittedChoice =
+        progress?.itemSelections?[item.label] ?? selectedChoice;
+    final bool isCorrect = revealed &&
+        submittedChoice.isNotEmpty &&
+        submittedChoice == item.correctChoice;
+    final bool isIncorrect = revealed &&
+        submittedChoice.isNotEmpty &&
+        submittedChoice != item.correctChoice;
+
+    Color? borderColor;
+    Color? background;
+    if (isCorrect) {
+      borderColor = Colors.green;
+      background = Colors.green.withValues(alpha: 0.08);
+    } else if (isIncorrect) {
+      borderColor = Colors.red;
+      background = Colors.red.withValues(alpha: 0.08);
+    } else if (submittedChoice.isNotEmpty) {
+      borderColor = theme.colorScheme.primary;
+      background = theme.colorScheme.primary.withValues(alpha: 0.06);
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: borderColor ?? theme.dividerColor,
+          width: borderColor == null ? 1 : 2,
+        ),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  item.label,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSecondaryContainer,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (revealed)
+                Expanded(
+                  child: Text(
+                    'Correct: ${item.correctChoice}. '
+                    '${question.choices[item.correctChoice] ?? ''}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.green.shade700,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: Text(
+                    submittedChoice.isEmpty
+                        ? 'Select an answer'
+                        : 'Your answer: $submittedChoice',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+            ],
+          ),
+          if (item.hasImage) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                item.imageAsset,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) =>
+                    const SizedBox.shrink(),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final entry in question.choices.entries)
+                _MatchingChoiceButton(
+                  label: entry.key,
+                  selected: submittedChoice == entry.key,
+                  isCorrectAnswer: revealed && entry.key == item.correctChoice,
+                  isIncorrectSelection:
+                      revealed &&
+                          submittedChoice == entry.key &&
+                          submittedChoice != item.correctChoice,
+                  enabled: enabled,
+                  onTap: enabled ? () => onSelect(entry.key) : null,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MatchingChoiceButton extends StatelessWidget {
+  const _MatchingChoiceButton({
+    required this.label,
+    required this.selected,
+    required this.isCorrectAnswer,
+    required this.isIncorrectSelection,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final bool isCorrectAnswer;
+  final bool isIncorrectSelection;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Color background;
+    Color foreground;
+    Color border;
+    if (isCorrectAnswer) {
+      background = Colors.green.withValues(alpha: 0.16);
+      foreground = Colors.green.shade800;
+      border = Colors.green;
+    } else if (isIncorrectSelection) {
+      background = Colors.red.withValues(alpha: 0.16);
+      foreground = Colors.red.shade800;
+      border = Colors.red;
+    } else if (selected) {
+      background = theme.colorScheme.primary.withValues(alpha: 0.14);
+      foreground = theme.colorScheme.primary;
+      border = theme.colorScheme.primary;
+    } else {
+      background = theme.colorScheme.surface;
+      foreground = theme.colorScheme.onSurface;
+      border = theme.dividerColor;
+    }
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: background,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: border,
+            width: selected || isCorrectAnswer || isIncorrectSelection ? 2 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: foreground,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ChoiceTapDetectorState extends State<_ChoiceTapDetector> {

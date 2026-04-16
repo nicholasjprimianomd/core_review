@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-11T02:24:48.985310+00:00",
+  "generatedAt": "2026-04-16T16:01:48.299634+00:00",
   "files": {
     "tool/extract_pdf_to_json.py": {
-      "sha256": "73e54c8c435d3e870cb5e39d657d0dc75b2d768f0f6eb300b98de5d567b28a11"
+      "sha256": "3f500e98899f041e901d1738f389704c5eb4cc7db82ba80ea48a9c21ad083833"
     },
     "tool/safe_merge_questions.py": {
-      "sha256": "29bc25899d87917d9b37ec60154d6b0388fdd91287c1f10e3ad0bed6b467e20b"
+      "sha256": "268dc0f113b58bc52742abfb548aedf8c26691231d4895f557abbc279d67aa46"
     },
     "tool/reextract_all_books.py": {
       "sha256": "ced1c1b9535278ebae3f35118e3c99e967b4767acad5e6d24892fa81f1be010e"
@@ -15,7 +15,7 @@
       "sha256": "8a2529ccf491bbff246255535c71bd0072b50b1a5771e8a19e67cbe7f40282d2"
     },
     "tool/apply_content_validation_fixes.py": {
-      "sha256": "c01bb14fc1caa3f368d37e3273912d13fd745ba41d0b1b9cfbc8c0a0e20ac898"
+      "sha256": "a30458cd796483e37e6a5221bcdd7107140bacffefd8be9e5fefce768045ed35"
     },
     "tool/recover_choices_from_explanation.py": {
       "sha256": "9627493a0992f35accc79747eb6095c9de58958d24bcbdca7ce25899059ac41a"
@@ -24,10 +24,10 @@
       "sha256": "9d46e40521536edf15e154e95138f61b292a9a6f6046fa8777d4f6b763e4aeef"
     },
     "tool/recover_relaxed_answers.py": {
-      "sha256": "2aea784141e56ac62e9190b0923f05077afb838680833e6e23c792a3845d5572"
+      "sha256": "e97418d4ddede1f142a43012fa96bc74275d9ca4324b2b9c4b11e5d7cab8bf9b"
     },
     "tool/validate_content.py": {
-      "sha256": "fa9744ce59a8ce1afacfbbf8fc25c5e841eaa0bda147e39c6a1292ae19a36854"
+      "sha256": "2c7521d8ed86735b027df85b922d6d3c98e23234e55eb7ecd00f7472351850ee"
     },
     "assets/data/books.json": {
       "sha256": "616bf84426391d376a7043b357980611a6fd4c484bc7fb41cae3142a57102650"

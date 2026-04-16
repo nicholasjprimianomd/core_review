@@ -9,12 +9,19 @@ class QuestionAssistantSheet extends StatefulWidget {
     required this.question,
     required this.allowAnswerReveal,
     required this.assistantRepository,
+    this.autoRunReferenceSearch = false,
     super.key,
   });
 
   final BookQuestion question;
   final bool allowAnswerReveal;
   final AssistantRepository assistantRepository;
+
+  /// When true, immediately kick off the Crack the Core / War Machine
+  /// reference page search as soon as the sheet is built. Used when the
+  /// sheet is launched from a per-question "Find CTC / War Machine pages"
+  /// shortcut so the user lands on a loading state pre-wired to that task.
+  final bool autoRunReferenceSearch;
 
   @override
   State<QuestionAssistantSheet> createState() => _QuestionAssistantSheetState();
@@ -33,6 +40,19 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
   bool _expandReferenceMatches = false;
 
   static const int _referenceMatchTeaserCount = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoRunReferenceSearch) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _searchReferenceBooks();
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -340,25 +360,6 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: Tooltip(
-              message:
-                  'CTC 1, CTC 2, and War Machine only. Uses topic + keyword recall, then a model pass to rank the best PDF pages when OPENAI_API_KEY is set on the server.',
-              child: OutlinedButton.icon(
-                onPressed: isBusy ? null : _searchReferenceBooks,
-                icon: _isSearchingRefBooks
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.menu_book_outlined),
-                label: const Text('Find CTC / War Machine pages'),
-              ),
-            ),
-          ),
           const SizedBox(height: 24),
           TextField(
             controller: _customPromptController,
@@ -444,6 +445,33 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                         child: Text(_customReply!.answer),
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (_isSearchingRefBooks && _referenceResult == null) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Crack the Core / War Machine',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Searching CTC 1, CTC 2, and War Machine...',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                 ],

@@ -800,6 +800,17 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                               'Ask AI About This Question',
                                             ),
                                           ),
+                                          OutlinedButton.icon(
+                                            onPressed: () => _openAssistant(
+                                              autoRunReferenceSearch: true,
+                                            ),
+                                            icon: const Icon(
+                                              Icons.menu_book_outlined,
+                                            ),
+                                            label: const Text(
+                                              'Find CTC / War Machine pages',
+                                            ),
+                                          ),
                                           if (!showWideNavigator)
                                             OutlinedButton.icon(
                                               onPressed: _openQuestionNavigator,
@@ -1104,13 +1115,14 @@ class _QuestionScreenState extends State<QuestionScreen> {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  Future<void> _openAssistant() async {
+  Future<void> _openAssistant({bool autoRunReferenceSearch = false}) async {
     final question = _controller.currentQuestion;
     final screenWidth = MediaQuery.sizeOf(context).width;
     final sheet = QuestionAssistantSheet(
       question: question,
       allowAnswerReveal: _controller.explanationsVisibleForCurrent,
       assistantRepository: _assistantRepository,
+      autoRunReferenceSearch: autoRunReferenceSearch,
     );
 
     if (screenWidth >= 780) {

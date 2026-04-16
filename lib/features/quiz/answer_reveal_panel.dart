@@ -156,7 +156,7 @@ class _MatchingAnswerRow extends StatelessWidget {
     final palette = isCorrect ? Colors.green : Colors.red;
     final submittedText = submittedChoice.isEmpty
         ? 'No answer'
-        : '${question.choices[submittedChoice] ?? ''}';
+        : (question.choices[submittedChoice] ?? '');
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

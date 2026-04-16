@@ -6,11 +6,22 @@ class AuthScreen extends StatefulWidget {
   const AuthScreen({
     required this.authRepository,
     required this.currentUser,
+    this.onAuthChanged,
+    this.isGate = false,
     super.key,
   });
 
   final AuthRepository authRepository;
   final AuthUser? currentUser;
+
+  /// When provided, auth state changes (sign in, sign up, sign out) invoke
+  /// this callback instead of popping the route. Use when AuthScreen is the
+  /// root page of the navigator (e.g. as an access gate).
+  final Future<void> Function()? onAuthChanged;
+
+  /// When true the screen is used as an access gate and the leading back
+  /// button / close affordance is suppressed.
+  final bool isGate;
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -33,11 +44,26 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
+  Future<void> _finishAuthChange() async {
+    final callback = widget.onAuthChanged;
+    if (callback != null) {
+      await callback();
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    Navigator.of(context).pop(true);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!widget.authRepository.isConfigured) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Sign in')),
+        appBar: AppBar(
+          title: const Text('Sign in'),
+          automaticallyImplyLeading: !widget.isGate,
+        ),
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(24),
@@ -54,7 +80,10 @@ class _AuthScreenState extends State<AuthScreen> {
     final currentUser = widget.currentUser;
     if (currentUser != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Account')),
+        appBar: AppBar(
+          title: const Text('Account'),
+          automaticallyImplyLeading: !widget.isGate,
+        ),
         body: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -83,7 +112,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           if (!context.mounted) {
                             return;
                           }
-                          Navigator.of(context).pop(true);
+                          await _finishAuthChange();
                         } catch (error) {
                           if (!mounted) {
                             return;
@@ -114,6 +143,7 @@ class _AuthScreenState extends State<AuthScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isSignInMode ? 'Sign in' : 'Create account'),
+        automaticallyImplyLeading: !widget.isGate,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -124,12 +154,25 @@ class _AuthScreenState extends State<AuthScreen> {
             children: [
               Text(
                 _isSignInMode
-                    ? 'Sign in to sync your progress'
-                    : 'Create an account to sync your progress',
+                    ? (widget.isGate
+                        ? 'Sign in to access the question bank'
+                        : 'Sign in to sync your progress')
+                    : (widget.isGate
+                        ? 'Create an account to access the question bank'
+                        : 'Create an account to sync your progress'),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
               ),
+              if (widget.isGate) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Core Review now requires an account. Sign in or create one to continue.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
               const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
@@ -251,7 +294,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) {
         return;
       }
-      Navigator.of(context).pop(true);
+      await _finishAuthChange();
     } catch (error) {
       if (!mounted) {
         return;

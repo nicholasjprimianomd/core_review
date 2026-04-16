@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../models/book_models.dart';
 import 'assistant_repository.dart';
@@ -24,15 +23,12 @@ class QuestionAssistantSheet extends StatefulWidget {
 class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
   final TextEditingController _customPromptController = TextEditingController();
 
-  bool _isExplaining = false;
   bool _isExplainingAllChoices = false;
   bool _isAskingCustom = false;
   bool _isSearchingRefBooks = false;
   String? _errorMessage;
-  AssistantReply? _explainReply;
   AssistantReply? _allChoicesReply;
   AssistantReply? _customReply;
-  List<AssistantWebImage> _webImages = const <AssistantWebImage>[];
   ReferenceBooksSearchResult? _referenceResult;
   bool _expandReferenceMatches = false;
 
@@ -42,17 +38,6 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
   void dispose() {
     _customPromptController.dispose();
     super.dispose();
-  }
-
-  String _defaultExplainPrompt() {
-    if (widget.allowAnswerReveal) {
-      return 'Explain this question clearly for board review. Summarize the key teaching point, '
-          'why the correct answer is right, and provide 2–4 short search phrases for representative '
-          'radiology images (modality and pathology as appropriate).';
-    }
-    return 'Explain this question in study mode without naming or ranking the answer choices. '
-        'Focus on imaging findings, pathophysiology, and differential clues. Provide 2–4 short '
-        'search phrases for representative radiology images.';
   }
 
   String _explainAllChoicesCorePrompt() {
@@ -105,44 +90,6 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
       if (mounted) {
         setState(() {
           _isExplainingAllChoices = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _explainWithImages() async {
-    setState(() {
-      _isExplaining = true;
-      _errorMessage = null;
-      _explainReply = null;
-      _webImages = const <AssistantWebImage>[];
-    });
-
-    try {
-      final reply = await widget.assistantRepository.askQuestion(
-        question: widget.question,
-        userPrompt: _defaultExplainPrompt(),
-        allowAnswerReveal: widget.allowAnswerReveal,
-        includeWebImages: true,
-      );
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _explainReply = reply;
-        _webImages = reply.webImages;
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _errorMessage = error.toString().replaceFirst('Bad state: ', '');
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isExplaining = false;
         });
       }
     }
@@ -343,8 +290,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
   @override
   Widget build(BuildContext context) {
     final viewInsets = MediaQuery.of(context).viewInsets;
-    final isBusy = _isExplaining ||
-        _isExplainingAllChoices ||
+    final isBusy = _isExplainingAllChoices ||
         _isAskingCustom ||
         _isSearchingRefBooks;
 
@@ -377,26 +323,11 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: isBusy ? null : _explainWithImages,
-              icon: _isExplaining
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.lightbulb_outline),
-              label: const Text('Explain question + images'),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
             child: Tooltip(
               message:
                   'Walks through every answer choice with ABR Core Exam-style reasoning. '
                   'Uses the same context rules as the rest of the assistant (no spoilers in study mode).',
-              child: OutlinedButton.icon(
+              child: FilledButton.icon(
                 onPressed: isBusy ? null : _explainAllChoicesCore,
                 icon: _isExplainingAllChoices
                     ? const SizedBox(
@@ -405,7 +336,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.checklist_outlined),
-                label: const Text('Explain every answer (Core exam)'),
+                label: const Text('Explain every answer'),
               ),
             ),
           ),
@@ -436,7 +367,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
             textInputAction: TextInputAction.send,
             decoration: InputDecoration(
               isDense: true,
-              labelText: 'Your question',
+              labelText: 'Ask about this question',
               floatingLabelBehavior: FloatingLabelBehavior.always,
               alignLabelWithHint: false,
               border: const OutlineInputBorder(),
@@ -477,7 +408,7 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Every answer (Core exam)',
+                      'Every answer',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -556,23 +487,6 @@ class _QuestionAssistantSheetState extends State<QuestionAssistantSheet> {
                     ),
                   ..._buildVisibleReferenceMatchCards(context),
                   const SizedBox(height: 8),
-                ],
-                if (_explainReply != null) ...[
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: SelectionArea(
-                        child: Text(_explainReply!.answer),
-                      ),
-                    ),
-                  ),
-                ],
-                if (_webImages.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  for (final image in _webImages) ...[
-                    _WebImageCard(image: image),
-                    const SizedBox(height: 12),
-                  ],
                 ],
               ],
             ),
@@ -795,176 +709,3 @@ class _ReferenceSearchMetaCard extends StatelessWidget {
   }
 }
 
-class _WebImageCard extends StatelessWidget {
-  const _WebImageCard({required this.image});
-
-  final AssistantWebImage image;
-
-  @override
-  Widget build(BuildContext context) {
-    final previewUrl = image.thumbnailUrl.isNotEmpty
-        ? image.thumbnailUrl
-        : image.imageUrl;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (image.title.isNotEmpty)
-              Text(
-                image.title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            if (image.title.isNotEmpty) const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (image.choiceKey.isNotEmpty)
-                  Chip(
-                    label: Text(
-                      image.choiceTextSnippet.isNotEmpty
-                          ? 'Option ${image.choiceKey}: ${image.choiceTextSnippet}'
-                          : 'Option ${image.choiceKey}',
-                    ),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                if (image.query.isNotEmpty)
-                  Chip(
-                    label: Text(image.query),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                if (image.sourceLabel.isNotEmpty)
-                  Chip(
-                    label: Text(image.sourceLabel),
-                    visualDensity: VisualDensity.compact,
-                  ),
-              ],
-            ),
-            if (previewUrl.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
-                  child: InkWell(
-                    onTap: () => _openFullscreenImage(context),
-                    borderRadius: BorderRadius.circular(12),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: _NetworkImage(
-                        imageUrl: previewUrl,
-                        height: 220,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            if (image.caption.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              SelectionArea(child: Text(image.caption)),
-            ],
-            if (image.sourceUrl.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text(
-                    'Source',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      image.sourceUrl,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Clipboard.setData(
-                      ClipboardData(text: image.sourceUrl),
-                    ),
-                    tooltip: 'Copy source URL',
-                    icon: const Icon(Icons.link),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _openFullscreenImage(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return Dialog.fullscreen(
-          child: Scaffold(
-            appBar: AppBar(
-              title: Text(
-                image.title.isEmpty ? 'Image' : image.title,
-              ),
-            ),
-            body: InteractiveViewer(
-              minScale: 0.75,
-              maxScale: 5,
-              child: Center(
-                child: _NetworkImage(
-                  imageUrl: image.imageUrl.isNotEmpty
-                      ? image.imageUrl
-                      : image.thumbnailUrl,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _NetworkImage extends StatelessWidget {
-  const _NetworkImage({
-    required this.imageUrl,
-    this.height,
-    this.fit = BoxFit.contain,
-  });
-
-  final String imageUrl;
-  final double? height;
-  final BoxFit fit;
-
-  @override
-  Widget build(BuildContext context) {
-    if (imageUrl.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Image.network(
-      imageUrl,
-      height: height,
-      width: double.infinity,
-      fit: fit,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          height: height ?? 220,
-          width: double.infinity,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          alignment: Alignment.center,
-          child: const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text('Unable to load this web image.'),
-          ),
-        );
-      },
-    );
-  }
-}

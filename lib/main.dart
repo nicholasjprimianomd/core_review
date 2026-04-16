@@ -708,24 +708,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
       ),
       themeMode: _themeMode,
       home: _content != null
-          ? BookLibraryScreen(
-              content: _content!,
-              progressListenable: _progressNotifier,
-              diagnosticsListenable: _progressRepository.diagnostics,
-              studyDataListenable: _studyDataNotifier,
-              themeMode: _themeMode,
-              currentUserEmail: _currentUser?.email,
-              onToggleTheme: _toggleThemeMode,
-              onOpenAuth: _openAuth,
-              onOpenProgress: _openProgress,
-              onOpenAnalytics: _openAnalytics,
-              onOpenSearch: _openSearch,
-              onOpenBook: _openBook,
-              onStartStudySet: _startStudySet,
-              onOpenCustomExam: _openCustomExamSetup,
-              onOpenExamHistory: _openExamHistory,
-              onOpenFontSettings: _openFontSettings,
-            )
+          ? _buildRootScreen()
           : FutureBuilder<void>(
               future: _bootstrapFuture,
               builder: (context, snapshot) {
@@ -749,26 +732,38 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
                   );
                 }
 
-                return BookLibraryScreen(
-                  content: _content!,
-                  progressListenable: _progressNotifier,
-                  diagnosticsListenable: _progressRepository.diagnostics,
-                  studyDataListenable: _studyDataNotifier,
-                  themeMode: _themeMode,
-                  currentUserEmail: _currentUser?.email,
-                  onToggleTheme: _toggleThemeMode,
-                  onOpenAuth: _openAuth,
-                  onOpenProgress: _openProgress,
-                  onOpenAnalytics: _openAnalytics,
-                  onOpenSearch: _openSearch,
-                  onOpenBook: _openBook,
-                  onStartStudySet: _startStudySet,
-                  onOpenCustomExam: _openCustomExamSetup,
-                  onOpenExamHistory: _openExamHistory,
-                  onOpenFontSettings: _openFontSettings,
-                );
+                return _buildRootScreen();
               },
             ),
+    );
+  }
+
+  Widget _buildRootScreen() {
+    if (_currentUser == null && _authRepository.isConfigured) {
+      return AuthScreen(
+        authRepository: _authRepository,
+        currentUser: null,
+        isGate: true,
+        onAuthChanged: _refreshAuthAndProgress,
+      );
+    }
+    return BookLibraryScreen(
+      content: _content!,
+      progressListenable: _progressNotifier,
+      diagnosticsListenable: _progressRepository.diagnostics,
+      studyDataListenable: _studyDataNotifier,
+      themeMode: _themeMode,
+      currentUserEmail: _currentUser?.email,
+      onToggleTheme: _toggleThemeMode,
+      onOpenAuth: _openAuth,
+      onOpenProgress: _openProgress,
+      onOpenAnalytics: _openAnalytics,
+      onOpenSearch: _openSearch,
+      onOpenBook: _openBook,
+      onStartStudySet: _startStudySet,
+      onOpenCustomExam: _openCustomExamSetup,
+      onOpenExamHistory: _openExamHistory,
+      onOpenFontSettings: _openFontSettings,
     );
   }
 }

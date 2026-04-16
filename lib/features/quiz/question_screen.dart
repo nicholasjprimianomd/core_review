@@ -1115,12 +1115,12 @@ class _QuestionScreenState extends State<QuestionScreen> {
 
     if (screenWidth >= 780) {
       final defaultPanelWidth = screenWidth >= 1500
-          ? 560.0
-          : (screenWidth * 0.42).clamp(360.0, 560.0).toDouble();
+          ? 820.0
+          : (screenWidth * 0.58).clamp(460.0, 820.0).toDouble();
       final minPanelWidth = 320.0;
-      final maxPanelWidth = (screenWidth * 0.78).clamp(
+      final maxPanelWidth = (screenWidth * 0.85).clamp(
         minPanelWidth,
-        900.0,
+        1200.0,
       ).toDouble();
       final panelWidth = (_assistantPanelWidth ?? defaultPanelWidth)
           .clamp(minPanelWidth, maxPanelWidth)

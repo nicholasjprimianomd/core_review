@@ -112,6 +112,7 @@ BookQuestion _withBookId(BookQuestion q, String bookId) {
     references: q.references,
     imageAssets: q.imageAssets,
     stemGroup: q.stemGroup,
+    examChain: q.examChain,
   );
 }
 
@@ -286,5 +287,131 @@ void main() {
     expect(out.length, 2);
     expect(out[0].id, 'm-1-a');
     expect(out[1].id, 'm-1-b');
+  });
+
+  test(
+    'examChain keeps dependent questions with different stemGroups together',
+    () {
+    BookQuestion chained(String id, int n, String chain) {
+      return BookQuestion(
+        id: id,
+        bookId: 'b1',
+        bookTitle: 'B',
+        chapterId: 'c1',
+        chapterNumber: 1,
+        chapterTitle: 'Ch',
+        questionNumber: '$n',
+        order: n,
+        sortOrder: n,
+        prompt: 'p$n',
+        choices: const {'A': 'a', 'B': 'b'},
+        correctChoice: 'A',
+        explanation: '',
+        references: const [],
+        imageAssets: const [],
+        stemGroup: '$n',
+        examChain: chain,
+      );
+    }
+
+    final qDistractor1 = _withBookId(_q1a, 'b1');
+    final qDistractor2 = _withBookId(_q2, 'b1');
+    final qChainA = chained('case-14', 14, 'ch1-seq-14');
+    final qChainB = chained('case-15', 15, 'ch1-seq-14');
+    final qChainC = chained('case-16', 16, 'ch1-seq-14');
+    final qChainD = chained('case-17', 17, 'ch1-seq-14');
+
+    final questions = [
+      qDistractor1,
+      _withBookId(_q1b, 'b1'),
+      qDistractor2,
+      qChainA,
+      qChainB,
+      qChainC,
+      qChainD,
+    ];
+    final content = _content(questions);
+    final selection = ExamScopeSelection(
+      bookIds: {'b1'},
+      chapterIds: {},
+      sectionIds: {},
+    );
+
+    for (var seed = 0; seed < 25; seed++) {
+      final out = buildExamQuestionList(
+        content: content,
+        selection: selection,
+        completionFilter: CompletionFilter.allPool,
+        progress: StudyProgress.empty,
+        questionCount: 100,
+        random: Random(seed),
+      );
+      final chainIds = ['case-14', 'case-15', 'case-16', 'case-17'];
+      final positions = chainIds
+          .map((id) => out.indexWhere((q) => q.id == id))
+          .toList();
+      expect(positions.every((i) => i >= 0), isTrue,
+          reason: 'chain questions must all be present (seed=$seed)');
+      final sorted = [...positions]..sort();
+      for (var i = 1; i < sorted.length; i++) {
+        expect(sorted[i], sorted[i - 1] + 1,
+            reason: 'chain questions must be contiguous (seed=$seed)');
+      }
+      expect(
+        out.sublist(sorted.first, sorted.last + 1).map((q) => q.id).toList(),
+        chainIds,
+        reason: 'chain order must follow sortOrder (seed=$seed)',
+      );
+    }
+  });
+
+  test('examChain block is atomic under cap: all or none', () {
+    BookQuestion chained(String id, int n) {
+      return BookQuestion(
+        id: id,
+        bookId: 'b1',
+        bookTitle: 'B',
+        chapterId: 'c1',
+        chapterNumber: 1,
+        chapterTitle: 'Ch',
+        questionNumber: '$n',
+        order: n,
+        sortOrder: n,
+        prompt: 'p$n',
+        choices: const {'A': 'a', 'B': 'b'},
+        correctChoice: 'A',
+        explanation: '',
+        references: const [],
+        imageAssets: const [],
+        stemGroup: '$n',
+        examChain: 'chain',
+      );
+    }
+
+    final questions = [
+      chained('c1', 1),
+      chained('c2', 2),
+      chained('c3', 3),
+      chained('c4', 4),
+      _withBookId(_q2, 'b1'),
+    ];
+    final content = _content(questions);
+    final selection = ExamScopeSelection(
+      bookIds: {'b1'},
+      chapterIds: {},
+      sectionIds: {},
+    );
+    final out = buildExamQuestionList(
+      content: content,
+      selection: selection,
+      completionFilter: CompletionFilter.allPool,
+      progress: StudyProgress.empty,
+      questionCount: 3,
+      random: Random(0),
+    );
+    final chainInOut =
+        out.where((q) => q.id.startsWith('c')).map((q) => q.id).toList();
+    expect(chainInOut.isEmpty || chainInOut.length == 4, isTrue,
+        reason: 'chain is all-or-nothing; got $chainInOut');
   });
 }

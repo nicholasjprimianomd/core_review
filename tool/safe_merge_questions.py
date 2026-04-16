@@ -74,6 +74,14 @@ def merge_extracted_question(
     if not extracted.get("references") and prior.get("references"):
         out["references"] = list(prior["references"])
 
+    # `examChain` is curated post-extract (see tool/assign_exam_chains.py); the
+    # PDF extractor does not emit it. Preserve the prior value so re-extracts
+    # don't silently drop chain assignments.
+    ext_chain = str(extracted.get("examChain") or "").strip()
+    prior_chain = str(prior.get("examChain") or "").strip()
+    if not ext_chain and prior_chain:
+        out["examChain"] = prior["examChain"]
+
     if not str(extracted.get("prompt", "") or "").strip() and str(
         prior.get("prompt", "") or ""
     ).strip():

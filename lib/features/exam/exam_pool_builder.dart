@@ -62,11 +62,32 @@ bool _passesCompletionFilter(
   }
 }
 
-/// Full stem groups for [content].
+/// Grouping key used when building a custom exam pool.
+///
+/// When [BookQuestion.examChain] is set, questions in the same chain (within
+/// the same book/chapter/section) are kept contiguous and shuffled as one
+/// block, even if they have different [BookQuestion.stemGroup] values. This is
+/// used for multi-question clinical cases that reference earlier questions by
+/// number (e.g. "the patient in Question 14").
+///
+/// Otherwise it falls back to [multipartStemKey], preserving existing behavior
+/// for true multipart rows (e.g. 7a/7b) without affecting the quiz UI's image
+/// merging and multipart navigation, which continue to key off
+/// [multipartStemKey].
+String examBlockKey(BookQuestion question) {
+  final chain = question.examChain?.trim();
+  if (chain != null && chain.isNotEmpty) {
+    final sec = question.sectionId ?? '';
+    return '${question.bookId}::${question.chapterId}::$sec::chain:$chain';
+  }
+  return multipartStemKey(question);
+}
+
+/// Full exam blocks for [content], grouped by [examBlockKey].
 Map<String, List<BookQuestion>> fullStemsByKey(BookContent content) {
   final map = <String, List<BookQuestion>>{};
   for (final q in content.questions) {
-    map.putIfAbsent(multipartStemKey(q), () => []).add(q);
+    map.putIfAbsent(examBlockKey(q), () => []).add(q);
   }
   for (final list in map.values) {
     list.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
@@ -74,7 +95,7 @@ Map<String, List<BookQuestion>> fullStemsByKey(BookContent content) {
   return map;
 }
 
-/// Stem groups where every part lies in scope and passes [completionFilter].
+/// Exam blocks where every part lies in scope and passes [completionFilter].
 List<List<BookQuestion>> eligibleStemGroups({
   required BookContent content,
   required Set<String> inScopeIds,

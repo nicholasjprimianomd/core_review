@@ -448,6 +448,7 @@ class BookQuestion {
     this.sectionTitle,
     this.questionType = 'single',
     this.matchingItems = const <MatchingItem>[],
+    this.examChain,
   });
 
   final String id;
@@ -473,6 +474,12 @@ class BookQuestion {
   final String stemGroup;
   final String questionType;
   final List<MatchingItem> matchingItems;
+
+  /// Optional identifier grouping questions that depend on earlier questions
+  /// (e.g. a multi-question clinical case spanning different [questionNumber]s).
+  /// Used by the custom exam builder to keep dependent questions contiguous.
+  /// Null/empty when the question is standalone.
+  final String? examChain;
 
   String get displayNumber => questionNumber;
 
@@ -582,6 +589,9 @@ class BookQuestion {
       stemGroup: json['stemGroup'] as String,
       questionType: (json['questionType'] as String?) ?? 'single',
       matchingItems: _parseMatchingItems(json['matchingItems']),
+      examChain: (json['examChain'] as String?)?.trim().isNotEmpty == true
+          ? (json['examChain'] as String).trim()
+          : null,
     );
   }
 }

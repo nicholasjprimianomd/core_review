@@ -235,7 +235,6 @@ class AuthRepository {
     final response = await _requireClient().auth.signUp(
       email: email,
       password: password,
-      emailRedirectTo: AppConfig.resolveAuthRedirectUrl(),
     );
     final user = _mapUser(response.user ?? response.session?.user);
     if (user == null) {
@@ -243,11 +242,14 @@ class AuthRepository {
     }
     final session = response.session;
     if (session == null) {
+      // Should not happen now that email confirmation is disabled on the
+      // project. If we ever hit this branch, the dashboard toggle was
+      // re-enabled; surface that rather than pretending an email was sent.
       return SignUpResult(
         user: user,
         requiresEmailConfirmation: true,
         message:
-            'Account created. Check your email, confirm the account, then sign in.',
+            'Account created but no session was returned. Email confirmation may be enabled on the server; contact support.',
       );
     }
     _currentUser = user;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase/supabase.dart' show AuthApiException, AuthException;
 
 import '../../repositories/auth_repository.dart';
 
@@ -119,7 +120,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           }
                           setState(() {
                             _isSubmitting = false;
-                            _errorMessage = error.toString();
+                            _errorMessage = _friendlyAuthError(error);
                             _infoMessage = null;
                           });
                         }
@@ -301,9 +302,48 @@ class _AuthScreenState extends State<AuthScreen> {
       }
       setState(() {
         _isSubmitting = false;
-        _errorMessage = error.toString();
+        _errorMessage = _friendlyAuthError(error);
         _infoMessage = null;
       });
     }
+  }
+
+  // Maps common Supabase auth failures to plain-English messages. Anything
+  // unrecognized falls back to a generic "try again" so users never see raw
+  // `AuthApiException(...)` text.
+  String _friendlyAuthError(Object error) {
+    if (error is AuthApiException) {
+      final code = error.code;
+      final status = error.statusCode;
+      if (code == 'over_email_send_rate_limit' || status == '429') {
+        return 'Too many sign-up attempts right now. Please try again in a few minutes.';
+      }
+      if (code == 'user_already_exists' ||
+          code == 'user_already_registered' ||
+          code == 'email_exists') {
+        return 'An account with this email already exists. Try signing in instead.';
+      }
+      if (code == 'invalid_credentials' ||
+          code == 'invalid_grant' ||
+          code == 'invalid_login_credentials') {
+        return 'Incorrect email or password.';
+      }
+      if (code == 'email_not_confirmed') {
+        return 'This account was created before email confirmation was turned off. Please contact support to reset it.';
+      }
+      if (code == 'weak_password') {
+        return 'That password is too weak. Please choose a longer one.';
+      }
+      if (code == 'signup_disabled') {
+        return 'New sign-ups are currently disabled. Please contact support.';
+      }
+    }
+    if (error is AuthException) {
+      final message = error.message.trim();
+      if (message.isNotEmpty) {
+        return message;
+      }
+    }
+    return 'Something went wrong. Please try again.';
   }
 }

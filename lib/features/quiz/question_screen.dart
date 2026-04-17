@@ -164,6 +164,54 @@ class _QuestionScreenState extends State<QuestionScreen> {
         }
       });
     }
+    FocusManager.instance.addListener(_onPrimaryFocusChanged);
+  }
+
+  /// Flutter only dispatches [Shortcuts] when some descendant of the
+  /// [Shortcuts] widget holds primary focus. Clicking a [SelectableText],
+  /// button, or scroll area can move focus elsewhere, which leaves the quiz
+  /// needing a "click in the page" to re-arm shortcuts. Re-claim focus
+  /// whenever the primary focus lands on a non-editable widget.
+  void _onPrimaryFocusChanged() {
+    if (!mounted) {
+      return;
+    }
+    _maybeReclaimShortcutFocus();
+  }
+
+  bool _primaryFocusIsEditable() {
+    final primary = FocusManager.instance.primaryFocus;
+    final ctx = primary?.context;
+    if (ctx == null) {
+      return false;
+    }
+    final widget = ctx.widget;
+    // [SelectableText] uses [EditableText] with readOnly=true under the hood;
+    // only skip reclaim when the user is actually typing.
+    return widget is EditableText && !widget.readOnly;
+  }
+
+  void _maybeReclaimShortcutFocus() {
+    if (!_shortcutFocus.canRequestFocus) {
+      return;
+    }
+    if (_shortcutFocus.hasPrimaryFocus) {
+      return;
+    }
+    if (_primaryFocusIsEditable()) {
+      return;
+    }
+    _shortcutFocus.requestFocus();
+  }
+
+  void _onShortcutLayerPointerUp(PointerUpEvent event) {
+    // Wait for focus to settle from the tap before deciding whether to reclaim.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _maybeReclaimShortcutFocus();
+    });
   }
 
   @override
@@ -186,6 +234,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
 
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_onPrimaryFocusChanged);
     _examTicker?.cancel();
     _questionScrollController.dispose();
     _shortcutFocus.dispose();
@@ -736,15 +785,18 @@ class _QuestionScreenState extends State<QuestionScreen> {
               ),
             ],
           ),
-          body: Shortcuts(
-            shortcuts: _quizShortcutsForQuestion(question),
-            child: Actions(
-              actions: _quizShortcutActions(question),
-              child: Focus(
-                focusNode: _shortcutFocus,
-                autofocus: true,
-                child: SafeArea(
-                  child: Row(
+          body: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerUp: _onShortcutLayerPointerUp,
+            child: Shortcuts(
+              shortcuts: _quizShortcutsForQuestion(question),
+              child: Actions(
+                actions: _quizShortcutActions(question),
+                child: Focus(
+                  focusNode: _shortcutFocus,
+                  autofocus: true,
+                  child: SafeArea(
+                    child: Row(
                     children: [
                       Expanded(
                         child: Column(
@@ -1163,6 +1215,7 @@ class _QuestionScreenState extends State<QuestionScreen> {
                 ),
               ),
             ),
+          ),
           ),
         );
       },

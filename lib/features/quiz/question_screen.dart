@@ -128,6 +128,17 @@ class _QuestionScreenState extends State<QuestionScreen> {
     );
   }
 
+  void _toggleChoiceCrossOut(String choiceKey) {
+    final current = _currentStudyData;
+    final next = Set<String>.from(current.crossedOutChoices);
+    if (next.contains(choiceKey)) {
+      next.remove(choiceKey);
+    } else {
+      next.add(choiceKey);
+    }
+    _updateStudyData(current.copyWith(crossedOutChoices: next));
+  }
+
   void _toggleFlag() {
     final current = _currentStudyData;
     _updateStudyData(current.copyWith(isFlagged: !current.isFlagged));
@@ -928,11 +939,21 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                                         entry.key &&
                                                     !questionProgress
                                                         .isCorrect,
+                                            isCrossedOut: currentStudyData
+                                                .crossedOutChoices
+                                                .contains(entry.key),
                                             enabled:
                                                 !widget.readOnlyAfterExam &&
                                                     questionProgress == null,
                                             onTap: () => _controller
                                                 .selectChoice(entry.key),
+                                            onToggleCrossOut:
+                                                !widget.readOnlyAfterExam &&
+                                                        questionProgress == null
+                                                    ? () => _toggleChoiceCrossOut(
+                                                          entry.key,
+                                                        )
+                                                    : null,
                                           ),
                                         ),
                                     const SizedBox(height: 8),
@@ -1842,8 +1863,10 @@ class _ChoiceTile extends StatefulWidget {
     required this.isSelected,
     required this.isCorrectAnswer,
     required this.isIncorrectSelection,
+    required this.isCrossedOut,
     required this.enabled,
     required this.onTap,
+    required this.onToggleCrossOut,
   });
 
   final String optionLabel;
@@ -1853,8 +1876,10 @@ class _ChoiceTile extends StatefulWidget {
   final bool isSelected;
   final bool isCorrectAnswer;
   final bool isIncorrectSelection;
+  final bool isCrossedOut;
   final bool enabled;
   final VoidCallback onTap;
+  final VoidCallback? onToggleCrossOut;
 
   @override
   State<_ChoiceTile> createState() => _ChoiceTileState();
@@ -1895,6 +1920,21 @@ class _ChoiceTileState extends State<_ChoiceTile> {
           theme.colorScheme.outline.withValues(alpha: 0.45);
     }
 
+    final bool showCrossOut =
+        widget.isCrossedOut &&
+        !widget.isCorrectAnswer &&
+        !widget.isIncorrectSelection;
+    final Color disabledForeground =
+        theme.colorScheme.onSurface.withValues(alpha: 0.38);
+    final TextStyle? choiceTextStyle = showCrossOut
+        ? theme.textTheme.bodyLarge?.copyWith(
+            decoration: TextDecoration.lineThrough,
+            decorationThickness: 2,
+            decorationColor: disabledForeground,
+            color: disabledForeground,
+          )
+        : theme.textTheme.bodyLarge;
+
     return MouseRegion(
       onEnter: (_) {
         if (widget.enabled &&
@@ -1920,17 +1960,24 @@ class _ChoiceTileState extends State<_ChoiceTile> {
           child: _ChoiceTapDetector(
             enabled: widget.enabled,
             onTap: widget.onTap,
+            onSecondaryTap: widget.onToggleCrossOut,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(radius: 16, child: Text(widget.optionLabel)),
+                  Opacity(
+                    opacity: showCrossOut ? 0.45 : 1,
+                    child: CircleAvatar(
+                      radius: 16,
+                      child: Text(widget.optionLabel),
+                    ),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: HighlightableSelectableText(
                       text: widget.optionText,
-                      style: theme.textTheme.bodyLarge,
+                      style: choiceTextStyle,
                       highlights: widget.textHighlights,
                       onHighlightsChanged: widget.onTextHighlightsChanged,
                     ),
@@ -1952,10 +1999,12 @@ class _ChoiceTapDetector extends StatefulWidget {
     required this.enabled,
     required this.onTap,
     required this.child,
+    this.onSecondaryTap,
   });
 
   final bool enabled;
   final VoidCallback onTap;
+  final VoidCallback? onSecondaryTap;
   final Widget child;
 
   @override
@@ -2215,6 +2264,7 @@ class _MatchingChoiceButton extends StatelessWidget {
 
 class _ChoiceTapDetectorState extends State<_ChoiceTapDetector> {
   Offset? _pointerDownGlobal;
+  Offset? _secondaryDownGlobal;
 
   @override
   Widget build(BuildContext context) {
@@ -2225,18 +2275,32 @@ class _ChoiceTapDetectorState extends State<_ChoiceTapDetector> {
       child: Listener(
         behavior: HitTestBehavior.translucent,
         onPointerDown: (event) {
-          if (!widget.enabled) {
+          if (event.buttons == kSecondaryMouseButton) {
+            if (widget.onSecondaryTap != null) {
+              _secondaryDownGlobal = event.position;
+            }
             return;
           }
-          if (event.buttons == kSecondaryMouseButton) {
+          if (!widget.enabled) {
             return;
           }
           _pointerDownGlobal = event.position;
         },
         onPointerCancel: (_) {
           _pointerDownGlobal = null;
+          _secondaryDownGlobal = null;
         },
         onPointerUp: (event) {
+          final secondaryStart = _secondaryDownGlobal;
+          _secondaryDownGlobal = null;
+          if (secondaryStart != null && widget.onSecondaryTap != null) {
+            final moved = (event.position - secondaryStart).distance;
+            if (moved <= kTouchSlop) {
+              widget.onSecondaryTap!();
+              _pointerDownGlobal = null;
+              return;
+            }
+          }
           if (!widget.enabled || _pointerDownGlobal == null) {
             _pointerDownGlobal = null;
             return;

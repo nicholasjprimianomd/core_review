@@ -171,6 +171,9 @@ void showQuizKeyboardShortcutsDialog(BuildContext context) {
             'Highlights\n'
             '  Ctrl+Shift+H — Copy all highlighted text on this question\n'
             '\n'
+            'Answer choices\n'
+            '  Right-click — Toggle cross-out on a choice\n'
+            '\n'
             'Help\n'
             '  ? or Ctrl+/ — Show this dialog',
           ),

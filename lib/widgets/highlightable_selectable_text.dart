@@ -143,12 +143,10 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
         ? const Color(0xFF8B6914).withValues(alpha: 0.65)
         : const Color(0xFFFFF176).withValues(alpha: 0.85);
 
-    // Web: transparent fill hides the framework's selection-tint glyph pass
-    // which can misalign under non-1.0 textScaler. Browser native selection is
-    // blocked via user-select:none in index.html.
-    final selectionTint = kIsWeb
-        ? Colors.transparent
-        : theme.colorScheme.primary.withValues(alpha: 0.22);
+    // Browser native selection is blocked via user-select:none in index.html;
+    // we use Flutter's own selection paint so users see a live drag indicator
+    // before the highlight is committed on pointer-up.
+    final selectionTint = theme.colorScheme.primary.withValues(alpha: 0.22);
 
     final richSpan = _buildSpanTree(
       text: widget.text,
@@ -202,7 +200,7 @@ class _HighlightableSelectableTextState extends State<HighlightableSelectableTex
 
     return kIsWeb
         ? DefaultSelectionStyle.merge(
-            selectionColor: Colors.transparent,
+            selectionColor: selectionTint,
             mouseCursor: SystemMouseCursors.text,
             child: selectable,
           )

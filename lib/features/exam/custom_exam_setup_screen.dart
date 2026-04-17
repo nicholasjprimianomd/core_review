@@ -68,6 +68,24 @@ class _CustomExamSetupScreenState extends State<CustomExamSetupScreen> {
     });
   }
 
+  void _toggleAllBooks(bool? selected) {
+    final allBookIds = widget.content
+        .booksOrdered()
+        .map((b) => b.id)
+        .toList(growable: false);
+    setState(() {
+      if (selected ?? false) {
+        _bookIds
+          ..clear()
+          ..addAll(allBookIds);
+      } else {
+        _bookIds.clear();
+      }
+      _chapterIds.clear();
+      _sectionIds.clear();
+    });
+  }
+
   void _toggleChapter(String chapterId, bool? selected) {
     setState(() {
       if (selected ?? false) {
@@ -212,6 +230,12 @@ class _CustomExamSetupScreenState extends State<CustomExamSetupScreen> {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 12),
+              _AllBooksTile(
+                totalBooks: widget.content.booksOrdered().length,
+                selectedBooks: _bookIds.length,
+                onChanged: _toggleAllBooks,
+              ),
+              const SizedBox(height: 8),
               for (final book in widget.content.booksOrdered())
                 _BookScopeTile(
                   book: book,
@@ -344,6 +368,45 @@ class _CustomExamSetupScreenState extends State<CustomExamSetupScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _AllBooksTile extends StatelessWidget {
+  const _AllBooksTile({
+    required this.totalBooks,
+    required this.selectedBooks,
+    required this.onChanged,
+  });
+
+  final int totalBooks;
+  final int selectedBooks;
+  final ValueChanged<bool?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool allSelected =
+        totalBooks > 0 && selectedBooks == totalBooks;
+    final bool partial =
+        selectedBooks > 0 && selectedBooks < totalBooks;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: CheckboxListTile(
+        controlAffinity: ListTileControlAffinity.leading,
+        tristate: true,
+        value: allSelected ? true : (partial ? null : false),
+        onChanged: (v) {
+          onChanged(allSelected ? false : true);
+        },
+        title: const Text('All books'),
+        subtitle: Text(
+          allSelected
+              ? 'All $totalBooks books selected'
+              : partial
+                  ? '$selectedBooks of $totalBooks books selected'
+                  : 'Select every book at once',
+        ),
       ),
     );
   }

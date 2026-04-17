@@ -7,6 +7,7 @@ class QuestionStudyData {
     this.promptHighlights = const <TextHighlightSpan>[],
     this.choiceHighlights = const <String, List<TextHighlightSpan>>{},
     this.explanationHighlights = const <TextHighlightSpan>[],
+    this.crossedOutChoices = const <String>{},
   });
 
   final bool isFlagged;
@@ -14,6 +15,7 @@ class QuestionStudyData {
   final List<TextHighlightSpan> promptHighlights;
   final Map<String, List<TextHighlightSpan>> choiceHighlights;
   final List<TextHighlightSpan> explanationHighlights;
+  final Set<String> crossedOutChoices;
 
   bool get hasNote => note.isNotEmpty;
 
@@ -22,12 +24,15 @@ class QuestionStudyData {
       explanationHighlights.isNotEmpty ||
       choiceHighlights.values.any((l) => l.isNotEmpty);
 
+  bool get hasCrossOuts => crossedOutChoices.isNotEmpty;
+
   QuestionStudyData copyWith({
     bool? isFlagged,
     String? note,
     List<TextHighlightSpan>? promptHighlights,
     Map<String, List<TextHighlightSpan>>? choiceHighlights,
     List<TextHighlightSpan>? explanationHighlights,
+    Set<String>? crossedOutChoices,
   }) {
     return QuestionStudyData(
       isFlagged: isFlagged ?? this.isFlagged,
@@ -36,6 +41,7 @@ class QuestionStudyData {
       choiceHighlights: choiceHighlights ?? this.choiceHighlights,
       explanationHighlights:
           explanationHighlights ?? this.explanationHighlights,
+      crossedOutChoices: crossedOutChoices ?? this.crossedOutChoices,
     );
   }
 
@@ -55,6 +61,8 @@ class QuestionStudyData {
             v.map((e) => e.toJson()).toList(),
           ),
         ),
+      if (crossedOutChoices.isNotEmpty)
+        'crossedOutChoices': crossedOutChoices.toList()..sort(),
     };
   }
 
@@ -69,6 +77,15 @@ class QuestionStudyData {
         }
       }
     }
+    final rawCrossedOut = json['crossedOutChoices'] as List<dynamic>?;
+    final crossedOut = <String>{};
+    if (rawCrossedOut != null) {
+      for (final v in rawCrossedOut) {
+        if (v is String && v.isNotEmpty) {
+          crossedOut.add(v);
+        }
+      }
+    }
     return QuestionStudyData(
       isFlagged: json['isFlagged'] as bool? ?? false,
       note: json['note'] as String? ?? '',
@@ -78,6 +95,7 @@ class QuestionStudyData {
       explanationHighlights: textHighlightSpansFromJson(
         json['explanationHighlights'] as List<dynamic>?,
       ),
+      crossedOutChoices: crossedOut,
     );
   }
 }
@@ -103,8 +121,10 @@ class StudyData {
 
   StudyData withQuestion(String questionId, QuestionStudyData data) {
     final updated = Map<String, QuestionStudyData>.from(questions);
-    final isEmpty =
-        !data.isFlagged && !data.hasNote && !data.hasAnyHighlights;
+    final isEmpty = !data.isFlagged &&
+        !data.hasNote &&
+        !data.hasAnyHighlights &&
+        !data.hasCrossOuts;
     if (isEmpty) {
       updated.remove(questionId);
     } else {

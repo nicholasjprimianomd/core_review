@@ -140,26 +140,41 @@ class ProgressOverviewCard extends StatelessWidget {
             if (books.isNotEmpty) ...[
               const SizedBox(height: 16),
               Divider(height: 1, color: theme.dividerColor),
-              const SizedBox(height: 12),
-              Text(
-                'By book',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
+              Theme(
+                data: theme.copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  initiallyExpanded: false,
+                  tilePadding: EdgeInsets.zero,
+                  dense: true,
+                  title: Text(
+                    'By book',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${books.length} books',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  childrenPadding: const EdgeInsets.only(top: 4),
+                  children: [
+                    for (final book in books)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _BookProgressRow(
+                          title: book.title,
+                          breakdown: _PoolBreakdown.forQuestions(
+                            content.questionsForBook(book.id),
+                            progress,
+                          ),
+                          palette: palette,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              for (final book in books)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _BookProgressRow(
-                    title: book.title,
-                    breakdown: _PoolBreakdown.forQuestions(
-                      content.questionsForBook(book.id),
-                      progress,
-                    ),
-                    palette: palette,
-                  ),
-                ),
             ],
           ],
         ),

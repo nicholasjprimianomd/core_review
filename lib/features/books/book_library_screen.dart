@@ -10,6 +10,12 @@ import '../progress/progress_library_stats.dart';
 import '../progress/progress_overview_card.dart';
 import 'study_set_launcher.dart';
 
+/// Books whose topic labels (e.g. Brain / Spine) are omitted on the library
+/// home card — the hierarchy is still available after "Browse topics".
+const _bookIdsHideTopicChipsOnLibrary = <String>{
+  'neuroradiology',
+};
+
 class BookLibraryScreen extends StatelessWidget {
   const BookLibraryScreen({
     required this.content,
@@ -291,7 +297,8 @@ class _BookCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (topics.isNotEmpty) ...[
+            if (topics.isNotEmpty &&
+                !_bookIdsHideTopicChipsOnLibrary.contains(book.id)) ...[
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,

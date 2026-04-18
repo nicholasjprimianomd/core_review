@@ -845,12 +845,12 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                           _updatePromptHighlights,
                                     ),
                                     if (widget.content
-                                        .stemGroupImageAssetsMerged(question)
+                                        .stemImageAssetsForQuestion(question)
                                         .isNotEmpty) ...[
                                       const SizedBox(height: 20),
                                       BookImageGallery(
                                         imageAssets: widget.content
-                                            .stemGroupImageAssetsMerged(
+                                            .stemImageAssetsForQuestion(
                                           question,
                                         ),
                                       ),

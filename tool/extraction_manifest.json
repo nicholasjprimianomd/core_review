@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-16T16:01:48.299634+00:00",
+  "generatedAt": "2026-04-18T17:18:43.900474+00:00",
   "files": {
     "tool/extract_pdf_to_json.py": {
       "sha256": "3f500e98899f041e901d1738f389704c5eb4cc7db82ba80ea48a9c21ad083833"
     },
     "tool/safe_merge_questions.py": {
-      "sha256": "268dc0f113b58bc52742abfb548aedf8c26691231d4895f557abbc279d67aa46"
+      "sha256": "fae87d9185ca4f0d6f37259d85eaa16005e1e50fc4b7c4f34e9ab8994524382a"
     },
     "tool/reextract_all_books.py": {
       "sha256": "ced1c1b9535278ebae3f35118e3c99e967b4767acad5e6d24892fa81f1be010e"

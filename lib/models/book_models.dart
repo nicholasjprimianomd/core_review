@@ -127,6 +127,57 @@ class BookContent {
     return members;
   }
 
+  /// Stem images to display for this specific question part.
+  ///
+  /// If the question has its own [BookQuestion.imageAssets], those are
+  /// returned as-is so each part of a multipart question only shows the
+  /// figure that belongs to it. If the part carries no images of its
+  /// own, fall back to the stem-group union so short follow-up parts
+  /// (e.g. "Given the previous image, what is the diagnosis?") still
+  /// inherit the setup question's case images.
+  List<String> stemImageAssetsForQuestion(BookQuestion question) {
+    for (final p in question.imageAssets) {
+      if (p.trim().isNotEmpty) {
+        return question.imageAssets;
+      }
+    }
+    return stemGroupImageAssetsMerged(question);
+  }
+
+  /// Explanation-only images (not already in the stem set) for this
+  /// specific question part. Uses the part's own
+  /// [BookQuestion.explanationImageAssets] when non-empty, else falls
+  /// back to the stem-group union for inheritance.
+  List<String> explanationOnlyImageAssetsForQuestion(BookQuestion question) {
+    final stemSet = <String>{
+      for (final p in stemImageAssetsForQuestion(question))
+        if (p.trim().isNotEmpty) p.trim(),
+    };
+    final source = <String>[];
+    var hasOwn = false;
+    for (final p in question.explanationImageAssets) {
+      if (p.trim().isNotEmpty) {
+        hasOwn = true;
+        break;
+      }
+    }
+    if (hasOwn) {
+      source.addAll(question.explanationImageAssets);
+    } else {
+      source.addAll(stemGroupExplanationImageAssetsMerged(question));
+    }
+    final seen = <String>{};
+    final out = <String>[];
+    for (final p in source) {
+      final t = p.trim();
+      if (t.isEmpty || stemSet.contains(t) || !seen.add(t)) {
+        continue;
+      }
+      out.add(p);
+    }
+    return out;
+  }
+
   /// Union of [BookQuestion.imageAssets] across the stem group; order follows part order, deduped.
   List<String> stemGroupImageAssetsMerged(BookQuestion question) {
     final seen = <String>{};

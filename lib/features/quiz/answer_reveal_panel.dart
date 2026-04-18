@@ -196,7 +196,7 @@ List<Widget> _revealImageBlocks(
   BookContent content,
   BookQuestion question,
 ) {
-  final expOnly = content.explanationOnlyImageAssetsForStemGroup(question);
+  final expOnly = content.explanationOnlyImageAssetsForQuestion(question);
   if (expOnly.isEmpty) {
     return const [];
   }

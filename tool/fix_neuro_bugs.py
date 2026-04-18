@@ -63,6 +63,18 @@ IMAGE_ASSIGNMENTS = {
     'neuroradiology-6-15a': ['assets/book_images/neuroradiology_page_287_img_1_1.png'],
     'neuroradiology-6-15b': ['assets/book_images/neuroradiology_page_288_img_1_1.png'],
 
+    # Ch. 7 Q5 (CCF, 45M with chemosis/proptosis): extractor put the AVM
+    # figure from p.327 onto Q5c. The CCF case is fully depicted by the
+    # three panels on p.326 (its own explanation references panels A-C).
+    'neuroradiology-7-5a':  ['assets/book_images/neuroradiology_page_326_img_1_1.png'],
+    'neuroradiology-7-5b':  ['assets/book_images/neuroradiology_page_326_img_1_1.png'],
+    'neuroradiology-7-5c':  ['assets/book_images/neuroradiology_page_326_img_1_1.png'],
+
+    # Ch. 7 Q6 (AVM with distended vein of Galen): the stem figure from
+    # p.327 was stolen by Q5c above. Restore it to both parts of Q6.
+    'neuroradiology-7-6a':  ['assets/book_images/neuroradiology_page_327_img_1_1.png'],
+    'neuroradiology-7-6b':  ['assets/book_images/neuroradiology_page_327_img_1_1.png'],
+
     'neuroradiology-8-6a':  ['assets/book_images/neuroradiology_page_371_img_1_1.png'],
     'neuroradiology-8-6b':  ['assets/book_images/neuroradiology_page_372_img_1_1.png'],
 

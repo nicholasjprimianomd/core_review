@@ -881,15 +881,6 @@ class _QuestionScreenState extends State<QuestionScreen> {
                                               'Find CTC / War Machine pages',
                                             ),
                                           ),
-                                          if (!showWideNavigator)
-                                            OutlinedButton.icon(
-                                              onPressed: _openQuestionNavigator,
-                                              icon:
-                                                  const Icon(Icons.toc_outlined),
-                                              label: const Text(
-                                                'Open Question List',
-                                              ),
-                                            ),
                                         ],
                                       ),
                                     ],

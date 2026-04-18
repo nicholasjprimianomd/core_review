@@ -210,10 +210,12 @@ class AuthRepository {
   Future<AuthUser> signInWithPassword({
     required String email,
     required String password,
+    String? captchaToken,
   }) async {
     final response = await _requireClient().auth.signInWithPassword(
       email: email,
       password: password,
+      captchaToken: captchaToken,
     );
     final user = _mapUser(response.user ?? response.session?.user);
     if (user == null) {
@@ -231,10 +233,13 @@ class AuthRepository {
   Future<SignUpResult> signUp({
     required String email,
     required String password,
+    String? captchaToken,
   }) async {
     final response = await _requireClient().auth.signUp(
       email: email,
       password: password,
+      captchaToken: captchaToken,
+      emailRedirectTo: AppConfig.resolveAuthRedirectUrl(),
     );
     final user = _mapUser(response.user ?? response.session?.user);
     if (user == null) {
@@ -242,14 +247,13 @@ class AuthRepository {
     }
     final session = response.session;
     if (session == null) {
-      // Should not happen now that email confirmation is disabled on the
-      // project. If we ever hit this branch, the dashboard toggle was
-      // re-enabled; surface that rather than pretending an email was sent.
+      // Email confirmation is on: Supabase created the user but held back the
+      // session until they click the confirmation link.
       return SignUpResult(
         user: user,
         requiresEmailConfirmation: true,
         message:
-            'Account created but no session was returned. Email confirmation may be enabled on the server; contact support.',
+            'Account created. Check your inbox to confirm your email, then sign in.',
       );
     }
     _currentUser = user;

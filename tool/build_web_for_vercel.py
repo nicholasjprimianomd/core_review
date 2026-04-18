@@ -136,6 +136,7 @@ def main() -> None:
     supabase_url = optional_env("SUPABASE_URL")
     supabase_anon_key = optional_env("SUPABASE_ANON_KEY")
     auth_redirect_url = optional_env("AUTH_REDIRECT_URL")
+    turnstile_site_key = optional_env("TURNSTILE_SITE_KEY")
     # CONTENT_BASE_URL is no longer needed — the app resolves image URLs from
     # window.location.origin at runtime, so they never go stale across deploys.
     # Keep reading it here in case a future env var override is useful.
@@ -163,6 +164,10 @@ def main() -> None:
         build_command.append(f"--dart-define=SUPABASE_ANON_KEY={supabase_anon_key}")
     if auth_redirect_url:
         build_command.append(f"--dart-define=AUTH_REDIRECT_URL={auth_redirect_url}")
+    if turnstile_site_key:
+        build_command.append(
+            f"--dart-define=TURNSTILE_SITE_KEY={turnstile_site_key}"
+        )
 
     run(build_command, cwd=temp_project)
 

@@ -25,8 +25,16 @@ class AppConfig {
     'CONTENT_BASE_URL',
   );
 
+  // Public Cloudflare Turnstile site key. The matching secret lives only in
+  // the Supabase dashboard; we never ship it in the Flutter bundle.
+  static const String turnstileSiteKey = String.fromEnvironment(
+    'TURNSTILE_SITE_KEY',
+  );
+
   static bool get hasSupabase =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
+
+  static bool get hasCaptcha => turnstileSiteKey.isNotEmpty;
 
   // On web the image base is always the page origin (resolved at runtime), so
   // remote content is always available on web regardless of compile-time config.

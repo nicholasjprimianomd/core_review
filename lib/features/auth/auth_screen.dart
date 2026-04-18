@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase/supabase.dart' show AuthApiException, AuthException;
 
+import '../../config/app_config.dart';
 import '../../repositories/auth_repository.dart';
+import 'turnstile_widget.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({
@@ -32,11 +34,13 @@ class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _captchaController = TurnstileController();
 
   bool _isSignInMode = true;
   bool _isSubmitting = false;
   String? _errorMessage;
   String? _infoMessage;
+  String? _captchaToken;
 
   @override
   void dispose() {
@@ -207,6 +211,24 @@ class _AuthScreenState extends State<AuthScreen> {
                 },
               ),
               const SizedBox(height: 16),
+              if (AppConfig.hasCaptcha) ...[
+                TurnstileWidget(
+                  siteKey: AppConfig.turnstileSiteKey,
+                  controller: _captchaController,
+                  theme: Theme.of(context).brightness == Brightness.dark
+                      ? 'dark'
+                      : 'light',
+                  onToken: (token) {
+                    if (!mounted) {
+                      return;
+                    }
+                    setState(() {
+                      _captchaToken = token;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
               if (_infoMessage != null)
                 Text(
                   _infoMessage!,
@@ -261,30 +283,43 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
+    if (AppConfig.hasCaptcha && (_captchaToken == null || _captchaToken!.isEmpty)) {
+      setState(() {
+        _errorMessage = 'Please complete the captcha before continuing.';
+        _infoMessage = null;
+      });
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
       _infoMessage = null;
     });
 
+    final captchaToken = _captchaToken;
     try {
       if (_isSignInMode) {
         await widget.authRepository.signInWithPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text,
+          captchaToken: captchaToken,
         );
       } else {
         final result = await widget.authRepository.signUp(
           email: _emailController.text.trim(),
           password: _passwordController.text,
+          captchaToken: captchaToken,
         );
         if (result.requiresEmailConfirmation) {
           if (!mounted) {
             return;
           }
+          _captchaController.reset();
           setState(() {
             _isSubmitting = false;
             _isSignInMode = true;
+            _captchaToken = null;
             _passwordController.clear();
             _infoMessage = result.message;
           });
@@ -300,8 +335,10 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) {
         return;
       }
+      _captchaController.reset();
       setState(() {
         _isSubmitting = false;
+        _captchaToken = null;
         _errorMessage = _friendlyAuthError(error);
         _infoMessage = null;
       });
@@ -329,7 +366,7 @@ class _AuthScreenState extends State<AuthScreen> {
         return 'Incorrect email or password.';
       }
       if (code == 'email_not_confirmed') {
-        return 'This account was created before email confirmation was turned off. Please contact support to reset it.';
+        return 'Please confirm your email before signing in. Check your inbox for the confirmation link.';
       }
       if (code == 'weak_password') {
         return 'That password is too weak. Please choose a longer one.';
@@ -337,9 +374,15 @@ class _AuthScreenState extends State<AuthScreen> {
       if (code == 'signup_disabled') {
         return 'New sign-ups are currently disabled. Please contact support.';
       }
+      if (code == 'captcha_failed') {
+        return 'Captcha check failed. Please try again.';
+      }
     }
     if (error is AuthException) {
       final message = error.message.trim();
+      if (message.toLowerCase().contains('captcha')) {
+        return 'Captcha check failed. Please try again.';
+      }
       if (message.isNotEmpty) {
         return message;
       }

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections import defaultdict
 from pathlib import Path
 
 
@@ -10,13 +11,55 @@ IMAGE_REFERENCE_RE = re.compile(
     r"\[image\]"
     r"|shown\s+(?:above|below|here)\b"
     r"|shown\s+is\b"
-    r"|images?.*shown\b"
-    r"|based on\s+(?:the|these|following|diagnostic|ultrasound|mammogram|mr|mri|ct).*images?"
+    # "images [is/are] shown" within a short window (same phrase, not across
+    # a paragraph) so generic prose like "T2-weighted images ... has been
+    # shown to enhance" does not false-match.
+    r"|images?(?:\s+(?:is|are))?\s+shown\b"
+    # "based on <qualifier> ... images" within a single clause (no sentence
+    # terminator in between).
+    r"|based on\s+(?:the|these|following|diagnostic|ultrasound|mammogram|mr|mri|ct)[^.!?\n]{0,40}images?"
     r"|the following images?\b"
     r"|images?\s+available\b"
     r"|pictured here\b",
     re.IGNORECASE,
 )
+
+
+def _stem_group_key(question: dict) -> tuple:
+    return (
+        question.get("bookId"),
+        question.get("chapterId"),
+        question.get("sectionId"),
+        question.get("stemGroup"),
+    )
+
+
+def _build_stem_group_index(
+    questions: list[dict[str, object]],
+) -> dict[tuple, list[dict]]:
+    index: dict[tuple, list[dict]] = defaultdict(list)
+    for q in questions:
+        if q.get("stemGroup") in (None, ""):
+            continue
+        index[_stem_group_key(q)].append(q)
+    return index
+
+
+def _any_sibling_has(
+    question: dict,
+    stem_index: dict[tuple, list[dict]],
+    fields: tuple[str, ...],
+) -> bool:
+    for sibling in stem_index.get(_stem_group_key(question), ()):
+        if sibling.get("id") == question.get("id"):
+            continue
+        for field in fields:
+            val = sibling.get(field) or []
+            if isinstance(val, list) and any(
+                isinstance(p, str) and p.strip() for p in val
+            ):
+                return True
+    return False
 
 
 def load_questions(project_root: Path) -> list[dict[str, object]]:
@@ -29,6 +72,7 @@ def build_report(
 ) -> dict[str, object]:
     issues: list[dict[str, str]] = []
     assets_root = project_root / "assets"
+    stem_index = _build_stem_group_index(questions)
 
     for question in questions:
         question_id = str(question["id"])
@@ -128,7 +172,13 @@ def build_report(
                 re.IGNORECASE,
             )
         )
-        if prompt_mentions_figure and not image_assets:
+        if (
+            prompt_mentions_figure
+            and not image_assets
+            # A multi-part follow-up (b/c/...) inherits the a-part's figures
+            # via stemImageAssetsForQuestion at runtime; do not flag it here.
+            and not _any_sibling_has(question, stem_index, ("imageAssets",))
+        ):
             issues.append(
                 {
                     "type": "missing_image",
@@ -142,6 +192,11 @@ def build_report(
             explanation_mentions_figure
             and not image_assets
             and not explanation_image_assets
+            and not _any_sibling_has(
+                question,
+                stem_index,
+                ("imageAssets", "explanationImageAssets"),
+            )
         ):
             issues.append(
                 {

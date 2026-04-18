@@ -1158,8 +1158,9 @@ class _QuestionScreenState extends State<QuestionScreen> {
                             ),
                             const Divider(height: 1),
                             ColoredBox(
-                              color:
-                                  Theme.of(context).scaffoldBackgroundColor,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainer,
                               child: Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: Row(

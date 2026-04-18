@@ -28,6 +28,56 @@ import 'repositories/cloud_progress_repository.dart';
 import 'repositories/http_cloud_progress_repository.dart';
 import 'repositories/study_data_repository.dart';
 
+/// Shared chrome color used by the AppBar and the quiz navigation footer so
+/// both match regardless of scroll state. In dark mode this is an explicit
+/// grey that avoids pure-black chrome; in light mode it is the light surface
+/// tone derived from the seed color.
+Color appChromeColor(ColorScheme scheme) => scheme.surfaceContainer;
+
+ThemeData _buildLightTheme() {
+  final colorScheme = ColorScheme.fromSeed(seedColor: Colors.indigo);
+  return ThemeData(
+    colorScheme: colorScheme,
+    useMaterial3: true,
+    appBarTheme: AppBarTheme(
+      backgroundColor: appChromeColor(colorScheme),
+      foregroundColor: colorScheme.onSurface,
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
+      elevation: 0,
+    ),
+  );
+}
+
+ThemeData _buildDarkTheme() {
+  final colorScheme = ColorScheme.fromSeed(
+    seedColor: Colors.indigo,
+    brightness: Brightness.dark,
+  ).copyWith(
+    surface: Colors.black,
+    surfaceDim: const Color(0xFF000000),
+    surfaceBright: const Color(0xFF1A1A1A),
+    surfaceContainerLowest: const Color(0xFF050505),
+    surfaceContainerLow: const Color(0xFF0F0F0F),
+    surfaceContainer: const Color(0xFF161616),
+    surfaceContainerHigh: const Color(0xFF1E1E1E),
+    surfaceContainerHighest: const Color(0xFF262626),
+  );
+  return ThemeData(
+    brightness: Brightness.dark,
+    useMaterial3: true,
+    scaffoldBackgroundColor: Colors.black,
+    colorScheme: colorScheme,
+    appBarTheme: AppBarTheme(
+      backgroundColor: appChromeColor(colorScheme),
+      foregroundColor: colorScheme.onSurface,
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
+      elevation: 0,
+    ),
+  );
+}
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   if (kIsWeb) {
@@ -684,28 +734,8 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        useMaterial3: true,
-        scaffoldBackgroundColor: Colors.black,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.dark,
-        ).copyWith(
-          surface: Colors.black,
-          surfaceDim: const Color(0xFF000000),
-          surfaceBright: const Color(0xFF1A1A1A),
-          surfaceContainerLowest: const Color(0xFF050505),
-          surfaceContainerLow: const Color(0xFF0F0F0F),
-          surfaceContainer: const Color(0xFF161616),
-          surfaceContainerHigh: const Color(0xFF1E1E1E),
-          surfaceContainerHighest: const Color(0xFF262626),
-        ),
-      ),
+      theme: _buildLightTheme(),
+      darkTheme: _buildDarkTheme(),
       themeMode: _themeMode,
       home: _content != null
           ? _buildRootScreen()

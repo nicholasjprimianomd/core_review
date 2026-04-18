@@ -10,7 +10,8 @@ BookContent _singleQuestionContent(BookQuestion q) {
 }
 
 void main() {
-  testWidgets('reveal panel shows stem imageAssets with explanation text', (
+  testWidgets(
+      'reveal panel does not re-render stem-only case images in explanation', (
     WidgetTester tester,
   ) async {
     const q = BookQuestion(
@@ -33,9 +34,6 @@ void main() {
       stemGroup: '1',
     );
 
-    expect(q.hasRevealImages, isTrue);
-    expect(q.shouldSplitRevealImageSections, isFalse);
-
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -56,14 +54,13 @@ void main() {
     );
 
     expect(find.textContaining('Discussion text'), findsOneWidget);
-    expect(find.byType(BookImageGallery), findsOneWidget);
-    final gallery = tester.widget<BookImageGallery>(
-      find.byType(BookImageGallery),
-    );
-    expect(gallery.imageAssets, ['assets/book_images/case_only.png']);
+    expect(find.byType(BookImageGallery), findsNothing);
+    expect(find.text('Case images'), findsNothing);
+    expect(find.text('Explanation figures'), findsNothing);
   });
 
-  testWidgets('reveal panel splits case vs explanation figure sections when distinct', (
+  testWidgets(
+      'reveal panel shows only explanation-only figures, not case images', (
     WidgetTester tester,
   ) async {
     const q = BookQuestion(
@@ -89,8 +86,6 @@ void main() {
       stemGroup: '2',
     );
 
-    expect(q.shouldSplitRevealImageSections, isTrue);
-
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -110,18 +105,17 @@ void main() {
       ),
     );
 
-    expect(find.text('Case images'), findsOneWidget);
+    expect(find.text('Case images'), findsNothing);
     expect(find.text('Explanation figures'), findsOneWidget);
     final galleries = tester.widgetList<BookImageGallery>(
       find.byType(BookImageGallery),
     );
-    expect(galleries.length, 2);
-    expect(galleries.first.imageAssets, ['assets/book_images/stem.png']);
-    expect(galleries.last.imageAssets, ['assets/book_images/exp_extra.png']);
+    expect(galleries.length, 1);
+    expect(galleries.single.imageAssets, ['assets/book_images/exp_extra.png']);
   });
 
   testWidgets(
-      'reveal panel merges stem images from multipart sibling when part has none', (
+      'reveal panel omits stem-only images even when inherited from multipart sibling', (
     WidgetTester tester,
   ) async {
     const qA = BookQuestion(
@@ -189,10 +183,8 @@ void main() {
       ),
     );
 
-    expect(find.byType(BookImageGallery), findsOneWidget);
-    final gallery = tester.widget<BookImageGallery>(
-      find.byType(BookImageGallery),
-    );
-    expect(gallery.imageAssets, ['assets/book_images/shared_stem.png']);
+    expect(find.byType(BookImageGallery), findsNothing);
+    expect(find.text('Case images'), findsNothing);
+    expect(find.text('Explanation figures'), findsNothing);
   });
 }

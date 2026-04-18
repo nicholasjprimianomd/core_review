@@ -196,32 +196,17 @@ List<Widget> _revealImageBlocks(
   BookContent content,
   BookQuestion question,
 ) {
-  final stem = content.stemGroupImageAssetsMerged(question);
   final expOnly = content.explanationOnlyImageAssetsForStemGroup(question);
-  final split = content.shouldSplitRevealImageSectionsForStemGroup(question);
+  if (expOnly.isEmpty) {
+    return const [];
+  }
   final headerStyle = theme.textTheme.titleSmall?.copyWith(
     fontWeight: FontWeight.w700,
   );
-  if (split) {
-    return [
-      const SizedBox(height: 16),
-      Text('Case images', style: headerStyle),
-      const SizedBox(height: 8),
-      BookImageGallery(imageAssets: stem),
-      const SizedBox(height: 16),
-      Text('Explanation figures', style: headerStyle),
-      const SizedBox(height: 8),
-      BookImageGallery(imageAssets: expOnly),
-    ];
-  }
   return [
-    if (stem.isNotEmpty) ...[
-      const SizedBox(height: 16),
-      BookImageGallery(imageAssets: stem),
-    ],
-    if (expOnly.isNotEmpty) ...[
-      const SizedBox(height: 16),
-      BookImageGallery(imageAssets: expOnly),
-    ],
+    const SizedBox(height: 16),
+    Text('Explanation figures', style: headerStyle),
+    const SizedBox(height: 8),
+    BookImageGallery(imageAssets: expOnly),
   ];
 }

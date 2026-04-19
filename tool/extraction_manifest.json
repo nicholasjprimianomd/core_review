@@ -1,36 +1,36 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-18T17:18:43.900474+00:00",
+  "generatedAt": "2026-04-19T18:38:43.007507+00:00",
   "files": {
     "tool/extract_pdf_to_json.py": {
-      "sha256": "3f500e98899f041e901d1738f389704c5eb4cc7db82ba80ea48a9c21ad083833"
+      "sha256": "c2f681cc043168776e9aa5ffe67c56c1de75e6fafdc479e24c4773612fbde2c0"
     },
     "tool/safe_merge_questions.py": {
-      "sha256": "fae87d9185ca4f0d6f37259d85eaa16005e1e50fc4b7c4f34e9ab8994524382a"
+      "sha256": "57f66908a87b6cd0603b5383568c6159893ee8a4a233d425b669e00fad57c6a5"
     },
     "tool/reextract_all_books.py": {
-      "sha256": "ced1c1b9535278ebae3f35118e3c99e967b4767acad5e6d24892fa81f1be010e"
+      "sha256": "347e0c5172abab0e6e6963f8607498adffbb9cea03cc57ade53d6b33f1328130"
     },
     "tool/hybrid_fallback_answers.py": {
-      "sha256": "8a2529ccf491bbff246255535c71bd0072b50b1a5771e8a19e67cbe7f40282d2"
+      "sha256": "1177658ce9d6829932190582d44d473d2e2ef2e7858d8378f65cbf4b08b48129"
     },
     "tool/apply_content_validation_fixes.py": {
-      "sha256": "a30458cd796483e37e6a5221bcdd7107140bacffefd8be9e5fefce768045ed35"
+      "sha256": "d73ea957a03f10625fbfb7ccd75df06e1f828f952f37f6087970772d9eb4188d"
     },
     "tool/recover_choices_from_explanation.py": {
-      "sha256": "9627493a0992f35accc79747eb6095c9de58958d24bcbdca7ce25899059ac41a"
+      "sha256": "8bb08241ae9175c6edda7b753ef1d8a40cb23812ddfcf9de75c0ffca4366e713"
     },
     "tool/check_min_choices.py": {
-      "sha256": "9d46e40521536edf15e154e95138f61b292a9a6f6046fa8777d4f6b763e4aeef"
+      "sha256": "86be17a1eecab382be83e2431f9efa7bbf60b8ed7386124ba3542b97af930643"
     },
     "tool/recover_relaxed_answers.py": {
-      "sha256": "e97418d4ddede1f142a43012fa96bc74275d9ca4324b2b9c4b11e5d7cab8bf9b"
+      "sha256": "09d7ec8375e68411433da12ea515e88da0d55da7ca275960e5af67a5b8468e27"
     },
     "tool/validate_content.py": {
-      "sha256": "2c7521d8ed86735b027df85b922d6d3c98e23234e55eb7ecd00f7472351850ee"
+      "sha256": "56c2dde846473afabfaf448d33ce75921ec2ca05dc04eb039290f4c516b35d4d"
     },
     "assets/data/books.json": {
-      "sha256": "616bf84426391d376a7043b357980611a6fd4c484bc7fb41cae3142a57102650"
+      "sha256": "2a59fb14311f4ccf774154a280a9f90eb26a56e5bc754c204815575200506801"
     }
   }
 }

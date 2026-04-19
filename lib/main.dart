@@ -24,6 +24,7 @@ import 'models/study_data_models.dart';
 import 'repositories/app_settings_repository.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/book_repository.dart';
+import 'repositories/cloud_exam_history_repository.dart';
 import 'repositories/cloud_progress_repository.dart';
 import 'repositories/http_cloud_progress_repository.dart';
 import 'repositories/study_data_repository.dart';
@@ -100,8 +101,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
     : _authRepository = AuthRepository(),
       _bookRepository = BookRepository(),
       _appSettingsRepository = AppSettingsRepository(),
-      _studyDataRepository = StudyDataRepository(),
-      _examHistoryRepository = ExamHistoryRepository();
+      _studyDataRepository = StudyDataRepository();
 
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final ValueNotifier<StudyProgress> _progressNotifier = ValueNotifier(
@@ -130,7 +130,15 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
   late final BookRepository _bookRepository;
   late final AppSettingsRepository _appSettingsRepository;
   late final StudyDataRepository _studyDataRepository;
-  late final ExamHistoryRepository _examHistoryRepository;
+  late final ExamHistoryRepository _examHistoryRepository = ExamHistoryRepository(
+    cloudExamHistoryRepository: _authRepository.client == null
+        ? null
+        : CloudExamHistoryRepository(
+            _authRepository.client!,
+            accessTokenProvider: _authRepository.loadAccessToken,
+          ),
+    userIdProvider: () => _authRepository.currentUser?.id,
+  );
 
   late final Future<void> _bootstrapFuture = _bootstrap();
 
@@ -166,6 +174,14 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
       progress = StudyProgress.empty;
     }
 
+    if (currentUser != null) {
+      // Merge legacy/local exam history into the signed-in bucket and upload to
+      // Supabase during boot so existing users do not depend on opening Past exams.
+      try {
+        await _examHistoryRepository.loadEntries();
+      } catch (_) {}
+    }
+
     StudyData studyData;
     try {
       studyData = await _studyDataRepository.load();
@@ -190,12 +206,18 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
       // first bootstrap load on web. Retry once so we do not stay stuck on
       // stale local-only counts until the user manually re-auths.
       unawaited(_refreshProgressSoon());
+      unawaited(_warmExamHistoryFromCloudSoon());
     }
   }
 
   Future<void> _refreshProgressSoon() async {
     await Future<void>.delayed(const Duration(milliseconds: 750));
     await _refreshProgress();
+  }
+
+  Future<void> _warmExamHistoryFromCloudSoon() async {
+    await Future<void>.delayed(const Duration(milliseconds: 750));
+    await _warmExamHistoryFromCloud();
   }
 
   @override
@@ -227,6 +249,13 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
       _currentUser = updatedUser;
     });
     _setProgress(updatedProgress);
+    unawaited(_warmExamHistoryFromCloud());
+  }
+
+  Future<void> _warmExamHistoryFromCloud() async {
+    try {
+      await _examHistoryRepository.loadEntries();
+    } catch (_) {}
   }
 
   Future<void> _refreshProgress() async {

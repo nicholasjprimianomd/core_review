@@ -1,0 +1,1833 @@
+{
+  "applied": true,
+  "clearedCount": 67,
+  "skippedNewFigureCount": 2,
+  "skippedNoStemReferenceCount": 95,
+  "cleared": [
+    {
+      "id": "thoracic-imaging-3-4b",
+      "questionNumber": "4b",
+      "primaryId": "thoracic-imaging-3-4a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_058_img_2_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_059_img_1_1.png"
+      ],
+      "prompt": "Expiratory images of the same patient demonstrate that the previously noted mosaic attenuation is due to which of the following?"
+    },
+    {
+      "id": "thoracic-imaging-3-10b",
+      "questionNumber": "10b",
+      "primaryId": "thoracic-imaging-3-10a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_062_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_063_img_1_1.png"
+      ],
+      "prompt": "An additional CT image from the same study is provided below. What is the most likely diagnosis?"
+    },
+    {
+      "id": "thoracic-imaging-5-36b",
+      "questionNumber": "36b",
+      "primaryId": "thoracic-imaging-5-36a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_141_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_142_img_1_1.png"
+      ],
+      "prompt": "Chest CT on the same patient obtained 6 months later. Which of the following causes would best explain the imaging findings?"
+    },
+    {
+      "id": "thoracic-imaging-5-54b",
+      "questionNumber": "54b",
+      "primaryId": "thoracic-imaging-5-54a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_163_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_164_img_1_1.png"
+      ],
+      "prompt": "Given the corresponding CT, what is the most likely diagnosis?"
+    },
+    {
+      "id": "thoracic-imaging-5-59b",
+      "questionNumber": "59b",
+      "primaryId": "thoracic-imaging-5-59a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_167_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_167_img_2_1.png",
+        "assets/book_images/thoracic-imaging_page_168_img_1_1.png"
+      ],
+      "prompt": "What is the most likely diagnosis on CT in this 27-year-old female (different patient)?"
+    },
+    {
+      "id": "thoracic-imaging-5-68b",
+      "questionNumber": "68b",
+      "primaryId": "thoracic-imaging-5-68a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_177_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_178_img_1_1.png"
+      ],
+      "prompt": "The pulmonary CT pattern in this patient with rheumatoid arthritis is consistent with:"
+    },
+    {
+      "id": "thoracic-imaging-5-74b",
+      "questionNumber": "74b",
+      "primaryId": "thoracic-imaging-5-74a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_185_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_185_img_2_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_186_img_1_1.png"
+      ],
+      "prompt": "Given the mediastinal findings, what is a consideration in this patient with rheumatoid arthritis and history of coal mining?"
+    },
+    {
+      "id": "thoracic-imaging-5-82b",
+      "questionNumber": "82b",
+      "primaryId": "thoracic-imaging-5-82a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_193_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_194_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_194_img_2_1.png"
+      ],
+      "prompt": "A CT is obtained. What is the most likely diagnosis?"
+    },
+    {
+      "id": "thoracic-imaging-5-86d",
+      "questionNumber": "86d",
+      "primaryId": "thoracic-imaging-5-86a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_198_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_198_img_2_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_199_img_1_1.png"
+      ],
+      "prompt": "A chest CT is obtained. What is the most likely diagnosis?"
+    },
+    {
+      "id": "thoracic-imaging-5-99b",
+      "questionNumber": "99b",
+      "primaryId": "thoracic-imaging-5-99a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_216_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_217_img_1_1.png"
+      ],
+      "prompt": "What is the most likely diagnosis?"
+    },
+    {
+      "id": "thoracic-imaging-6-4c",
+      "questionNumber": "4c",
+      "primaryId": "thoracic-imaging-6-4a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_292_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_293_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_294_img_1_1.png"
+      ],
+      "prompt": "A chest CT was obtained. What is the most likely diagnosis?"
+    },
+    {
+      "id": "thoracic-imaging-6-5b",
+      "questionNumber": "5b",
+      "primaryId": "thoracic-imaging-6-5a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_295_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_296_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_297_img_1_1.png"
+      ],
+      "prompt": "A chest CT was obtained. What is the most likely diagnosis?"
+    },
+    {
+      "id": "thoracic-imaging-6-8b",
+      "questionNumber": "8b",
+      "primaryId": "thoracic-imaging-6-8a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_302_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_303_img_1_1.png"
+      ],
+      "prompt": "A chest CT was obtained. The patient discloses a remote history of gunshot to the left upper quadrant requiring surgical intervention. What is the most likely diagnosis?"
+    },
+    {
+      "id": "thoracic-imaging-7-1b",
+      "questionNumber": "1b",
+      "primaryId": "thoracic-imaging-7-1a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_333_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_334_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_334_img_2_1.png"
+      ],
+      "prompt": "Pre- and post-IV contrast CT images provided are oblique MPR contrast image through the right and left pulmonary arteries. What diagnosis best explains the findings?"
+    },
+    {
+      "id": "thoracic-imaging-7-3b",
+      "questionNumber": "3b",
+      "primaryId": "thoracic-imaging-7-3a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_337_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_338_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_339_img_1_1.png"
+      ],
+      "prompt": "Which CT imaging characteristic in this case is typical for thymoma?"
+    },
+    {
+      "id": "thoracic-imaging-7-19b",
+      "questionNumber": "19b",
+      "primaryId": "thoracic-imaging-7-19a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_365_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_366_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_366_img_2_1.png",
+        "assets/book_images/thoracic-imaging_page_366_img_3_1.png"
+      ],
+      "prompt": "CT (B), T1 without contrast (C), and T1 with contrast (D) are provided. What is the most likely diagnosis?"
+    },
+    {
+      "id": "thoracic-imaging-9-12b",
+      "questionNumber": "12b",
+      "primaryId": "thoracic-imaging-9-12a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_419_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_420_img_1_1.png"
+      ],
+      "prompt": "A CT scan of this patient was performed. Which of the following is the most LIKELY diagnosis?"
+    },
+    {
+      "id": "thoracic-imaging-9-16b",
+      "questionNumber": "16b",
+      "primaryId": "thoracic-imaging-9-16a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_424_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_425_img_1_1.png"
+      ],
+      "prompt": "A CT was obtained, an image from which is shown. Biopsy demonstrated lymphangitic spread of a previously unsuspected breast cancer. Which of the following findings is most suggestive of lymphangitic spread of cancer on CT imaging?"
+    },
+    {
+      "id": "thoracic-imaging-10-2b",
+      "questionNumber": "2b",
+      "primaryId": "thoracic-imaging-10-2a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_445_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_446_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_446_img_2_1.png"
+      ],
+      "prompt": "What is the most likely diagnosis?"
+    },
+    {
+      "id": "thoracic-imaging-10-18b",
+      "questionNumber": "18b",
+      "primaryId": "thoracic-imaging-10-18a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_461_img_2_1.png",
+        "assets/book_images/thoracic-imaging_page_462_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_463_img_1_1.png"
+      ],
+      "prompt": "After this confirmatory esophagram, the most likely cause of injury in this patient is:"
+    },
+    {
+      "id": "thoracic-imaging-11-12b",
+      "questionNumber": "12b",
+      "primaryId": "thoracic-imaging-11-12a",
+      "primaryImageAssets": [
+        "assets/book_images/thoracic-imaging_page_497_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_497_img_2_1.png",
+        "assets/book_images/thoracic-imaging_page_498_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/thoracic-imaging_page_499_img_1_1.png"
+      ],
+      "prompt": "What anomaly associated with scimitar syndrome is present in this patient?"
+    },
+    {
+      "id": "cardiac-6-2b",
+      "questionNumber": "2b",
+      "primaryId": "cardiac-6-2a",
+      "primaryImageAssets": [
+        "assets/book_images/cardiac_page_156_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/cardiac_page_157_img_1_1.png"
+      ],
+      "prompt": "This image was obtained immediately after the first image. What happened to the abnormality?"
+    },
+    {
+      "id": "cardiac-6-23b",
+      "questionNumber": "23b",
+      "primaryId": "cardiac-6-23a",
+      "primaryImageAssets": [
+        "assets/book_images/cardiac_page_175_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/cardiac_page_176_img_1_1.png"
+      ],
+      "prompt": "For the images below, select the most likely history. Each option may be used once, more than once, or not at all."
+    },
+    {
+      "id": "cardiac-9-1b",
+      "questionNumber": "1b",
+      "primaryId": "cardiac-9-1a",
+      "primaryImageAssets": [
+        "assets/book_images/cardiac_page_235_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/cardiac_page_236_img_1_1.png"
+      ],
+      "prompt": "Which of the following is a contraindication to the procedure that was done?"
+    },
+    {
+      "id": "cardiac-9-6b",
+      "questionNumber": "6b",
+      "primaryId": "cardiac-9-6a",
+      "primaryImageAssets": [
+        "assets/book_images/cardiac_page_239_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/cardiac_page_240_img_1_1.png"
+      ],
+      "prompt": "No atrial septal defect was seen in this patient. What type of shunt does the patient have?"
+    },
+    {
+      "id": "cardiac-9-11c",
+      "questionNumber": "11c",
+      "primaryId": "cardiac-9-11a",
+      "primaryImageAssets": [
+        "assets/book_images/cardiac_page_246_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/cardiac_page_248_img_1_1.png"
+      ],
+      "prompt": "This patient also has this abnormality. What should be done?"
+    },
+    {
+      "id": "cardiac-9-25b",
+      "questionNumber": "25b",
+      "primaryId": "cardiac-9-25a",
+      "primaryImageAssets": [
+        "assets/book_images/cardiac_page_257_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/cardiac_page_258_img_1_1.png"
+      ],
+      "prompt": "For each image below, select the most likely description of findings. Each option may be used once, more than once, or not at all."
+    },
+    {
+      "id": "cardiac-10-5c",
+      "questionNumber": "5c",
+      "primaryId": "cardiac-10-5a",
+      "primaryImageAssets": [
+        "assets/book_images/cardiac_page_277_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/cardiac_page_278_img_2_1.png"
+      ],
+      "prompt": "This is the patient re-imaged a few hours later. What is the best next step in the management of this patient?"
+    },
+    {
+      "id": "gastrointestinal-4-1b",
+      "questionNumber": "1b",
+      "primaryId": "gastrointestinal-4-1a",
+      "primaryImageAssets": [
+        "assets/book_images/gastrointestinal_page_103_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/gastrointestinal_page_103_img_2_1.png"
+      ],
+      "prompt": "Regarding colonic diverticula, which of the following statements is TRUE?"
+    },
+    {
+      "id": "gastrointestinal-6-20b",
+      "questionNumber": "20b",
+      "primaryId": "gastrointestinal-6-20a",
+      "primaryImageAssets": [
+        "assets/book_images/gastrointestinal_page_174_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/gastrointestinal_page_174_img_2_1.png"
+      ],
+      "prompt": "This is the arterial phase postcontrast T1W image from the previous case. What finding is indicated by the arrows?"
+    },
+    {
+      "id": "gastrointestinal-7-4b",
+      "questionNumber": "4b",
+      "primaryId": "gastrointestinal-7-4a",
+      "primaryImageAssets": [
+        "assets/book_images/gastrointestinal_page_217_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/gastrointestinal_page_217_img_2_1.png"
+      ],
+      "prompt": "A Tc-99m sulfur colloid scan was performed. Based on the following image from the scan, what is the diagnosis?"
+    },
+    {
+      "id": "gastrointestinal-8-23b",
+      "questionNumber": "23b",
+      "primaryId": "gastrointestinal-8-23a",
+      "primaryImageAssets": [
+        "assets/book_images/gastrointestinal_page_240_img_3_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/gastrointestinal_page_241_img_1_1.png"
+      ],
+      "prompt": "An MRI was performed in the same patient with images shown below. What is the most likely diagnosis? T2W and T1W"
+    },
+    {
+      "id": "gastrointestinal-9-3b",
+      "questionNumber": "3b",
+      "primaryId": "gastrointestinal-9-3a",
+      "primaryImageAssets": [
+        "assets/book_images/gastrointestinal_page_270_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/gastrointestinal_page_270_img_2_1.png"
+      ],
+      "prompt": "A CT scan was performed on the patient from the previous question. What is the most likely etiology of the ascites?"
+    },
+    {
+      "id": "musculoskeletal-imaging-1-2c",
+      "questionNumber": "2c",
+      "primaryId": "musculoskeletal-imaging-1-2a",
+      "primaryImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_014_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_015_img_2_1.png"
+      ],
+      "prompt": "Which of the following is an appropriate reason for a CT arthrogram instead of MRI arthrogram?"
+    },
+    {
+      "id": "musculoskeletal-imaging-1-6c",
+      "questionNumber": "6c",
+      "primaryId": "musculoskeletal-imaging-1-6a",
+      "primaryImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_016_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_017_img_2_1.png"
+      ],
+      "prompt": "For which of the following scenarios is MRI preferred over CT after arthrography?"
+    },
+    {
+      "id": "musculoskeletal-imaging-4-2b",
+      "questionNumber": "2b",
+      "primaryId": "musculoskeletal-imaging-4-2a",
+      "primaryImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_060_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_060_img_2_1.png"
+      ],
+      "prompt": "A CT examination of the previous finding was performed. What is indicated by the arrow in the coronal CT image below performed in bone window?"
+    },
+    {
+      "id": "musculoskeletal-imaging-4-2c",
+      "questionNumber": "2c",
+      "primaryId": "musculoskeletal-imaging-4-2a",
+      "primaryImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_060_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_061_img_1_1.png"
+      ],
+      "prompt": "An MRI of the above finding was performed. What is indicated by the arrow on the axial T1 fat- saturated postcontrast image below?"
+    },
+    {
+      "id": "neuroradiology-1-4b",
+      "questionNumber": "4b",
+      "primaryId": "neuroradiology-1-4a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_021_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_022_img_1_1.png"
+      ],
+      "prompt": "A 40-year-old woman presents with a history of dizziness. What is the most likely diagnosis based on the contrast enhanced MRI performed on this patient?"
+    },
+    {
+      "id": "neuroradiology-2-5b",
+      "questionNumber": "5b",
+      "primaryId": "neuroradiology-2-5a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_091_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_092_img_1_1.png"
+      ],
+      "prompt": "A 55-year-old male with HIV positive status, noncompliant with antiretroviral treatment, presented with disorientation. Key images from an MRI are shown below: Based on the above scenario, what is the most likely diagnosis?"
+    },
+    {
+      "id": "neuroradiology-2-12b",
+      "questionNumber": "12b",
+      "primaryId": "neuroradiology-2-12a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_099_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_100_img_1_1.png"
+      ],
+      "prompt": "A 37-year-old female who presented with seizures undergoes an MRI for initial evaluation. Key images are shown below: The patient was started on steroids and immunosuppressive therapy with excellent response. Which other complication is this patient at increased risk for?"
+    },
+    {
+      "id": "neuroradiology-3-9b",
+      "questionNumber": "9b",
+      "primaryId": "neuroradiology-3-9a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_143_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_144_img_1_1.png"
+      ],
+      "prompt": "Based on the following image, what is the most likely diagnosis? Which of the following is a key feature of this diagnosis?"
+    },
+    {
+      "id": "neuroradiology-3-16b",
+      "questionNumber": "16b",
+      "primaryId": "neuroradiology-3-16a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_150_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_151_img_1_1.png"
+      ],
+      "prompt": "A 33-year-old woman with chronic headaches and an abnormal MRI. What is the most likely diagnosis?"
+    },
+    {
+      "id": "neuroradiology-3-21b",
+      "questionNumber": "21b",
+      "primaryId": "neuroradiology-3-21a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_157_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_159_img_1_1.png"
+      ],
+      "prompt": "A 2-year-old girl presents with abnormal head shape and syndactyly. A volume-rendered 3D reconstruction from a CT head was generated, shown below. Which of the following terms best describes the resulting skull morphology from the above shown premature synostosis?"
+    },
+    {
+      "id": "neuroradiology-4-5c",
+      "questionNumber": "5c",
+      "primaryId": "neuroradiology-4-5a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_201_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_202_img_1_1.png"
+      ],
+      "prompt": "Key images from an MRI performed for evaluation of an abnormal head CT are shown below. A key image from T2 FLAIR sequence obtained in the same patient is shown below. Which of the following abnormality is indicated by arrows in the above image?"
+    },
+    {
+      "id": "neuroradiology-5-5b",
+      "questionNumber": "5b",
+      "primaryId": "neuroradiology-5-5a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_247_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_248_img_1_1.png"
+      ],
+      "prompt": "A 4-year-old presents with fever, failure to thrive, and altered mental status. Given the chest x-ray, what is the most likely diagnosis for the brain imaging findings?"
+    },
+    {
+      "id": "neuroradiology-6-15b",
+      "questionNumber": "15b",
+      "primaryId": "neuroradiology-6-15a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_287_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_288_img_1_1.png"
+      ],
+      "prompt": "A 15-year-old presents with seizures and skin discoloration. Based on the MRI shown what is the most likely diagnosis?"
+    },
+    {
+      "id": "neuroradiology-7-10b",
+      "questionNumber": "10b",
+      "primaryId": "neuroradiology-7-10a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_331_img_2_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_331_img_1_1.png"
+      ],
+      "prompt": "A 50-year-old female smoker and hypertensive with acute-onset severe headache presents to the ER. Key images from noncontrast head CT and cerebral angiogram are shown below. What is the most likely diagnosis?"
+    },
+    {
+      "id": "neuroradiology-8-5b",
+      "questionNumber": "5b",
+      "primaryId": "neuroradiology-8-5a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_369_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_369_img_2_1.png"
+      ],
+      "prompt": "A 60-year-old male patient presents with an abnormal MRI; key images are shown below. Following images are from a different patient with the same history. What is the most likely diagnosis?"
+    },
+    {
+      "id": "neuroradiology-8-6b",
+      "questionNumber": "6b",
+      "primaryId": "neuroradiology-8-6a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_371_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_372_img_1_1.png"
+      ],
+      "prompt": "A 67-year-old male with chronic hypertension presents with headache, visual disturbance, and seizures. Key images from an initial noncontrast head CT performed in the ER are shown below. A contrast enhanced MRI was performed. What is the most likely diagnosis?"
+    },
+    {
+      "id": "neuroradiology-10-2b",
+      "questionNumber": "2b",
+      "primaryId": "neuroradiology-10-2a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_440_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_441_img_1_1.png"
+      ],
+      "prompt": "A 42-year-old male with seizures was found down and brought to the ER. What is the most likely diagnosis?"
+    },
+    {
+      "id": "neuroradiology-10-5b",
+      "questionNumber": "5b",
+      "primaryId": "neuroradiology-10-5a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_444_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_445_img_1_1.png"
+      ],
+      "prompt": "A 61-year-old male, newly immigrated from Brazil presents with focal back tenderness, weakness, and low-grade fever. What is the most likely diagnosis?"
+    },
+    {
+      "id": "neuroradiology-11-3b",
+      "questionNumber": "3b",
+      "primaryId": "neuroradiology-11-3a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_486_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_487_img_1_1.png"
+      ],
+      "prompt": "A 72-year-old woman presenting with right lower extremity weakness. What is the most likely diagnosis?"
+    },
+    {
+      "id": "neuroradiology-11-18b",
+      "questionNumber": "18b",
+      "primaryId": "neuroradiology-11-18a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_505_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_506_img_1_1.png"
+      ],
+      "prompt": "A 55-year-old diabetic patient develops acute-onset sensory deficits in the postoperative period following surgery for toe amputation. This is a different patient with acute-onset deficit in vibration and proprioception. MRI key images are shown above. What is the most likely diagnosis?"
+    },
+    {
+      "id": "neuroradiology-12-1b",
+      "questionNumber": "1b",
+      "primaryId": "neuroradiology-12-1a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_543_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_544_img_1_1.png"
+      ],
+      "prompt": "Patient A presents with cough-induced headaches. Patient B presents with upper extremity sensory deficits. MRI was performed for further assessment. Key images are shown below. Additional advanced imaging was performed to understand the CSF flow dynamics, and the image is shown. Which of the following MR imaging sequences was used to obtain the image?"
+    },
+    {
+      "id": "neuroradiology-16-4b",
+      "questionNumber": "4b",
+      "primaryId": "neuroradiology-16-4a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_684_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_685_img_1_1.png"
+      ],
+      "prompt": "A 45-year-old woman with diplopia on lateral gaze. What is the most likely diagnosis?"
+    },
+    {
+      "id": "neuroradiology-16-8c",
+      "questionNumber": "8c",
+      "primaryId": "neuroradiology-16-8a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_689_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_691_img_1_1.png"
+      ],
+      "prompt": "A 25-year-old with fever and headaches. CT images of the brain and paranasal sinuses were acquired with IV contrast. What is the most likely diagnosis based on the post gadolinium images above?"
+    },
+    {
+      "id": "neuroradiology-16-9b",
+      "questionNumber": "9b",
+      "primaryId": "neuroradiology-16-9a",
+      "primaryImageAssets": [
+        "assets/book_images/neuroradiology_page_692_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/neuroradiology_page_693_img_1_1.png"
+      ],
+      "prompt": "A 15-year-old woman with bitemporal hemianopia has the following MRI: What is the most likely diagnosis?"
+    },
+    {
+      "id": "breast-imaging-3-13c",
+      "questionNumber": "13c",
+      "primaryId": "breast-imaging-3-13a",
+      "primaryImageAssets": [
+        "assets/book_images/breast-imaging_page_144_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/breast-imaging_page_145_img_1_1.png"
+      ],
+      "prompt": "A 50-year-old female presents with a right breast palpable abnormality at 9 o'clock. Based on the ultrasound image below, what is the most likely diagnosis?"
+    },
+    {
+      "id": "breast-imaging-3-83c",
+      "questionNumber": "83c",
+      "primaryId": "breast-imaging-3-83a",
+      "primaryImageAssets": [
+        "assets/book_images/breast-imaging_page_199_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/breast-imaging_page_200_img_1_1.png"
+      ],
+      "prompt": "Shown are diagnostic mammogram and ultrasound images of a 52- year-old female with history of a palpable lump in the left breast. The patient underwent an ultrasound-guided core needle biopsy. Pathology results came back as phyllodes tumor. Based on imaging finding and pathology results, which of the following statement is the most appropriate recommendation?"
+    },
+    {
+      "id": "breast-imaging-3-92c",
+      "questionNumber": "92c",
+      "primaryId": "breast-imaging-3-92b",
+      "primaryImageAssets": [
+        "assets/book_images/breast-imaging_page_208_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/breast-imaging_page_209_img_1_1.png"
+      ],
+      "prompt": "What is the most likely diagnosis? Courtesy of Shawna C, Willey, M.D., Director, MedStar Regional Breast Health Program, Medstar Georgetown University Hospital."
+    },
+    {
+      "id": "ultrasound-2-13b",
+      "questionNumber": "13b",
+      "primaryId": "ultrasound-2-13a",
+      "primaryImageAssets": [
+        "assets/book_images/ultrasound_page_102_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/ultrasound_page_103_img_1_1.png"
+      ],
+      "prompt": "Aspiration of the lesion shown here in the same patient is likely to reveal elevated levels of which of the following?"
+    },
+    {
+      "id": "ultrasound-3-53b",
+      "questionNumber": "53b",
+      "primaryId": "ultrasound-3-53a",
+      "primaryImageAssets": [
+        "assets/book_images/ultrasound_page_234_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/ultrasound_page_235_img_1_1.png",
+        "assets/book_images/ultrasound_page_235_img_2_1.png",
+        "assets/book_images/ultrasound_page_236_img_1_1.png"
+      ],
+      "prompt": "The patient could not receive a contrast-enhanced CT or MRI because of renal insufficiency and a cardiac pacemaker. He then underwent a contrast-enhanced ultrasound. What is the most likely diagnosis?"
+    },
+    {
+      "id": "ultrasound-8-8b",
+      "questionNumber": "8b",
+      "primaryId": "ultrasound-8-8a",
+      "primaryImageAssets": [
+        "assets/book_images/ultrasound_page_446_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/ultrasound_page_447_img_1_1.png"
+      ],
+      "prompt": "The fetus was delivered by emergent C-section at 33 weeks because of nonreassuring fetal heart tracing. Abdominal radiograph on the first day of life is shown. Which of the following is the appropriate definitive management for this patient?"
+    },
+    {
+      "id": "ultrasound-9-40b",
+      "questionNumber": "40b",
+      "primaryId": "ultrasound-9-40a",
+      "primaryImageAssets": [
+        "assets/book_images/ultrasound_page_524_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/ultrasound_page_525_img_1_1.png"
+      ],
+      "prompt": "Which of the following artifacts is shown in this color Doppler image of the left hepatic lobe in the same patient?"
+    },
+    {
+      "id": "ultrasound-10-1c",
+      "questionNumber": "1c",
+      "primaryId": "ultrasound-10-1a",
+      "primaryImageAssets": [
+        "assets/book_images/ultrasound_page_580_img_1_1.png",
+        "assets/book_images/ultrasound_page_581_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/ultrasound_page_583_img_1_1.png",
+        "assets/book_images/ultrasound_page_584_img_1_1.png"
+      ],
+      "prompt": "Pictured here is a normal long (left) and short (right) axis image of the median nerve. Which of the following best describes the ultrasound appearance of a normal nerve?"
+    },
+    {
+      "id": "ultrasound-10-1d",
+      "questionNumber": "1d",
+      "primaryId": "ultrasound-10-1a",
+      "primaryImageAssets": [
+        "assets/book_images/ultrasound_page_580_img_1_1.png",
+        "assets/book_images/ultrasound_page_581_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/ultrasound_page_585_img_1_1.png"
+      ],
+      "prompt": "Pictured here is a normal anterior talofibular ligament. Which of the following best describes the ultrasound appearance of a normal ligament?"
+    },
+    {
+      "id": "ultrasound-10-2b",
+      "questionNumber": "2b",
+      "primaryId": "ultrasound-10-2a",
+      "primaryImageAssets": [
+        "assets/book_images/ultrasound_page_586_img_1_1.png"
+      ],
+      "previousImageAssets": [
+        "assets/book_images/ultrasound_page_587_img_1_1.png"
+      ],
+      "prompt": "Pictured here is the normal appearance of fibrocartilage within the knee meniscus. Which of the following best describes the ultrasound appearance of fibrocartilage?"
+    }
+  ],
+  "skippedNewFigure": [
+    {
+      "id": "ultrasound-7-2b",
+      "questionNumber": "2b",
+      "primaryId": "ultrasound-7-2a",
+      "reason": "prompt announces new figure",
+      "prompt": "Additional images of the right adnexa are shown. The positive predictive value (PPV) of the findings shown in establishing the diagnosis of ectopic pregnancy is:",
+      "keptImageAssets": [
+        "assets/book_images/ultrasound_page_403_img_1_1.png",
+        "assets/book_images/ultrasound_page_404_img_1_1.png"
+      ]
+    },
+    {
+      "id": "ultrasound-8-2b",
+      "questionNumber": "2b",
+      "primaryId": "ultrasound-8-2a",
+      "reason": "prompt announces new figure",
+      "prompt": "Additional images from anatomic imaging of the fetal brain are provided. What is the most likely diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/ultrasound_page_435_img_1_1.png",
+        "assets/book_images/ultrasound_page_435_img_2_1.png",
+        "assets/book_images/ultrasound_page_436_img_1_1.png"
+      ]
+    }
+  ],
+  "skippedNoStemReference": [
+    {
+      "id": "thoracic-imaging-3-3c",
+      "questionNumber": "3c",
+      "primaryId": "thoracic-imaging-3-3a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A follow-up CT of the chest was obtained on the patient and provided below. Do the imaging findings support your prior diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_058_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-4-5b",
+      "questionNumber": "5b",
+      "primaryId": "thoracic-imaging-4-5a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A prior CT scan was reviewed on the same patient. What is the most likely explanation for the course of the left central line?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_076_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-4-12b",
+      "questionNumber": "12b",
+      "primaryId": "thoracic-imaging-4-12a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "In a different patient, what accounts for the lucency inferior to the heart?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_082_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-8b",
+      "questionNumber": "8b",
+      "primaryId": "thoracic-imaging-5-8a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Which CT finding would be more characteristic in Mycobacterium avium complex (MAC) compared to Mycobacterium abscessus?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_102_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-21b",
+      "questionNumber": "21b",
+      "primaryId": "thoracic-imaging-5-21a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Axial and coronal CT images of the same patient are shown. The most important clinical information to correlate with imaging findings would be:",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_115_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-22c",
+      "questionNumber": "22c",
+      "primaryId": "thoracic-imaging-5-22a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Based on coronal and axial images from the same patient, the most likely underlying diagnosis is:",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_117_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_117_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-23b",
+      "questionNumber": "23b",
+      "primaryId": "thoracic-imaging-5-23a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Taken into consideration provided history and CT imaging findings, the leading diagnostic consideration would be:",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_119_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-24b",
+      "questionNumber": "24b",
+      "primaryId": "thoracic-imaging-5-24a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Given the patient's CT findings, the most likely diagnosis is:",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_121_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-26b",
+      "questionNumber": "26b",
+      "primaryId": "thoracic-imaging-5-26a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Given the CT findings and patient history, the most likely diagnosis is:",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_124_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-27b",
+      "questionNumber": "27b",
+      "primaryId": "thoracic-imaging-5-27a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "CT images from a different patient with dyspnea. On the soft tissue window (not provided), bilateral diaphragmatic and lower lung parietal pleural calcifications are noted. The most likely explanation for CT findings is:",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_125_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-30b",
+      "questionNumber": "30b",
+      "primaryId": "thoracic-imaging-5-30a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "CT axial images taken 3 years apart from a 37-year-old female with mixed connective tissue disease. The imaging pattern is that of what interstitial pneumonia?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_130_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-33b",
+      "questionNumber": "33b",
+      "primaryId": "thoracic-imaging-5-33a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "CT axial images obtained from an otherwise healthy young patient with acute onset of respiratory failure leading to an emergent intubation. The best explanation for the underlying mechanism responsible for these imaging abnormalities is:",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_135_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-33c",
+      "questionNumber": "33c",
+      "primaryId": "thoracic-imaging-5-33a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "CT axial images from the same patient several months later. The pattern of fibrosis is likely caused by:",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_136_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-34b",
+      "questionNumber": "34b",
+      "primaryId": "thoracic-imaging-5-34a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Please review CT images. Imaging findings include:",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_138_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-37b",
+      "questionNumber": "37b",
+      "primaryId": "thoracic-imaging-5-37a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A follow-up CT is obtained. Which lobe demonstrates the greatest degree of pulmonary consolidation?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_144_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-37c",
+      "questionNumber": "37c",
+      "primaryId": "thoracic-imaging-5-37a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Patient condition resolves spontaneously after 1 month and undergoes follow-up chest radiograph (left). Months later, the patient's symptoms return with repeat chest radiograph (right). What would be the most likely finding on pathology from bronchoscopic alveolar lavage?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_145_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_145_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-47b",
+      "questionNumber": "47b",
+      "primaryId": "thoracic-imaging-5-47a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Which imaging finding is absent below?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_156_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-73b",
+      "questionNumber": "73b",
+      "primaryId": "thoracic-imaging-5-73a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Cavitation of pulmonary nodules occurs in what percentage of granulomatosis with polyangiitis cases?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_184_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_184_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-83b",
+      "questionNumber": "83b",
+      "primaryId": "thoracic-imaging-5-83a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Four hours later, a radiograph was obtained for sudden hypoxia. What is the abnormality?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_196_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-88c",
+      "questionNumber": "88c",
+      "primaryId": "thoracic-imaging-5-88a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A CT is performed and reveals no centrally obstructing lesion. A review of the patient's abdominal CT from years earlier shows no interval change. What is the most common cause of this condition in adults?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_203_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-5-89d",
+      "questionNumber": "89d",
+      "primaryId": "thoracic-imaging-5-89a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What is the density of the tumor?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_205_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_205_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-6-4d",
+      "questionNumber": "4d",
+      "primaryId": "thoracic-imaging-6-4a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What sign is demonstrated?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_294_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-6-6b",
+      "questionNumber": "6b",
+      "primaryId": "thoracic-imaging-6-6a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A chest CT was obtained. What is the diagnosis until proven otherwise?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_298_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-6-7c",
+      "questionNumber": "7c",
+      "primaryId": "thoracic-imaging-6-7a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A chest CT was obtained. What is the diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_301_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-6-10b",
+      "questionNumber": "10b",
+      "primaryId": "thoracic-imaging-6-10a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What is the best diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_308_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_308_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-6-11b",
+      "questionNumber": "11b",
+      "primaryId": "thoracic-imaging-6-11a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A CT was obtained. What is the diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_309_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-6-12b",
+      "questionNumber": "12b",
+      "primaryId": "thoracic-imaging-6-12a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A chest CT was obtained. What imaging findings would be exclusive to solitary fibrous tumor of the pleura?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_312_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-6-13b",
+      "questionNumber": "13b",
+      "primaryId": "thoracic-imaging-6-13a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A different 52-year-old male presents for routine checkup. What is the finding?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_313_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-6-13c",
+      "questionNumber": "13c",
+      "primaryId": "thoracic-imaging-6-13a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A chest CT was obtained. What is the best diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_314_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-6-14b",
+      "questionNumber": "14b",
+      "primaryId": "thoracic-imaging-6-14a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Given this CT image of the same patient, what is the cause of the right pleural effusion?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_316_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-7-2b",
+      "questionNumber": "2b",
+      "primaryId": "thoracic-imaging-7-2a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Additional CT image from the same study. What is the salient finding?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_336_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-7-6b",
+      "questionNumber": "6b",
+      "primaryId": "thoracic-imaging-7-6a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "On evaluation of that patient's CT, what is the likely cause of the abnormality?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_342_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_342_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-7-8b",
+      "questionNumber": "8b",
+      "primaryId": "thoracic-imaging-7-8a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Based on the corresponding CT, what is the cause of the middle mediastinal opacity on chest x-ray?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_346_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_346_img_2_1.png",
+        "assets/book_images/thoracic-imaging_page_347_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-7-10c",
+      "questionNumber": "10c",
+      "primaryId": "thoracic-imaging-7-10a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "An MRI was performed, based on this. What is the likely diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_349_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-7-11b",
+      "questionNumber": "11b",
+      "primaryId": "thoracic-imaging-7-11a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What is the upper limit of normal for volume of pericardial fluid?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_351_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-7-13b",
+      "questionNumber": "13b",
+      "primaryId": "thoracic-imaging-7-13a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "An MRI was performed with T1-weighted imaging (left), T2-weighted imaging (middle), and T1 postcontrast imaging (right). What is the likely diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_354_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_354_img_2_1.png",
+        "assets/book_images/thoracic-imaging_page_355_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-7-16b",
+      "questionNumber": "16b",
+      "primaryId": "thoracic-imaging-7-16a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The patient presents with recent development of chest pain and history of prior pulmonary embolism currently on oral anticoagulation. A CT pulmonary angiogram was obtained. Localize the abnormality.",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_359_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-7-16c",
+      "questionNumber": "16c",
+      "primaryId": "thoracic-imaging-7-16a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "T1 noncontrast (A), T1 contrast, and T2 (C) were obtained. The patient's INR is supratherapeutic. Which would be the best recommendation after correcting the INR in this hemodynamically stable patient?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_359_img_2_1.png",
+        "assets/book_images/thoracic-imaging_page_360_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_360_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-7-17b",
+      "questionNumber": "17b",
+      "primaryId": "thoracic-imaging-7-17a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Which diagnosis best matches the CT findings?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_361_img_2_1.png",
+        "assets/book_images/thoracic-imaging_page_362_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_362_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-8-2b",
+      "questionNumber": "2b",
+      "primaryId": "thoracic-imaging-8-2a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What is the cause of pulmonary artery enlargement based on the corresponding CT?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_384_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-8-17b",
+      "questionNumber": "17b",
+      "primaryId": "thoracic-imaging-8-17a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Based on CT, what is the likely underlying disease?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_395_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_395_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-9-4b",
+      "questionNumber": "4b",
+      "primaryId": "thoracic-imaging-9-4a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "On correlation with CT, what is the diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_412_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-9-10b",
+      "questionNumber": "10b",
+      "primaryId": "thoracic-imaging-9-10a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "An outside CT scan from 6 years prior has been obtained, shown below with the new CT for comparison (current on left, 6 years prior on right). What is the likely diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_417_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_417_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-9-17c",
+      "questionNumber": "17c",
+      "primaryId": "thoracic-imaging-9-17a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Following transthoracic needle biopsy which demonstrated adenocarcinoma of the lung in the left upper lobe, PET/CT obtained before further biopsy. The only metabolically active lesions are captured on this single image. What is the suspected radiologic nodal stage?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_426_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-9-20b",
+      "questionNumber": "20b",
+      "primaryId": "thoracic-imaging-9-20a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Biopsy reveals small cell lung cancer. What criteria would make the cancer \"limited stage\"?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_429_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_429_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-10-13b",
+      "questionNumber": "13b",
+      "primaryId": "thoracic-imaging-10-13a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "In a different trauma patient, what radiologic sign is depicted?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_457_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-11-2b",
+      "questionNumber": "2b",
+      "primaryId": "thoracic-imaging-11-2a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Findings are most consistent with which congenital or developmental anomaly?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_481_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-11-4c",
+      "questionNumber": "4c",
+      "primaryId": "thoracic-imaging-11-4a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "In this sequestration, the vessel overlying the left hemidiaphragm must:",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_484_img_1_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-11-6b",
+      "questionNumber": "6b",
+      "primaryId": "thoracic-imaging-11-6a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What is the most likely cause?",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_486_img_2_1.png",
+        "assets/book_images/thoracic-imaging_page_487_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_487_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-11-8b",
+      "questionNumber": "8b",
+      "primaryId": "thoracic-imaging-11-8a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "These findings represent:",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_491_img_1_1.png",
+        "assets/book_images/thoracic-imaging_page_491_img_2_1.png"
+      ]
+    },
+    {
+      "id": "thoracic-imaging-11-11b",
+      "questionNumber": "11b",
+      "primaryId": "thoracic-imaging-11-11a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The anomalous vessel on the oblique CT image is a:",
+      "keptImageAssets": [
+        "assets/book_images/thoracic-imaging_page_496_img_1_1.png"
+      ]
+    },
+    {
+      "id": "cardiac-6-8b",
+      "questionNumber": "8b",
+      "primaryId": "cardiac-6-8a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What is the treatment for this lesion?",
+      "keptImageAssets": [
+        "assets/book_images/cardiac_page_162_img_2_1.png"
+      ]
+    },
+    {
+      "id": "cardiac-6-13c",
+      "questionNumber": "13c",
+      "primaryId": "cardiac-6-13a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What is the best treatment for this tumor?",
+      "keptImageAssets": [
+        "assets/book_images/cardiac_page_167_img_1_1.png"
+      ]
+    },
+    {
+      "id": "cardiac-6-24b",
+      "questionNumber": "24b",
+      "primaryId": "cardiac-6-24a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A 71-year-old male has an incidental mass. This condition most commonly occurs in which vascular territory?",
+      "keptImageAssets": [
+        "assets/book_images/cardiac_page_178_img_1_1.png"
+      ]
+    },
+    {
+      "id": "cardiac-9-9b",
+      "questionNumber": "9b",
+      "primaryId": "cardiac-9-9a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What type of shunt is this?",
+      "keptImageAssets": [
+        "assets/book_images/cardiac_page_244_img_1_1.png"
+      ]
+    },
+    {
+      "id": "cardiac-9-10b",
+      "questionNumber": "10b",
+      "primaryId": "cardiac-9-10a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What type of surgery did the patient have?",
+      "keptImageAssets": [
+        "assets/book_images/cardiac_page_245_img_2_1.png"
+      ]
+    },
+    {
+      "id": "cardiac-9-11b",
+      "questionNumber": "11b",
+      "primaryId": "cardiac-9-11a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "This is the identical patient from 11a. What underlying condition does she have?",
+      "keptImageAssets": [
+        "assets/book_images/cardiac_page_247_img_1_1.png"
+      ]
+    },
+    {
+      "id": "cardiac-10-5b",
+      "questionNumber": "5b",
+      "primaryId": "cardiac-10-5a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A gated CTA is then obtained. What other type of imaging would be most helpful to determine the diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/cardiac_page_278_img_1_1.png"
+      ]
+    },
+    {
+      "id": "cardiac-10-14b",
+      "questionNumber": "14b",
+      "primaryId": "cardiac-10-14a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What measurements can be obtained on these images to best assess for severity of pulmonary embolism?",
+      "keptImageAssets": [
+        "assets/book_images/cardiac_page_285_img_1_1.png"
+      ]
+    },
+    {
+      "id": "cardiac-10-15b",
+      "questionNumber": "15b",
+      "primaryId": "cardiac-10-15a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "How is this complication best treated?",
+      "keptImageAssets": [
+        "assets/book_images/cardiac_page_286_img_2_1.png"
+      ]
+    },
+    {
+      "id": "gastrointestinal-1-13b",
+      "questionNumber": "13b",
+      "primaryId": "gastrointestinal-1-13a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The patient subsequently underwent this exam with water-soluble contrast injected via enteric tube. What is the next step?",
+      "keptImageAssets": [
+        "assets/book_images/gastrointestinal_page_017_img_5_1.png"
+      ]
+    },
+    {
+      "id": "gastrointestinal-1-18b",
+      "questionNumber": "18b",
+      "primaryId": "gastrointestinal-1-18a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A PET-CT scan was also performed. What is the main role of the PET-CT in the staging of his cancer?",
+      "keptImageAssets": [
+        "assets/book_images/gastrointestinal_page_020_img_4_1.png",
+        "assets/book_images/gastrointestinal_page_020_img_5_1.png",
+        "assets/book_images/gastrointestinal_page_020_img_6_1.png"
+      ]
+    },
+    {
+      "id": "gastrointestinal-1-26b",
+      "questionNumber": "26b",
+      "primaryId": "gastrointestinal-1-26a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Label the following structures A to H. Each answer may be used once, more than once, or not at all.",
+      "keptImageAssets": [
+        "assets/book_images/gastrointestinal_page_023_img_4_1.png",
+        "assets/book_images/gastrointestinal_page_023_img_5_1.png"
+      ]
+    },
+    {
+      "id": "gastrointestinal-5-7b",
+      "questionNumber": "7b",
+      "primaryId": "gastrointestinal-5-7a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Following surgical exploration and placement of surgical drains, the patient underwent an ERCP. What is the finding?",
+      "keptImageAssets": [
+        "assets/book_images/gastrointestinal_page_141_img_1_1.png"
+      ]
+    },
+    {
+      "id": "gastrointestinal-5-21c",
+      "questionNumber": "21c",
+      "primaryId": "gastrointestinal-5-21a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The patient has a prolonged hospital course and is discharged. Twelve weeks after initial imaging, she has a repeat CT scan shown below. What is the appropriate term to describe the pancreatic finding?",
+      "keptImageAssets": [
+        "assets/book_images/gastrointestinal_page_146_img_2_1.png"
+      ]
+    },
+    {
+      "id": "gastrointestinal-5-23b",
+      "questionNumber": "23b",
+      "primaryId": "gastrointestinal-5-23a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The cystic structure indicated by the arrow in the same patient represents a",
+      "keptImageAssets": [
+        "assets/book_images/gastrointestinal_page_147_img_2_1.png"
+      ]
+    },
+    {
+      "id": "gastrointestinal-5-28b",
+      "questionNumber": "28b",
+      "primaryId": "gastrointestinal-5-28a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The patient proceeded to angiography as shown. The abnormality is associated with which vessel?",
+      "keptImageAssets": [
+        "assets/book_images/gastrointestinal_page_149_img_2_1.png"
+      ]
+    },
+    {
+      "id": "gastrointestinal-6-10b",
+      "questionNumber": "10b",
+      "primaryId": "gastrointestinal-6-10a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What finding is indicated by the arrow on this sagittal ultrasound image from the same patient?",
+      "keptImageAssets": [
+        "assets/book_images/gastrointestinal_page_170_img_3_1.png"
+      ]
+    },
+    {
+      "id": "gastrointestinal-6-22b",
+      "questionNumber": "22b",
+      "primaryId": "gastrointestinal-6-22a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The patient was hemodynamically stable and managed conservatively. Within 24 hours, the patient developed jaundice, which prompted a HIDA scan. What is the diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/gastrointestinal_page_175_img_3_1.png"
+      ]
+    },
+    {
+      "id": "gastrointestinal-8-5b",
+      "questionNumber": "5b",
+      "primaryId": "gastrointestinal-8-5a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The patient in Question 5a underwent treatment including exploratory laparotomy to evacuate peritoneal fluid collections, drain placement, and antibiotics. After recovery, the drains were removed. Two months later, the patient presents with jaundice and the following MRCP. What is the diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/gastrointestinal_page_232_img_3_1.png"
+      ]
+    },
+    {
+      "id": "gastrointestinal-9-10b",
+      "questionNumber": "10b",
+      "primaryId": "gastrointestinal-9-10a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What sign is demonstrated in the right upper quadrant on the following supine AP abdominal radiograph?",
+      "keptImageAssets": [
+        "assets/book_images/gastrointestinal_page_273_img_1_1.png"
+      ]
+    },
+    {
+      "id": "musculoskeletal-imaging-1-2b",
+      "questionNumber": "2b",
+      "primaryId": "musculoskeletal-imaging-1-2a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The patient is scheduled for an arthrogram followed by a CT examination of the left shoulder. What is the most appropriate mixture for the arthrogram?",
+      "keptImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_015_img_1_1.png"
+      ]
+    },
+    {
+      "id": "musculoskeletal-imaging-1-6b",
+      "questionNumber": "6b",
+      "primaryId": "musculoskeletal-imaging-1-6a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The patient is scheduled for an arthrogram followed by an MRI examination of the left hip. What is the appropriate mixture for the arthrogram?",
+      "keptImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_017_img_1_1.png"
+      ]
+    },
+    {
+      "id": "musculoskeletal-imaging-6-47b",
+      "questionNumber": "47b",
+      "primaryId": "musculoskeletal-imaging-6-47a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Based on the MR images, what is the most likely mechanism of injury?",
+      "keptImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_148_img_2_1.png"
+      ]
+    },
+    {
+      "id": "musculoskeletal-imaging-7-12b",
+      "questionNumber": "12b",
+      "primaryId": "musculoskeletal-imaging-7-12a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A 21-year-old male presents with hip and pelvic pain. What is the most likely cause of the bone marrow signal pattern?",
+      "keptImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_192_img_1_1.png"
+      ]
+    },
+    {
+      "id": "musculoskeletal-imaging-7-12c",
+      "questionNumber": "12c",
+      "primaryId": "musculoskeletal-imaging-7-12a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A 20-year-old college athlete presents with right shoulder pain after a recent increase in training before the beginning of the season. What is the most likely cause of the bone marrow signal pattern?",
+      "keptImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_192_img_2_1.png"
+      ]
+    },
+    {
+      "id": "musculoskeletal-imaging-9-7b",
+      "questionNumber": "7b",
+      "primaryId": "musculoskeletal-imaging-9-7a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The MR images below depict what sign that is typically associated with osteonecrosis of the hip?",
+      "keptImageAssets": [
+        "assets/book_images/musculoskeletal-imaging_page_228_img_2_1.png"
+      ]
+    },
+    {
+      "id": "neuroradiology-1-2b",
+      "questionNumber": "2b",
+      "primaryId": "neuroradiology-1-2a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A 67-year-old hypertensive otherwise healthy man presents with new-onset seizure to the emergency department. A noncontrast head CT was performed to evaluate for intracranial hemorrhage. What should be the most likely diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/neuroradiology_page_020_img_1_1.png"
+      ]
+    },
+    {
+      "id": "neuroradiology-2-15b",
+      "questionNumber": "15b",
+      "primaryId": "neuroradiology-2-15a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A 52-year-old male presents with headache, weakness, and progressive gait abnormality. A contrast- enhanced MRI was performed, and key images are shown below: Which characteristic metabolic abnormality has been associated with high-grade primary CNS glioma?",
+      "keptImageAssets": [
+        "assets/book_images/neuroradiology_page_103_img_1_1.png"
+      ]
+    },
+    {
+      "id": "neuroradiology-3-2b",
+      "questionNumber": "2b",
+      "primaryId": "neuroradiology-3-2a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A 40-year-old male presents with chronic headaches and recently worsening nausea and vomiting. Key images from initial workup are shown below. What is the most likely explanation for the periventricular white matter hyperintensity on FLAIR image shown above?",
+      "keptImageAssets": [
+        "assets/book_images/neuroradiology_page_137_img_1_1.png"
+      ]
+    },
+    {
+      "id": "neuroradiology-3-19c",
+      "questionNumber": "19c",
+      "primaryId": "neuroradiology-3-19a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A 25-year-old woman with headache and blurred vision. Key images from an MRI are shown below. An MRV was performed and key image is shown. What can be considered as the next step?",
+      "keptImageAssets": [
+        "assets/book_images/neuroradiology_page_155_img_1_1.png"
+      ]
+    },
+    {
+      "id": "neuroradiology-7-3b",
+      "questionNumber": "3b",
+      "primaryId": "neuroradiology-7-3a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A 55-year-old male with sudden-onset right-sided weakness and altered mental status. Below are key images from the coronal CTA, CBF, CBV, and MTT maps (in that order) from CT angiography and CT perfusion. What is the most accurate diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/neuroradiology_page_323_img_1_1.png"
+      ]
+    },
+    {
+      "id": "neuroradiology-7-5c",
+      "questionNumber": "5c",
+      "primaryId": "neuroradiology-7-5a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A 45-year-old male with conjunctival chemosis and proptosis presents for initial evaluation. Key images from a CTA head are provided below. What is the most likely etiology for mass-like lesion in left cavernous sinus?",
+      "keptImageAssets": [
+        "assets/book_images/neuroradiology_page_327_img_1_1.png"
+      ]
+    },
+    {
+      "id": "neuroradiology-10-1b",
+      "questionNumber": "1b",
+      "primaryId": "neuroradiology-10-1a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A 50-year-old female with back pain, fevers, and chills presented to the ER. A contrast-enhanced CT was performed. Key image is shown below. To further assess the abnormality, an MRI of the lumbar spine was performed. Key image is shown below. What is the diagnosis?",
+      "keptImageAssets": [
+        "assets/book_images/neuroradiology_page_439_img_1_1.png"
+      ]
+    },
+    {
+      "id": "neuroradiology-11-10c",
+      "questionNumber": "10c",
+      "primaryId": "neuroradiology-11-10a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A 30-year-old male presents with gait ataxia and upper extremity motor weakness. Key images from an MRI are shown below: Based on additional findings shown above, what is the associated syndrome?",
+      "keptImageAssets": [
+        "assets/book_images/neuroradiology_page_496_img_1_1.png"
+      ]
+    },
+    {
+      "id": "neuroradiology-16-8b",
+      "questionNumber": "8b",
+      "primaryId": "neuroradiology-16-8a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "A 25-year-old with fever and headaches. CT images of the brain and paranasal sinuses were acquired with IV contrast. What is the next best step in imaging evaluation?",
+      "keptImageAssets": [
+        "assets/book_images/neuroradiology_page_690_img_1_1.png"
+      ]
+    },
+    {
+      "id": "breast-imaging-1-7b",
+      "questionNumber": "7b",
+      "primaryId": "breast-imaging-1-7a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The patient is called back for a repeat mediolateral oblique (MLO) image of the right breast (see below). The reason the mediolateral oblique view was repeated was because of:",
+      "keptImageAssets": [
+        "assets/book_images/breast-imaging_page_023_img_1_1.png"
+      ]
+    },
+    {
+      "id": "breast-imaging-1-12b",
+      "questionNumber": "12b",
+      "primaryId": "breast-imaging-1-12a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The patient is called back for a repeat mediolateral oblique (MLO) image of the right breast (see below). The reason the mediolateral oblique view was repeated was because of:",
+      "keptImageAssets": [
+        "assets/book_images/breast-imaging_page_028_img_1_1.png"
+      ]
+    },
+    {
+      "id": "breast-imaging-2-3b",
+      "questionNumber": "3b",
+      "primaryId": "breast-imaging-2-3a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Additional views were performed. What is the most appropriate description of these calcifications?",
+      "keptImageAssets": [
+        "assets/book_images/breast-imaging_page_089_img_1_1.png"
+      ]
+    },
+    {
+      "id": "breast-imaging-3-10b",
+      "questionNumber": "10b",
+      "primaryId": "breast-imaging-3-10a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "The patient's left mammogram is also shown. No prior mammogram is available for comparison at this time. What is the most appropriate BI-RADS classification?",
+      "keptImageAssets": [
+        "assets/book_images/breast-imaging_page_142_img_1_1.png"
+      ]
+    },
+    {
+      "id": "breast-imaging-3-77b",
+      "questionNumber": "77b",
+      "primaryId": "breast-imaging-3-77a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Additional views and ultrasound images are given below. What is the next step in management?",
+      "keptImageAssets": [
+        "assets/book_images/breast-imaging_page_195_img_1_1.png"
+      ]
+    },
+    {
+      "id": "breast-imaging-3-90d",
+      "questionNumber": "90d",
+      "primaryId": "breast-imaging-3-90a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "An image-guided core needle biopsy of this finding was performed. A postbiopsy marker was placed. Pathology report states papilloma with usual ductal hyperplasia. What is the appropriate radiologic/pathologic recommendation?",
+      "keptImageAssets": [
+        "assets/book_images/breast-imaging_page_206_img_1_1.png"
+      ]
+    },
+    {
+      "id": "ultrasound-3-50b",
+      "questionNumber": "50b",
+      "primaryId": "ultrasound-3-50a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Prior to biopsy of this lesion, which preprocedural laboratory test needs to be performed?",
+      "keptImageAssets": [
+        "assets/book_images/ultrasound_page_229_img_1_1.png",
+        "assets/book_images/ultrasound_page_230_img_1_1.png"
+      ]
+    },
+    {
+      "id": "ultrasound-9-53b",
+      "questionNumber": "53b",
+      "primaryId": "ultrasound-9-53a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "What imaging feature favors an acute versus chronic deep venous thrombosis (DVT)?",
+      "keptImageAssets": [
+        "assets/book_images/ultrasound_page_541_img_1_1.png"
+      ]
+    },
+    {
+      "id": "ultrasound-10-1b",
+      "questionNumber": "1b",
+      "primaryId": "ultrasound-10-1a",
+      "reason": "prompt does not reference stem image",
+      "prompt": "Pictured here is a normal long (left) and short (right) axis image of the gastrocnemius and soleus muscle. What creates the hyperechoic striations within the muscle?",
+      "keptImageAssets": [
+        "assets/book_images/ultrasound_page_582_img_1_1.png",
+        "assets/book_images/ultrasound_page_582_img_2_1.png"
+      ]
+    }
+  ]
+}

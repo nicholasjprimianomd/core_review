@@ -69,15 +69,16 @@ class ExamHistoryRepository {
     final local = await _readCombinedLocal(userId);
 
     if (userId != null && userId.isNotEmpty) {
-      if (_cloud != null) {
+      final cloud = _cloud;
+      if (cloud != null) {
         try {
-          final remote = await _cloud!.loadEntries(userId: userId);
+          final remote = await cloud.loadEntries(userId: userId);
           var merged = mergeEntryLists(local, remote ?? const <ExamHistoryEntry>[]);
           merged = trimToMax(merged);
           await _writeScoped(userId, merged);
           final remoteTrimmed = remote != null ? trimToMax(remote) : null;
           if (remoteTrimmed == null || !_sameIdsInOrder(merged, remoteTrimmed)) {
-            await _cloud!.saveEntries(userId: userId, entries: merged);
+            await cloud.saveEntries(userId: userId, entries: merged);
           }
           return merged;
         } catch (_) {
@@ -96,9 +97,10 @@ class ExamHistoryRepository {
     final userId = _userIdProvider?.call();
     var existing = await _readCombinedLocal(userId);
 
-    if (userId != null && userId.isNotEmpty && _cloud != null) {
+    final cloud = _cloud;
+    if (userId != null && userId.isNotEmpty && cloud != null) {
       try {
-        final remote = await _cloud!.loadEntries(userId: userId);
+        final remote = await cloud.loadEntries(userId: userId);
         existing = mergeEntryLists(existing, remote ?? const <ExamHistoryEntry>[]);
       } catch (_) {}
     }
@@ -106,9 +108,9 @@ class ExamHistoryRepository {
     final next = trimToMax(mergeEntryLists(<ExamHistoryEntry>[entry], existing));
     await _writeScoped(userId, next);
 
-    if (userId != null && userId.isNotEmpty && _cloud != null) {
+    if (userId != null && userId.isNotEmpty && cloud != null) {
       try {
-        await _cloud!.saveEntries(userId: userId, entries: next);
+        await cloud.saveEntries(userId: userId, entries: next);
       } catch (_) {
         // Local list is authoritative until the next successful sync.
       }

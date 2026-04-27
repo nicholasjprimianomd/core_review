@@ -54,74 +54,77 @@ void main() {
     expect(loaded.answers['chapter-1-1']?.selectedChoice, 'D');
   });
 
-  test('QuestionController persists submitted answers and navigation', () async {
-    final repository = ProgressRepository(store: store);
-    final questions = const [
-      BookQuestion(
-        id: 'chapter-1-1',
-        bookId: 'book-1',
-        bookTitle: 'Core Review Test',
-        chapterId: 'chapter-1',
-        chapterNumber: 1,
-        chapterTitle: 'Basics of Imaging',
-        questionNumber: '1',
-        order: 1,
-        sortOrder: 1,
-        prompt: 'Question one?',
-        choices: {
-          'A': 'Option A',
-          'B': 'Option B',
-          'C': 'Option C',
-          'D': 'Option D',
-        },
-        correctChoice: 'B',
-        explanation: 'Option B is correct.',
-        references: [],
-        imageAssets: [],
-        stemGroup: '1',
-      ),
-      BookQuestion(
-        id: 'chapter-1-2',
-        bookId: 'book-1',
-        bookTitle: 'Core Review Test',
-        chapterId: 'chapter-1',
-        chapterNumber: 1,
-        chapterTitle: 'Basics of Imaging',
-        questionNumber: '2',
-        order: 2,
-        sortOrder: 2,
-        prompt: 'Question two?',
-        choices: {
-          'A': 'Option A',
-          'B': 'Option B',
-          'C': 'Option C',
-          'D': 'Option D',
-        },
-        correctChoice: 'A',
-        explanation: 'Option A is correct.',
-        references: [],
-        imageAssets: [],
-        stemGroup: '2',
-      ),
-    ];
+  test(
+    'QuestionController persists submitted answers and navigation',
+    () async {
+      final repository = ProgressRepository(store: store);
+      final questions = const [
+        BookQuestion(
+          id: 'chapter-1-1',
+          bookId: 'book-1',
+          bookTitle: 'Core Review Test',
+          chapterId: 'chapter-1',
+          chapterNumber: 1,
+          chapterTitle: 'Basics of Imaging',
+          questionNumber: '1',
+          order: 1,
+          sortOrder: 1,
+          prompt: 'Question one?',
+          choices: {
+            'A': 'Option A',
+            'B': 'Option B',
+            'C': 'Option C',
+            'D': 'Option D',
+          },
+          correctChoice: 'B',
+          explanation: 'Option B is correct.',
+          references: [],
+          imageAssets: [],
+          stemGroup: '1',
+        ),
+        BookQuestion(
+          id: 'chapter-1-2',
+          bookId: 'book-1',
+          bookTitle: 'Core Review Test',
+          chapterId: 'chapter-1',
+          chapterNumber: 1,
+          chapterTitle: 'Basics of Imaging',
+          questionNumber: '2',
+          order: 2,
+          sortOrder: 2,
+          prompt: 'Question two?',
+          choices: {
+            'A': 'Option A',
+            'B': 'Option B',
+            'C': 'Option C',
+            'D': 'Option D',
+          },
+          correctChoice: 'A',
+          explanation: 'Option A is correct.',
+          references: [],
+          imageAssets: [],
+          stemGroup: '2',
+        ),
+      ];
 
-    final controller = QuestionController(
-      questions: questions,
-      progressRepository: repository,
-      initialProgress: StudyProgress.empty,
-      initialIndex: 0,
-    );
+      final controller = QuestionController(
+        questions: questions,
+        progressRepository: repository,
+        initialProgress: StudyProgress.empty,
+        initialIndex: 0,
+      );
 
-    controller.selectChoice('B');
-    await controller.submitCurrentAnswer();
-    controller.goToNext();
+      controller.selectChoice('B');
+      await controller.submitCurrentAnswer();
+      controller.goToNext();
 
-    final loaded = await repository.loadProgress();
+      final loaded = await repository.loadProgress();
 
-    expect(controller.currentIndex, 1);
-    expect(loaded.answers['chapter-1-1']?.isCorrect, isTrue);
-    expect(loaded.lastVisitedQuestionId, 'chapter-1-2');
-  });
+      expect(controller.currentIndex, 1);
+      expect(loaded.answers['chapter-1-1']?.isCorrect, isTrue);
+      expect(loaded.lastVisitedQuestionId, 'chapter-1-2');
+    },
+  );
 
   test('QuestionController jumps directly to a selected question', () async {
     final repository = ProgressRepository(store: store);
@@ -137,10 +140,7 @@ void main() {
         order: 1,
         sortOrder: 1,
         prompt: 'Question one?',
-        choices: {
-          'A': 'Option A',
-          'B': 'Option B',
-        },
+        choices: {'A': 'Option A', 'B': 'Option B'},
         correctChoice: 'A',
         explanation: 'Option A is correct.',
         references: [],
@@ -158,10 +158,7 @@ void main() {
         order: 2,
         sortOrder: 2,
         prompt: 'Question two?',
-        choices: {
-          'A': 'Option A',
-          'B': 'Option B',
-        },
+        choices: {'A': 'Option A', 'B': 'Option B'},
         correctChoice: 'B',
         explanation: 'Option B is correct.',
         references: [],
@@ -184,172 +181,244 @@ void main() {
     expect(loaded.lastVisitedQuestionId, 'chapter-1-2');
   });
 
-  test('QuestionController defers reveal in exam test mode then finishDeferredExamReveals',
-      () async {
-    final repository = ProgressRepository(store: store);
-    final questions = const [
-      BookQuestion(
-        id: 'chapter-1-1',
-        bookId: 'book-1',
-        bookTitle: 'Core Review Test',
-        chapterId: 'chapter-1',
-        chapterNumber: 1,
-        chapterTitle: 'Basics of Imaging',
-        questionNumber: '1',
-        order: 1,
-        sortOrder: 1,
-        prompt: 'Question one?',
-        choices: {
-          'A': 'Option A',
-          'B': 'Option B',
-          'C': 'Option C',
-          'D': 'Option D',
-        },
-        correctChoice: 'B',
-        explanation: 'Option B is correct.',
-        references: [],
-        imageAssets: [],
-        stemGroup: '1',
-      ),
-    ];
+  test(
+    'QuestionController defers reveal in exam test mode then finishDeferredExamReveals',
+    () async {
+      final repository = ProgressRepository(store: store);
+      final questions = const [
+        BookQuestion(
+          id: 'chapter-1-1',
+          bookId: 'book-1',
+          bookTitle: 'Core Review Test',
+          chapterId: 'chapter-1',
+          chapterNumber: 1,
+          chapterTitle: 'Basics of Imaging',
+          questionNumber: '1',
+          order: 1,
+          sortOrder: 1,
+          prompt: 'Question one?',
+          choices: {
+            'A': 'Option A',
+            'B': 'Option B',
+            'C': 'Option C',
+            'D': 'Option D',
+          },
+          correctChoice: 'B',
+          explanation: 'Option B is correct.',
+          references: [],
+          imageAssets: [],
+          stemGroup: '1',
+        ),
+      ];
 
-    final controller = QuestionController(
-      questions: questions,
-      progressRepository: repository,
-      initialProgress: StudyProgress.empty,
-      initialIndex: 0,
-      deferRevealUntilExamEnd: true,
-    );
+      final controller = QuestionController(
+        questions: questions,
+        progressRepository: repository,
+        initialProgress: StudyProgress.empty,
+        initialIndex: 0,
+        deferRevealUntilExamEnd: true,
+      );
 
-    expect(controller.hasRevealedCurrentAnswer, isFalse);
+      expect(controller.hasRevealedCurrentAnswer, isFalse);
 
-    controller.selectChoice('B');
-    await controller.submitCurrentAnswer();
+      controller.selectChoice('B');
+      await controller.submitCurrentAnswer();
 
-    expect(controller.currentQuestionProgress?.isRevealed, isFalse);
-    expect(controller.explanationsVisibleForCurrent, isFalse);
+      expect(controller.currentQuestionProgress?.isRevealed, isFalse);
+      expect(controller.explanationsVisibleForCurrent, isFalse);
 
-    await controller.finishDeferredExamReveals();
+      await controller.finishDeferredExamReveals();
 
-    expect(controller.currentQuestionProgress?.isRevealed, isTrue);
-    expect(controller.explanationsVisibleForCurrent, isTrue);
+      expect(controller.currentQuestionProgress?.isRevealed, isTrue);
+      expect(controller.explanationsVisibleForCurrent, isTrue);
 
-    final loaded = await repository.loadProgress();
-    expect(loaded.answers['chapter-1-1']?.isRevealed, isTrue);
-  });
-
-  test('QuestionController hides explanations until answer is revealed in study mode',
-      () async {
-    final repository = ProgressRepository(store: store);
-    final questions = const [
-      BookQuestion(
-        id: 'chapter-1-1',
-        bookId: 'book-1',
-        bookTitle: 'Core Review Test',
-        chapterId: 'chapter-1',
-        chapterNumber: 1,
-        chapterTitle: 'Basics of Imaging',
-        questionNumber: '1',
-        order: 1,
-        sortOrder: 1,
-        prompt: 'Question one?',
-        choices: {
-          'A': 'Option A',
-          'B': 'Option B',
-          'C': 'Option C',
-          'D': 'Option D',
-        },
-        correctChoice: 'B',
-        explanation: 'Option B is correct.',
-        references: [],
-        imageAssets: [],
-        stemGroup: '1',
-      ),
-    ];
-
-    final controller = QuestionController(
-      questions: questions,
-      progressRepository: repository,
-      initialProgress: StudyProgress.empty,
-      initialIndex: 0,
-    );
-
-    expect(controller.explanationsVisibleForCurrent, isFalse);
-
-    controller.selectChoice('B');
-    await controller.submitCurrentAnswer();
-
-    expect(controller.currentQuestionProgress?.isRevealed, isTrue);
-    expect(controller.explanationsVisibleForCurrent, isTrue);
-  });
+      final loaded = await repository.loadProgress();
+      expect(loaded.answers['chapter-1-1']?.isRevealed, isTrue);
+    },
+  );
 
   test(
-    'QuestionController submitCurrentAnswer advances multipart to next part',
+    'QuestionController hides explanations until answer is revealed in study mode',
     () async {
-    final repository = ProgressRepository(store: store);
-    final questions = const [
-      BookQuestion(
-        id: 'mp-1a',
-        bookId: 'book-1',
-        bookTitle: 'Core Review Test',
-        chapterId: 'chapter-1',
-        chapterNumber: 1,
-        chapterTitle: 'Basics of Imaging',
-        questionNumber: '1a',
-        order: 1,
-        sortOrder: 1,
-        prompt: 'Multipart part A?',
-        choices: {
-          'A': 'Option A',
-          'B': 'Option B',
-        },
-        correctChoice: 'A',
-        explanation: 'Shared explanation.',
-        references: [],
-        imageAssets: [],
-        stemGroup: 'stem-mp',
-      ),
-      BookQuestion(
-        id: 'mp-1b',
-        bookId: 'book-1',
-        bookTitle: 'Core Review Test',
-        chapterId: 'chapter-1',
-        chapterNumber: 1,
-        chapterTitle: 'Basics of Imaging',
-        questionNumber: '1b',
-        order: 2,
-        sortOrder: 2,
-        prompt: 'Multipart part B?',
-        choices: {
-          'A': 'Option A',
-          'B': 'Option B',
-        },
-        correctChoice: 'B',
-        explanation: 'Shared explanation.',
-        references: [],
-        imageAssets: [],
-        stemGroup: 'stem-mp',
-      ),
-    ];
+      final repository = ProgressRepository(store: store);
+      final questions = const [
+        BookQuestion(
+          id: 'chapter-1-1',
+          bookId: 'book-1',
+          bookTitle: 'Core Review Test',
+          chapterId: 'chapter-1',
+          chapterNumber: 1,
+          chapterTitle: 'Basics of Imaging',
+          questionNumber: '1',
+          order: 1,
+          sortOrder: 1,
+          prompt: 'Question one?',
+          choices: {
+            'A': 'Option A',
+            'B': 'Option B',
+            'C': 'Option C',
+            'D': 'Option D',
+          },
+          correctChoice: 'B',
+          explanation: 'Option B is correct.',
+          references: [],
+          imageAssets: [],
+          stemGroup: '1',
+        ),
+      ];
 
-    final controller = QuestionController(
-      questions: questions,
-      progressRepository: repository,
-      initialProgress: StudyProgress.empty,
-      initialIndex: 0,
-    );
+      final controller = QuestionController(
+        questions: questions,
+        progressRepository: repository,
+        initialProgress: StudyProgress.empty,
+        initialIndex: 0,
+      );
 
-    expect(controller.shouldUseNextPartAction, isTrue);
+      expect(controller.explanationsVisibleForCurrent, isFalse);
 
-    controller.selectChoice('A');
-    await controller.submitCurrentAnswer();
+      controller.selectChoice('B');
+      await controller.submitCurrentAnswer();
 
-    expect(controller.currentIndex, 1);
-    expect(controller.currentQuestion.id, 'mp-1b');
+      expect(controller.currentQuestionProgress?.isRevealed, isTrue);
+      expect(controller.explanationsVisibleForCurrent, isTrue);
+    },
+  );
 
-    final loaded = await repository.loadProgress();
-    expect(loaded.answers['mp-1a']?.selectedChoice, 'A');
-    expect(loaded.answers['mp-1a']?.isRevealed, isFalse);
-    expect(loaded.lastVisitedQuestionId, 'mp-1b');
-  });
+  test(
+    'QuestionController submitCurrentAnswer keeps multipart on same page',
+    () async {
+      final repository = ProgressRepository(store: store);
+      final questions = const [
+        BookQuestion(
+          id: 'mp-1a',
+          bookId: 'book-1',
+          bookTitle: 'Core Review Test',
+          chapterId: 'chapter-1',
+          chapterNumber: 1,
+          chapterTitle: 'Basics of Imaging',
+          questionNumber: '1a',
+          order: 1,
+          sortOrder: 1,
+          prompt: 'Multipart part A?',
+          choices: {'A': 'Option A', 'B': 'Option B'},
+          correctChoice: 'A',
+          explanation: 'Shared explanation.',
+          references: [],
+          imageAssets: [],
+          stemGroup: 'stem-mp',
+        ),
+        BookQuestion(
+          id: 'mp-1b',
+          bookId: 'book-1',
+          bookTitle: 'Core Review Test',
+          chapterId: 'chapter-1',
+          chapterNumber: 1,
+          chapterTitle: 'Basics of Imaging',
+          questionNumber: '1b',
+          order: 2,
+          sortOrder: 2,
+          prompt: 'Multipart part B?',
+          choices: {'A': 'Option A', 'B': 'Option B'},
+          correctChoice: 'B',
+          explanation: 'Shared explanation.',
+          references: [],
+          imageAssets: [],
+          stemGroup: 'stem-mp',
+        ),
+      ];
+
+      final controller = QuestionController(
+        questions: questions,
+        progressRepository: repository,
+        initialProgress: StudyProgress.empty,
+        initialIndex: 0,
+      );
+
+      expect(controller.shouldUseNextPartAction, isTrue);
+
+      controller.selectChoice('A');
+      await controller.submitCurrentAnswer();
+
+      expect(controller.currentIndex, 0);
+      expect(controller.currentQuestion.id, 'mp-1a');
+
+      final loaded = await repository.loadProgress();
+      expect(loaded.answers['mp-1a']?.selectedChoice, 'A');
+      expect(loaded.answers['mp-1a']?.isRevealed, isFalse);
+      expect(loaded.lastVisitedQuestionId, 'mp-1a');
+    },
+  );
+
+  test(
+    'QuestionController reveals multipart explanations after all parts answer',
+    () async {
+      final repository = ProgressRepository(store: store);
+      final questions = const [
+        BookQuestion(
+          id: 'mp-1a',
+          bookId: 'book-1',
+          bookTitle: 'Core Review Test',
+          chapterId: 'chapter-1',
+          chapterNumber: 1,
+          chapterTitle: 'Basics of Imaging',
+          questionNumber: '1a',
+          order: 1,
+          sortOrder: 1,
+          prompt: 'Multipart part A?',
+          choices: {'A': 'Option A', 'B': 'Option B'},
+          correctChoice: 'A',
+          explanation: 'Shared explanation.',
+          references: [],
+          imageAssets: [],
+          stemGroup: 'stem-mp',
+        ),
+        BookQuestion(
+          id: 'mp-1b',
+          bookId: 'book-1',
+          bookTitle: 'Core Review Test',
+          chapterId: 'chapter-1',
+          chapterNumber: 1,
+          chapterTitle: 'Basics of Imaging',
+          questionNumber: '1b',
+          order: 2,
+          sortOrder: 2,
+          prompt: 'Multipart part B?',
+          choices: {'A': 'Option A', 'B': 'Option B'},
+          correctChoice: 'B',
+          explanation: 'Shared explanation.',
+          references: [],
+          imageAssets: [],
+          stemGroup: 'stem-mp',
+        ),
+      ];
+
+      final controller = QuestionController(
+        questions: questions,
+        progressRepository: repository,
+        initialProgress: StudyProgress.empty,
+        initialIndex: 0,
+      );
+
+      expect(controller.currentMultipartQuestions.map((q) => q.id), [
+        'mp-1a',
+        'mp-1b',
+      ]);
+
+      controller.selectChoiceFor(questions[0], 'A');
+      await controller.submitAnswerFor(questions[0]);
+
+      expect(controller.explanationsVisibleFor(questions[0]), isFalse);
+      expect(controller.explanationsVisibleFor(questions[1]), isFalse);
+
+      controller.selectChoiceFor(questions[1], 'B');
+      await controller.submitAnswerFor(questions[1]);
+
+      expect(controller.explanationsVisibleFor(questions[0]), isTrue);
+      expect(controller.explanationsVisibleFor(questions[1]), isTrue);
+
+      final loaded = await repository.loadProgress();
+      expect(loaded.answers['mp-1a']?.isRevealed, isTrue);
+      expect(loaded.answers['mp-1b']?.isRevealed, isTrue);
+    },
+  );
 }

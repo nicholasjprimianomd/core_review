@@ -38,6 +38,7 @@ class QuestionController extends ChangeNotifier {
   StudyProgress _progress;
   int _currentIndex;
   String? _draftChoice;
+  final Map<String, String> _draftChoices = <String, String>{};
   final Map<String, Map<String, String>> _draftItemSelections =
       <String, Map<String, String>>{};
   bool _isSaving = false;
@@ -48,6 +49,9 @@ class QuestionController extends ChangeNotifier {
   StudyProgress get progress => _progress;
 
   BookQuestion get currentQuestion => _questions[_currentIndex];
+
+  List<BookQuestion> get currentMultipartQuestions =>
+      _multipartGroupFor(currentQuestion);
 
   QuestionProgress? get currentQuestionProgress =>
       _progress.answers[currentQuestion.id];
@@ -60,6 +64,10 @@ class QuestionController extends ChangeNotifier {
   bool get explanationsVisibleForCurrent =>
       _deferredRevealsCompleted || hasRevealedCurrentAnswer;
 
+  bool explanationsVisibleFor(BookQuestion question) =>
+      _deferredRevealsCompleted ||
+      (questionProgressFor(question)?.isRevealed ?? false);
+
   int get currentIndex => _currentIndex;
 
   int get questionCount => _questions.length;
@@ -67,20 +75,30 @@ class QuestionController extends ChangeNotifier {
   double get completionFraction =>
       questionCount == 0 ? 0 : (_currentIndex + 1) / questionCount;
 
-  String? get selectedChoice =>
-      currentQuestionProgress?.selectedChoice ?? _draftChoice;
+  String? get selectedChoice => selectedChoiceFor(currentQuestion);
+
+  String? selectedChoiceFor(BookQuestion question) =>
+      questionProgressFor(question)?.selectedChoice ??
+      _draftChoiceFor(question);
 
   bool get hasSubmittedCurrentAnswer => currentQuestionProgress != null;
+
+  QuestionProgress? questionProgressFor(BookQuestion question) =>
+      _progress.answers[question.id];
 
   /// Current per-item selections for the active matching question.
   /// Returns the submitted selections when revealed, otherwise the in-progress
   /// draft (possibly empty). The keys are [MatchingItem.label]s.
   Map<String, String> get currentMatchingSelections {
     final question = currentQuestion;
+    return matchingSelectionsFor(question);
+  }
+
+  Map<String, String> matchingSelectionsFor(BookQuestion question) {
     if (!question.isMatching) {
       return const <String, String>{};
     }
-    final submitted = currentQuestionProgress?.itemSelections;
+    final submitted = questionProgressFor(question)?.itemSelections;
     if (submitted != null && submitted.isNotEmpty) {
       return Map<String, String>.unmodifiable(submitted);
     }
@@ -107,13 +125,17 @@ class QuestionController extends ChangeNotifier {
   }
 
   bool get canSubmit {
-    if (hasSubmittedCurrentAnswer || _isSaving) {
+    return canSubmitQuestion(currentQuestion);
+  }
+
+  bool canSubmitQuestion(BookQuestion question) {
+    if (questionProgressFor(question) != null || _isSaving) {
       return false;
     }
-    if (currentQuestion.isMatching) {
-      return _matchingDraftComplete(currentQuestion);
+    if (question.isMatching) {
+      return _matchingDraftComplete(question);
     }
-    return _draftChoice?.isNotEmpty ?? false;
+    return _draftChoiceFor(question)?.isNotEmpty ?? false;
   }
 
   bool get isCurrentQuestionMultipart =>
@@ -147,31 +169,54 @@ class QuestionController extends ChangeNotifier {
 
   bool get canGoNext => _currentIndex < _questions.length - 1;
 
+  bool get canGoPreviousGroup {
+    final group = currentMultipartQuestions;
+    final firstIndex = _questions.indexWhere((q) => q.id == group.first.id);
+    return firstIndex > 0;
+  }
+
+  bool get canGoNextGroup {
+    final group = currentMultipartQuestions;
+    final lastIndex = _questions.indexWhere((q) => q.id == group.last.id);
+    return lastIndex >= 0 && lastIndex < _questions.length - 1;
+  }
+
   bool get isSaving => _isSaving;
 
   bool get canUndoCurrentAnswer =>
       !readOnlyAfterExam && !_isSaving && hasSubmittedCurrentAnswer;
 
+  bool canUndoQuestion(BookQuestion question) =>
+      !readOnlyAfterExam && !_isSaving && questionProgressFor(question) != null;
+
   void selectChoice(String choice) {
-    if (readOnlyAfterExam) {
+    selectChoiceFor(currentQuestion, choice);
+  }
+
+  void selectChoiceFor(BookQuestion question, String choice) {
+    if (readOnlyAfterExam || questionProgressFor(question) != null) {
       return;
     }
-    if (hasSubmittedCurrentAnswer) {
-      return;
-    }
-    _draftChoice = choice;
+    _setDraftChoiceFor(question, choice);
     notifyListeners();
   }
 
   /// Set the choice letter selected for a single matching-question item.
   void selectMatchingChoice(String itemLabel, String choiceKey) {
+    selectMatchingChoiceFor(currentQuestion, itemLabel, choiceKey);
+  }
+
+  void selectMatchingChoiceFor(
+    BookQuestion question,
+    String itemLabel,
+    String choiceKey,
+  ) {
     if (readOnlyAfterExam) {
       return;
     }
-    if (hasSubmittedCurrentAnswer) {
+    if (questionProgressFor(question) != null) {
       return;
     }
-    final question = currentQuestion;
     if (!question.isMatching) {
       return;
     }
@@ -190,10 +235,13 @@ class QuestionController extends ChangeNotifier {
   }
 
   Future<void> undoCurrentAnswer() async {
-    if (!canUndoCurrentAnswer) {
+    await undoQuestion(currentQuestion);
+  }
+
+  Future<void> undoQuestion(BookQuestion question) async {
+    if (!canUndoQuestion(question)) {
       return;
     }
-    final question = currentQuestion;
     final existing = _progress.answers[question.id];
     if (existing == null) {
       return;
@@ -202,17 +250,18 @@ class QuestionController extends ChangeNotifier {
     if (question.isMatching) {
       final selections = existing.itemSelections;
       if (selections != null && selections.isNotEmpty) {
-        _draftItemSelections[question.id] = Map<String, String>.from(selections);
+        _draftItemSelections[question.id] = Map<String, String>.from(
+          selections,
+        );
       } else {
         _draftItemSelections.remove(question.id);
       }
     } else {
-      _draftChoice = existing.selectedChoice;
+      _setDraftChoiceFor(question, existing.selectedChoice);
     }
 
-    final updatedAnswers =
-        Map<String, QuestionProgress>.from(_progress.answers)
-          ..remove(question.id);
+    final updatedAnswers = Map<String, QuestionProgress>.from(_progress.answers)
+      ..remove(question.id);
     _progress = _progress.copyWith(
       answers: updatedAnswers,
       lastVisitedQuestionId: question.id,
@@ -236,12 +285,32 @@ class QuestionController extends ChangeNotifier {
       return;
     }
 
-    if (shouldUseNextPartAction) {
-      await submitCurrentPartAndAdvance();
+    await submitAnswerFor(currentQuestion);
+  }
+
+  Future<void> submitAnswerFor(BookQuestion question) async {
+    if (readOnlyAfterExam || !canSubmitQuestion(question)) {
       return;
     }
 
-    await _saveCurrentAnswer(revealAnswer: !deferRevealUntilExamEnd);
+    final group = _multipartGroupFor(question);
+    final isMultipart = group.length > 1;
+    final revealAnswer = !deferRevealUntilExamEnd && !isMultipart;
+    await _saveAnswerForQuestion(
+      question: question,
+      revealAnswer: revealAnswer,
+    );
+
+    if (deferRevealUntilExamEnd || !isMultipart) {
+      return;
+    }
+
+    final allGroupPartsAnswered = group.every(
+      (groupQuestion) => _progress.answers.containsKey(groupQuestion.id),
+    );
+    if (allGroupPartsAnswered) {
+      await _revealMultipartGroup(question);
+    }
   }
 
   Future<void> submitCurrentPartAndAdvance() async {
@@ -252,24 +321,25 @@ class QuestionController extends ChangeNotifier {
 
     if (readOnlyAfterExam) {
       _currentIndex = nextIndex;
-      _draftChoice = null;
+      _clearActiveDraftChoice();
       notifyListeners();
       return;
     }
 
     if (hasSubmittedCurrentAnswer) {
       _currentIndex = nextIndex;
-      _draftChoice = null;
+      _clearActiveDraftChoice();
       _syncLastVisitedQuestion();
       notifyListeners();
       return;
     }
 
-    if (!canSubmit) {
+    if (!canSubmitQuestion(currentQuestion)) {
       return;
     }
 
-    await _saveCurrentAnswer(
+    await _saveAnswerForQuestion(
+      question: currentQuestion,
       revealAnswer: false,
       nextIndexAfterSave: nextIndex,
     );
@@ -284,7 +354,9 @@ class QuestionController extends ChangeNotifier {
     }
 
     final now = DateTime.now();
-    final updatedAnswers = Map<String, QuestionProgress>.from(_progress.answers);
+    final updatedAnswers = Map<String, QuestionProgress>.from(
+      _progress.answers,
+    );
     for (final question in _questions) {
       final existing = updatedAnswers[question.id];
       if (existing == null || existing.isRevealed) {
@@ -311,7 +383,7 @@ class QuestionController extends ChangeNotifier {
         return;
       }
       _currentIndex -= 1;
-      _draftChoice = null;
+      _clearActiveDraftChoice();
       notifyListeners();
       return;
     }
@@ -319,7 +391,7 @@ class QuestionController extends ChangeNotifier {
       return;
     }
     _currentIndex -= 1;
-    _draftChoice = null;
+    _clearActiveDraftChoice();
     _syncLastVisitedQuestion();
     notifyListeners();
   }
@@ -329,11 +401,31 @@ class QuestionController extends ChangeNotifier {
       return;
     }
     _currentIndex += 1;
-    _draftChoice = null;
+    _clearActiveDraftChoice();
     if (!readOnlyAfterExam) {
       _syncLastVisitedQuestion();
     }
     notifyListeners();
+  }
+
+  void goToPreviousGroup() {
+    if (!canGoPreviousGroup) {
+      return;
+    }
+    final group = currentMultipartQuestions;
+    final firstIndex = _questions.indexWhere((q) => q.id == group.first.id);
+    final target = (firstIndex - 1).clamp(0, _questions.length - 1);
+    jumpToIndex(target);
+  }
+
+  void goToNextGroup() {
+    if (!canGoNextGroup) {
+      return;
+    }
+    final group = currentMultipartQuestions;
+    final lastIndex = _questions.indexWhere((q) => q.id == group.last.id);
+    final target = (lastIndex + 1).clamp(0, _questions.length - 1);
+    jumpToIndex(target);
   }
 
   void jumpToIndex(int index) {
@@ -341,7 +433,7 @@ class QuestionController extends ChangeNotifier {
       return;
     }
     _currentIndex = index;
-    _draftChoice = null;
+    _clearActiveDraftChoice();
     if (!readOnlyAfterExam) {
       _syncLastVisitedQuestion();
     }
@@ -349,9 +441,7 @@ class QuestionController extends ChangeNotifier {
   }
 
   void _syncLastVisitedQuestion() {
-    _progress = _progress.copyWith(
-      lastVisitedQuestionId: currentQuestion.id,
-    );
+    _progress = _progress.copyWith(lastVisitedQuestionId: currentQuestion.id);
     _publishProgress();
     unawaited(_progressRepository.saveProgress(_progress, syncToCloud: false));
   }
@@ -360,11 +450,11 @@ class QuestionController extends ChangeNotifier {
     onProgressChanged?.call(_progress);
   }
 
-  Future<void> _saveCurrentAnswer({
+  Future<void> _saveAnswerForQuestion({
+    required BookQuestion question,
     required bool revealAnswer,
     int? nextIndexAfterSave,
   }) async {
-    final question = currentQuestion;
     final answeredAt = DateTime.now();
     final revealedAt = revealAnswer ? answeredAt : null;
 
@@ -384,7 +474,7 @@ class QuestionController extends ChangeNotifier {
         itemSelections: draft,
       );
     } else {
-      final choice = _draftChoice!;
+      final choice = _draftChoiceFor(question)!;
       questionProgress = QuestionProgress(
         selectedChoice: choice,
         isCorrect: choice == question.correctChoice,
@@ -418,10 +508,49 @@ class QuestionController extends ChangeNotifier {
     _isSaving = false;
     if (nextIndexAfterSave != null) {
       _currentIndex = nextIndexAfterSave;
-      _draftChoice = null;
+      _clearActiveDraftChoice();
       _syncLastVisitedQuestion();
     }
     notifyListeners();
+  }
+
+  Future<void> _revealMultipartGroup(BookQuestion question) async {
+    final now = DateTime.now();
+    final updatedAnswers = Map<String, QuestionProgress>.from(
+      _progress.answers,
+    );
+    _markStemGroupAsRevealed(
+      question: question,
+      answers: updatedAnswers,
+      revealedAt: now,
+    );
+    _progress = _progress.copyWith(answers: updatedAnswers, touch: true);
+    _publishProgress();
+    _isSaving = true;
+    notifyListeners();
+
+    await _progressRepository.saveProgress(_progress);
+
+    _isSaving = false;
+    notifyListeners();
+  }
+
+  String? _draftChoiceFor(BookQuestion question) {
+    if (question.id == currentQuestion.id) {
+      return _draftChoice ?? _draftChoices[question.id];
+    }
+    return _draftChoices[question.id];
+  }
+
+  void _setDraftChoiceFor(BookQuestion question, String choice) {
+    _draftChoices[question.id] = choice;
+    if (question.id == currentQuestion.id) {
+      _draftChoice = choice;
+    }
+  }
+
+  void _clearActiveDraftChoice() {
+    _draftChoice = _draftChoices[currentQuestion.id];
   }
 
   void _markStemGroupAsRevealed({

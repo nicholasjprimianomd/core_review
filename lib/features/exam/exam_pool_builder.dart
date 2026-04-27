@@ -71,16 +71,10 @@ bool _passesCompletionFilter(
 /// number (e.g. "the patient in Question 14").
 ///
 /// Otherwise it falls back to [multipartStemKey], preserving existing behavior
-/// for true multipart rows (e.g. 7a/7b) without affecting the quiz UI's image
-/// merging and multipart navigation, which continue to key off
-/// [multipartStemKey].
+/// for true multipart rows (e.g. 7a/7b). The quiz UI uses the same helper so
+/// custom exams and study sessions render the same dependent block on one page.
 String examBlockKey(BookQuestion question) {
-  final chain = question.examChain?.trim();
-  if (chain != null && chain.isNotEmpty) {
-    final sec = question.sectionId ?? '';
-    return '${question.bookId}::${question.chapterId}::$sec::chain:$chain';
-  }
-  return multipartStemKey(question);
+  return dependentQuestionGroupKey(question);
 }
 
 /// Full exam blocks for [content], grouped by [examBlockKey].

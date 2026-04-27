@@ -421,4 +421,72 @@ void main() {
       expect(loaded.answers['mp-1b']?.isRevealed, isTrue);
     },
   );
+
+  test(
+    'QuestionController groups examChain parts with different stems on one page',
+    () async {
+      final repository = ProgressRepository(store: store);
+      final questions = const [
+        BookQuestion(
+          id: 'chain-1',
+          bookId: 'book-1',
+          bookTitle: 'Core Review Test',
+          chapterId: 'chapter-1',
+          chapterNumber: 1,
+          chapterTitle: 'Basics of Imaging',
+          questionNumber: '14',
+          order: 14,
+          sortOrder: 14,
+          prompt: 'Initial case question?',
+          choices: {'A': 'Option A', 'B': 'Option B'},
+          correctChoice: 'A',
+          explanation: 'First explanation.',
+          references: [],
+          imageAssets: [],
+          stemGroup: '14',
+          examChain: 'case-14',
+        ),
+        BookQuestion(
+          id: 'chain-2',
+          bookId: 'book-1',
+          bookTitle: 'Core Review Test',
+          chapterId: 'chapter-1',
+          chapterNumber: 1,
+          chapterTitle: 'Basics of Imaging',
+          questionNumber: '15',
+          order: 15,
+          sortOrder: 15,
+          prompt: 'Follow-up for the patient in Question 14?',
+          choices: {'A': 'Option A', 'B': 'Option B'},
+          correctChoice: 'B',
+          explanation: 'Second explanation.',
+          references: [],
+          imageAssets: [],
+          stemGroup: '15',
+          examChain: 'case-14',
+        ),
+      ];
+
+      final controller = QuestionController(
+        questions: questions,
+        progressRepository: repository,
+        initialProgress: StudyProgress.empty,
+        initialIndex: 0,
+      );
+
+      expect(controller.currentMultipartQuestions.map((q) => q.id), [
+        'chain-1',
+        'chain-2',
+      ]);
+
+      controller.selectChoiceFor(questions[0], 'A');
+      await controller.submitAnswerFor(questions[0]);
+      controller.selectChoiceFor(questions[1], 'B');
+      await controller.submitAnswerFor(questions[1]);
+
+      expect(controller.currentIndex, 0);
+      expect(controller.explanationsVisibleFor(questions[0]), isTrue);
+      expect(controller.explanationsVisibleFor(questions[1]), isTrue);
+    },
+  );
 }

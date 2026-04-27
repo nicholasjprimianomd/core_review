@@ -120,10 +120,11 @@ class BookContent {
   /// Same multipart stem bucket as [multipartStemKey] (shared case / 7a–7b rows).
   List<BookQuestion> stemGroupMembers(BookQuestion question) {
     final key = multipartStemKey(question);
-    final members = questions
-        .where((q) => multipartStemKey(q) == key)
-        .toList(growable: false)
-      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final members =
+        questions
+            .where((q) => multipartStemKey(q) == key)
+            .toList(growable: false)
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     return members;
   }
 
@@ -655,4 +656,19 @@ class BookQuestion {
 String multipartStemKey(BookQuestion question) {
   final sec = question.sectionId ?? '';
   return '${question.bookId}::${question.chapterId}::$sec::${question.stemGroup}';
+}
+
+/// Groups all dependent parts that should render together in the quiz UI.
+///
+/// [BookQuestion.examChain] covers multi-question clinical cases that reference
+/// earlier questions by number, even when extraction gave the parts different
+/// [BookQuestion.stemGroup] values. Otherwise, fall back to the shared stem key
+/// used for ordinary 7a/7b-style multipart rows.
+String dependentQuestionGroupKey(BookQuestion question) {
+  final chain = question.examChain?.trim();
+  if (chain != null && chain.isNotEmpty) {
+    final sec = question.sectionId ?? '';
+    return '${question.bookId}::${question.chapterId}::$sec::chain:$chain';
+  }
+  return multipartStemKey(question);
 }

@@ -760,7 +760,7 @@ class _CoreReviewAppState extends State<CoreReviewApp> {
           data: media.copyWith(
             textScaler: TextScaler.linear(_textScale),
           ),
-          child: child ?? const SizedBox.shrink(),
+          child: SelectionArea(child: child ?? const SizedBox.shrink()),
         );
       },
       theme: _buildLightTheme(),

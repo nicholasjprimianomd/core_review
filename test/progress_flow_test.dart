@@ -489,4 +489,62 @@ void main() {
       expect(controller.explanationsVisibleFor(questions[1]), isTrue);
     },
   );
+
+  test(
+    'QuestionController infers previous-question dependency without examChain',
+    () async {
+      final repository = ProgressRepository(store: store);
+      final questions = const [
+        BookQuestion(
+          id: 'case-10',
+          bookId: 'book-1',
+          bookTitle: 'Core Review Test',
+          chapterId: 'chapter-1',
+          chapterNumber: 1,
+          chapterTitle: 'Basics of Imaging',
+          questionNumber: '10',
+          order: 10,
+          sortOrder: 10,
+          prompt: 'Initial case question?',
+          choices: {'A': 'Option A', 'B': 'Option B'},
+          correctChoice: 'A',
+          explanation: 'First explanation.',
+          references: [],
+          imageAssets: [],
+          stemGroup: '10',
+        ),
+        BookQuestion(
+          id: 'case-11',
+          bookId: 'book-1',
+          bookTitle: 'Core Review Test',
+          chapterId: 'chapter-1',
+          chapterNumber: 1,
+          chapterTitle: 'Basics of Imaging',
+          questionNumber: '11',
+          order: 11,
+          sortOrder: 11,
+          prompt:
+              'Based on the image from the previous question, what is next?',
+          choices: {'A': 'Option A', 'B': 'Option B'},
+          correctChoice: 'B',
+          explanation: 'Second explanation.',
+          references: [],
+          imageAssets: [],
+          stemGroup: '11',
+        ),
+      ];
+
+      final controller = QuestionController(
+        questions: questions,
+        progressRepository: repository,
+        initialProgress: StudyProgress.empty,
+        initialIndex: 0,
+      );
+
+      expect(controller.currentMultipartQuestions.map((q) => q.id), [
+        'case-10',
+        'case-11',
+      ]);
+    },
+  );
 }

@@ -672,3 +672,128 @@ String dependentQuestionGroupKey(BookQuestion question) {
   }
   return multipartStemKey(question);
 }
+
+/// Computes dependent-question groups for a concrete question list.
+///
+/// This starts with explicit metadata ([examChain] and shared [stemGroup]), then
+/// adds conservative text-based links for extracted items that say they depend
+/// on another local question but were not tagged with [examChain].
+Map<String, String> dependentQuestionGroupKeysForQuestions(
+  Iterable<BookQuestion> questions,
+) {
+  final list = questions.toList(growable: false);
+  if (list.isEmpty) {
+    return const <String, String>{};
+  }
+
+  final parent = <String, String>{
+    for (final question in list) question.id: question.id,
+  };
+
+  String find(String id) {
+    final current = parent[id] ?? id;
+    if (current == id) {
+      return id;
+    }
+    final root = find(current);
+    parent[id] = root;
+    return root;
+  }
+
+  void union(String left, String right) {
+    if (!parent.containsKey(left) || !parent.containsKey(right)) {
+      return;
+    }
+    final leftRoot = find(left);
+    final rightRoot = find(right);
+    if (leftRoot == rightRoot) {
+      return;
+    }
+    parent[rightRoot] = leftRoot;
+  }
+
+  final explicitGroups = <String, List<BookQuestion>>{};
+  for (final question in list) {
+    explicitGroups
+        .putIfAbsent(
+          dependentQuestionGroupKey(question),
+          () => <BookQuestion>[],
+        )
+        .add(question);
+  }
+  for (final group in explicitGroups.values) {
+    for (var i = 1; i < group.length; i++) {
+      union(group.first.id, group[i].id);
+    }
+  }
+
+  final byContext = <String, List<BookQuestion>>{};
+  final byContextAndNumber = <String, BookQuestion>{};
+  for (final question in list) {
+    final context = _dependentQuestionContextKey(question);
+    byContext.putIfAbsent(context, () => <BookQuestion>[]).add(question);
+    byContextAndNumber['$context::${question.questionNumber.trim().toLowerCase()}'] =
+        question;
+  }
+
+  for (final entry in byContext.entries) {
+    final contextQuestions = entry.value
+      ..sort((left, right) => left.sortOrder.compareTo(right.sortOrder));
+    for (var i = 0; i < contextQuestions.length; i++) {
+      final question = contextQuestions[i];
+      for (final referencedNumber in _referencedQuestionNumbers(
+        question.prompt,
+      )) {
+        final referenced =
+            byContextAndNumber['${entry.key}::${referencedNumber.toLowerCase()}'];
+        if (referenced != null) {
+          union(question.id, referenced.id);
+        }
+      }
+
+      if (i > 0 && _referencesPreviousQuestion(question.prompt)) {
+        union(question.id, contextQuestions[i - 1].id);
+      }
+    }
+  }
+
+  final rootToKey = <String, String>{};
+  final result = <String, String>{};
+  for (final question in list) {
+    final root = find(question.id);
+    result[question.id] = rootToKey.putIfAbsent(root, () {
+      final rootQuestion = list.firstWhere((candidate) => candidate.id == root);
+      return dependentQuestionGroupKey(rootQuestion);
+    });
+  }
+  return Map<String, String>.unmodifiable(result);
+}
+
+String _dependentQuestionContextKey(BookQuestion question) {
+  final sec = question.sectionId ?? '';
+  return '${question.bookId}::${question.chapterId}::$sec';
+}
+
+Iterable<String> _referencedQuestionNumbers(String prompt) sync* {
+  final references = RegExp(
+    r'\bQuestions?\s+((?:\d+[A-Za-z]?\s*(?:,|and)?\s*)+)',
+    caseSensitive: false,
+  );
+  final numbers = RegExp(r'\d+[A-Za-z]?');
+  for (final match in references.allMatches(prompt)) {
+    final raw = match.group(1);
+    if (raw == null) {
+      continue;
+    }
+    for (final numberMatch in numbers.allMatches(raw)) {
+      yield numberMatch.group(0)!;
+    }
+  }
+}
+
+bool _referencesPreviousQuestion(String prompt) {
+  return RegExp(
+    r'\b(?:previous|prior)\s+(?:question|case|example)\b',
+    caseSensitive: false,
+  ).hasMatch(prompt);
+}

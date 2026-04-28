@@ -79,9 +79,10 @@ String examBlockKey(BookQuestion question) {
 
 /// Full exam blocks for [content], grouped by [examBlockKey].
 Map<String, List<BookQuestion>> fullStemsByKey(BookContent content) {
+  final groupKeys = dependentQuestionGroupKeysForQuestions(content.questions);
   final map = <String, List<BookQuestion>>{};
   for (final q in content.questions) {
-    map.putIfAbsent(examBlockKey(q), () => []).add(q);
+    map.putIfAbsent(groupKeys[q.id] ?? examBlockKey(q), () => []).add(q);
   }
   for (final list in map.values) {
     list.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));

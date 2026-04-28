@@ -6,8 +6,12 @@ import 'package:core_review/models/book_models.dart';
 import 'package:core_review/models/progress_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-BookContent _content(List<BookQuestion> questions, {List<BookChapter>? chapters}) {
-  final chapterList = chapters ??
+BookContent _content(
+  List<BookQuestion> questions, {
+  List<BookChapter>? chapters,
+}) {
+  final chapterList =
+      chapters ??
       [
         BookChapter(
           id: 'c1',
@@ -168,10 +172,7 @@ void main() {
   });
 
   test('unansweredOnly excludes answered', () {
-    final questions = [
-      _withBookId(_q1a, 'b1'),
-      _withBookId(_q2, 'b1'),
-    ];
+    final questions = [_withBookId(_q1a, 'b1'), _withBookId(_q2, 'b1')];
     final content = _content(questions);
     final selection = ExamScopeSelection(
       bookIds: {'b1'},
@@ -202,74 +203,72 @@ void main() {
   test(
     'multipart key is chapter-scoped: other chapter with same stemGroup does not merge',
     () {
-    final qOther = _withBookId(
-      BookQuestion(
-        id: 'm-1-c',
-        bookId: '',
-        bookTitle: 'B',
-        chapterId: 'c2',
-        chapterNumber: 2,
-        chapterTitle: 'Ch2',
-        questionNumber: '1',
-        order: 1,
-        sortOrder: 1,
-        prompt: 'other ch',
-        choices: const {'A': 'a', 'B': 'b'},
-        correctChoice: 'A',
-        explanation: '',
-        references: const [],
-        imageAssets: const [],
-        stemGroup: 'stem1',
-      ),
-      'b1',
-    );
-    final qA = _withBookId(_q1a, 'b1');
-    final questions = [qA, qOther];
-    final content = _content(
-      questions,
-      chapters: [
-        BookChapter(
-          id: 'c1',
-          bookId: 'b1',
+      final qOther = _withBookId(
+        BookQuestion(
+          id: 'm-1-c',
+          bookId: '',
           bookTitle: 'B',
-          number: 1,
-          title: 'Ch',
-          questionIds: [qA.id],
-          sections: const [],
+          chapterId: 'c2',
+          chapterNumber: 2,
+          chapterTitle: 'Ch2',
+          questionNumber: '1',
+          order: 1,
+          sortOrder: 1,
+          prompt: 'other ch',
+          choices: const {'A': 'a', 'B': 'b'},
+          correctChoice: 'A',
+          explanation: '',
+          references: const [],
+          imageAssets: const [],
+          stemGroup: 'stem1',
         ),
-        BookChapter(
-          id: 'c2',
-          bookId: 'b1',
-          bookTitle: 'B',
-          number: 2,
-          title: 'Ch2',
-          questionIds: [qOther.id],
-          sections: const [],
-        ),
-      ],
-    );
-    final selection = ExamScopeSelection(
-      bookIds: {},
-      chapterIds: {'c1'},
-      sectionIds: {},
-    );
-    final out = buildExamQuestionList(
-      content: content,
-      selection: selection,
-      completionFilter: CompletionFilter.allPool,
-      progress: StudyProgress.empty,
-      questionCount: 10,
-      random: Random(2),
-    );
-    // c1-only scope: part in c1 is its own stem group; c2 part is unrelated.
-    expect(out.map((q) => q.id).toList(), [qA.id]);
-  });
+        'b1',
+      );
+      final qA = _withBookId(_q1a, 'b1');
+      final questions = [qA, qOther];
+      final content = _content(
+        questions,
+        chapters: [
+          BookChapter(
+            id: 'c1',
+            bookId: 'b1',
+            bookTitle: 'B',
+            number: 1,
+            title: 'Ch',
+            questionIds: [qA.id],
+            sections: const [],
+          ),
+          BookChapter(
+            id: 'c2',
+            bookId: 'b1',
+            bookTitle: 'B',
+            number: 2,
+            title: 'Ch2',
+            questionIds: [qOther.id],
+            sections: const [],
+          ),
+        ],
+      );
+      final selection = ExamScopeSelection(
+        bookIds: {},
+        chapterIds: {'c1'},
+        sectionIds: {},
+      );
+      final out = buildExamQuestionList(
+        content: content,
+        selection: selection,
+        completionFilter: CompletionFilter.allPool,
+        progress: StudyProgress.empty,
+        questionCount: 10,
+        random: Random(2),
+      );
+      // c1-only scope: part in c1 is its own stem group; c2 part is unrelated.
+      expect(out.map((q) => q.id).toList(), [qA.id]);
+    },
+  );
 
   test('multipart parts in same chapter stay adjacent in exam order', () {
-    final questions = [
-      _withBookId(_q1b, 'b1'),
-      _withBookId(_q1a, 'b1'),
-    ];
+    final questions = [_withBookId(_q1b, 'b1'), _withBookId(_q1a, 'b1')];
     final content = _content(questions);
     final selection = ExamScopeSelection(
       bookIds: {'b1'},
@@ -292,78 +291,85 @@ void main() {
   test(
     'examChain keeps dependent questions with different stemGroups together',
     () {
-    BookQuestion chained(String id, int n, String chain) {
-      return BookQuestion(
-        id: id,
-        bookId: 'b1',
-        bookTitle: 'B',
-        chapterId: 'c1',
-        chapterNumber: 1,
-        chapterTitle: 'Ch',
-        questionNumber: '$n',
-        order: n,
-        sortOrder: n,
-        prompt: 'p$n',
-        choices: const {'A': 'a', 'B': 'b'},
-        correctChoice: 'A',
-        explanation: '',
-        references: const [],
-        imageAssets: const [],
-        stemGroup: '$n',
-        examChain: chain,
-      );
-    }
-
-    final qDistractor1 = _withBookId(_q1a, 'b1');
-    final qDistractor2 = _withBookId(_q2, 'b1');
-    final qChainA = chained('case-14', 14, 'ch1-seq-14');
-    final qChainB = chained('case-15', 15, 'ch1-seq-14');
-    final qChainC = chained('case-16', 16, 'ch1-seq-14');
-    final qChainD = chained('case-17', 17, 'ch1-seq-14');
-
-    final questions = [
-      qDistractor1,
-      _withBookId(_q1b, 'b1'),
-      qDistractor2,
-      qChainA,
-      qChainB,
-      qChainC,
-      qChainD,
-    ];
-    final content = _content(questions);
-    final selection = ExamScopeSelection(
-      bookIds: {'b1'},
-      chapterIds: {},
-      sectionIds: {},
-    );
-
-    for (var seed = 0; seed < 25; seed++) {
-      final out = buildExamQuestionList(
-        content: content,
-        selection: selection,
-        completionFilter: CompletionFilter.allPool,
-        progress: StudyProgress.empty,
-        questionCount: 100,
-        random: Random(seed),
-      );
-      final chainIds = ['case-14', 'case-15', 'case-16', 'case-17'];
-      final positions = chainIds
-          .map((id) => out.indexWhere((q) => q.id == id))
-          .toList();
-      expect(positions.every((i) => i >= 0), isTrue,
-          reason: 'chain questions must all be present (seed=$seed)');
-      final sorted = [...positions]..sort();
-      for (var i = 1; i < sorted.length; i++) {
-        expect(sorted[i], sorted[i - 1] + 1,
-            reason: 'chain questions must be contiguous (seed=$seed)');
+      BookQuestion chained(String id, int n, String chain) {
+        return BookQuestion(
+          id: id,
+          bookId: 'b1',
+          bookTitle: 'B',
+          chapterId: 'c1',
+          chapterNumber: 1,
+          chapterTitle: 'Ch',
+          questionNumber: '$n',
+          order: n,
+          sortOrder: n,
+          prompt: 'p$n',
+          choices: const {'A': 'a', 'B': 'b'},
+          correctChoice: 'A',
+          explanation: '',
+          references: const [],
+          imageAssets: const [],
+          stemGroup: '$n',
+          examChain: chain,
+        );
       }
-      expect(
-        out.sublist(sorted.first, sorted.last + 1).map((q) => q.id).toList(),
-        chainIds,
-        reason: 'chain order must follow sortOrder (seed=$seed)',
+
+      final qDistractor1 = _withBookId(_q1a, 'b1');
+      final qDistractor2 = _withBookId(_q2, 'b1');
+      final qChainA = chained('case-14', 14, 'ch1-seq-14');
+      final qChainB = chained('case-15', 15, 'ch1-seq-14');
+      final qChainC = chained('case-16', 16, 'ch1-seq-14');
+      final qChainD = chained('case-17', 17, 'ch1-seq-14');
+
+      final questions = [
+        qDistractor1,
+        _withBookId(_q1b, 'b1'),
+        qDistractor2,
+        qChainA,
+        qChainB,
+        qChainC,
+        qChainD,
+      ];
+      final content = _content(questions);
+      final selection = ExamScopeSelection(
+        bookIds: {'b1'},
+        chapterIds: {},
+        sectionIds: {},
       );
-    }
-  });
+
+      for (var seed = 0; seed < 25; seed++) {
+        final out = buildExamQuestionList(
+          content: content,
+          selection: selection,
+          completionFilter: CompletionFilter.allPool,
+          progress: StudyProgress.empty,
+          questionCount: 100,
+          random: Random(seed),
+        );
+        final chainIds = ['case-14', 'case-15', 'case-16', 'case-17'];
+        final positions = chainIds
+            .map((id) => out.indexWhere((q) => q.id == id))
+            .toList();
+        expect(
+          positions.every((i) => i >= 0),
+          isTrue,
+          reason: 'chain questions must all be present (seed=$seed)',
+        );
+        final sorted = [...positions]..sort();
+        for (var i = 1; i < sorted.length; i++) {
+          expect(
+            sorted[i],
+            sorted[i - 1] + 1,
+            reason: 'chain questions must be contiguous (seed=$seed)',
+          );
+        }
+        expect(
+          out.sublist(sorted.first, sorted.last + 1).map((q) => q.id).toList(),
+          chainIds,
+          reason: 'chain order must follow sortOrder (seed=$seed)',
+        );
+      }
+    },
+  );
 
   test('examChain block is atomic under cap: all or none', () {
     BookQuestion chained(String id, int n) {
@@ -409,9 +415,74 @@ void main() {
       questionCount: 3,
       random: Random(0),
     );
-    final chainInOut =
-        out.where((q) => q.id.startsWith('c')).map((q) => q.id).toList();
-    expect(chainInOut.isEmpty || chainInOut.length == 4, isTrue,
-        reason: 'chain is all-or-nothing; got $chainInOut');
+    final chainInOut = out
+        .where((q) => q.id.startsWith('c'))
+        .map((q) => q.id)
+        .toList();
+    expect(
+      chainInOut.isEmpty || chainInOut.length == 4,
+      isTrue,
+      reason: 'chain is all-or-nothing; got $chainInOut',
+    );
+  });
+
+  test('inferred previous-question block stays atomic without examChain', () {
+    final q10 = BookQuestion(
+      id: 'q10',
+      bookId: 'b1',
+      bookTitle: 'B',
+      chapterId: 'c1',
+      chapterNumber: 1,
+      chapterTitle: 'Ch',
+      questionNumber: '10',
+      order: 10,
+      sortOrder: 10,
+      prompt: 'Initial case question.',
+      choices: const {'A': 'a', 'B': 'b'},
+      correctChoice: 'A',
+      explanation: '',
+      references: const [],
+      imageAssets: const [],
+      stemGroup: '10',
+    );
+    final q11 = BookQuestion(
+      id: 'q11',
+      bookId: 'b1',
+      bookTitle: 'B',
+      chapterId: 'c1',
+      chapterNumber: 1,
+      chapterTitle: 'Ch',
+      questionNumber: '11',
+      order: 11,
+      sortOrder: 11,
+      prompt: 'Based on the image from the previous question, what is next?',
+      choices: const {'A': 'a', 'B': 'b'},
+      correctChoice: 'B',
+      explanation: '',
+      references: const [],
+      imageAssets: const [],
+      stemGroup: '11',
+    );
+    final content = _content([q10, q11, _withBookId(_q2, 'b1')]);
+    final selection = ExamScopeSelection(
+      bookIds: {'b1'},
+      chapterIds: {},
+      sectionIds: {},
+    );
+
+    final out = buildExamQuestionList(
+      content: content,
+      selection: selection,
+      completionFilter: CompletionFilter.allPool,
+      progress: StudyProgress.empty,
+      questionCount: 2,
+      random: Random(0),
+    );
+
+    final inferredIds = out
+        .where((q) => q.id == 'q10' || q.id == 'q11')
+        .map((q) => q.id)
+        .toSet();
+    expect(inferredIds.isEmpty || inferredIds.length == 2, isTrue);
   });
 }

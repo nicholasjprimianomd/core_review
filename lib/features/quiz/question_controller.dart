@@ -16,6 +16,7 @@ class QuestionController extends ChangeNotifier {
     this.deferRevealUntilExamEnd = false,
     this.readOnlyAfterExam = false,
   }) : _questions = List<BookQuestion>.unmodifiable(questions),
+       _multipartGroupKeys = dependentQuestionGroupKeysForQuestions(questions),
        _progressRepository = progressRepository,
        _progress = initialProgress,
        _currentIndex = initialIndex.clamp(0, questions.length - 1) {
@@ -25,6 +26,7 @@ class QuestionController extends ChangeNotifier {
   }
 
   final List<BookQuestion> _questions;
+  final Map<String, String> _multipartGroupKeys;
   final ProgressRepository _progressRepository;
   final ValueChanged<StudyProgress>? onProgressChanged;
 
@@ -590,6 +592,7 @@ class QuestionController extends ChangeNotifier {
   }
 
   String _multipartGroupKey(BookQuestion question) {
-    return dependentQuestionGroupKey(question);
+    return _multipartGroupKeys[question.id] ??
+        dependentQuestionGroupKey(question);
   }
 }
